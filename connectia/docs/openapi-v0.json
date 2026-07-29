@@ -1,0 +1,84 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Connectia API",
+    "version": "0.1.0",
+    "description": "Esqueleto OpenAPI — sin try-it público (ADR-GAPS). Ampliar por módulo."
+  },
+  "servers": [{ "url": "http://localhost:4000/api" }],
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health",
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/auth/pre-login": {
+      "post": {
+        "summary": "Pre-login tenant",
+        "responses": { "200": { "description": "Métodos y branding" } }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "summary": "Login password o ID",
+        "responses": {
+          "200": { "description": "Tokens + user" },
+          "401": { "description": "Credenciales inválidas" },
+          "423": { "description": "Bloqueo temporal" }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "summary": "Rotar refresh",
+        "responses": { "200": { "description": "Nuevos tokens" } }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "summary": "Revocar sesión current|all",
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/auth/accept-terms": {
+      "post": {
+        "summary": "Aceptar términos vigentes",
+        "responses": { "200": { "description": "OK" } }
+      }
+    },
+    "/auth/legal/{tipo}": {
+      "get": {
+        "summary": "Obtener terms|privacy",
+        "parameters": [
+          { "name": "tipo", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "Documento" } }
+      }
+    },
+    "/auth/forgot-password": {
+      "post": {
+        "summary": "Pedir recuperación (anti-enumeración; envía mail si EMAIL_* configurado)",
+        "responses": {
+          "200": { "description": "Mensaje genérico" },
+          "500": { "description": "Fallo de envío de mail" }
+        }
+      }
+    },
+    "/auth/reset-password": {
+      "post": {
+        "summary": "Reset con token JWT purpose=reset",
+        "responses": {
+          "200": { "description": "OK" },
+          "400": { "description": "Token inválido" }
+        }
+      }
+    },
+    "/menu": {
+      "get": {
+        "summary": "Menú dinámico por canal",
+        "responses": { "200": { "description": "Items" } }
+      }
+    }
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "name": "connectia-backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "dev:watch": "node --watch server.js",
+    "seed": "node src/scripts/seed.js",
+    "seed:events": "node src/scripts/seedEvents.js",
+    "seed:events:arcor": "node src/scripts/seedEventsArcorRefresh.js",
+    "test": "node --test src/tests/**/*.test.js",
+    "free-port": "powershell -ExecutionPolicy Bypass -File ./kill-4000.ps1"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.9.5",
+    "morgan": "^1.10.0",
+    "multer": "^2.2.0",
+    "nodemailer": "^7.0.13",
+    "pdf-parse": "^2.4.5",
+    "pdfkit": "^0.19.1",
+    "web-push": "^3.6.7",
+    "xlsx": "^0.18.5"
+  }
+}

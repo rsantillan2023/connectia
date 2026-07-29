@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 72" role="img" aria-label="TheFork">
+  <title>TheFork</title>
+  <!-- Marca demo: verde hero TheFork (#00665E) + símbolo de energía compartida -->
+  <defs>
+    <style>
+      .wm { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-weight: 700; font-size: 42px; letter-spacing: -1.2px; }
+    </style>
+  </defs>
+  <g fill="#00665E">
+    <circle cx="36" cy="36" r="28"/>
+    <g fill="#FFFFFF" transform="translate(36 36)">
+      <rect x="-2.5" y="-16" width="5" height="32" rx="2.5"/>
+      <rect x="-16" y="-2.5" width="32" height="5" rx="2.5" transform="rotate(60)"/>
+      <rect x="-16" y="-2.5" width="32" height="5" rx="2.5" transform="rotate(-60)"/>
+    </g>
+    <text class="wm" x="78" y="50">thefork</text>
+  </g>
+</svg>

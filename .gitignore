@@ -1,0 +1,36 @@
+# Repos legacy (solo referencia local; no subir)
+sooft_newapp_lite_back/
+sooft_user_microservicios/
+yomob-admin/
+
+# Cursor / IDE
+.cursor/
+.vscode/
+*.swp
+*.swo
+
+# Dependencias y builds
+node_modules/
+dist/
+build/
+.vite/
+coverage/
+*.tsbuildinfo
+
+# Secretos y entorno local
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Logs y SO
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Docker / datos locales
+*.pid
+*.seed
+dump.rdb

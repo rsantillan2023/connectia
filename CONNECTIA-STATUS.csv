@@ -1,0 +1,534 @@
+﻿id;modulo;punto;capa;fase;tipo;estado_dev;estado_config;estado_global;notas
+E0.01;0. Fundación local (stack Hiryx);Scaffolding local Connectia (copiar stack Hiryx/Talent: Vue3+Vite+Pinia+Router+Tailwind | Node+Mongo);U A S;Epic 0 — Fundación;Fundación;desarrollado;configurado;cerrado;Ola0 cerrada 2026-07-27: proto connectia/ operativo
+E0.02;0. Fundación local (stack Hiryx);Estructura monorepo local: /frontend (U), /admin (A), /backend (S), /docs — sin tocar HIRYX-SAAS;—;Epic 0 — Fundación;Fundación;desarrollado;n/a;cerrado;Ola0 cerrada 2026-07-27: proto connectia/ operativo
+E0.03;0. Fundación local (stack Hiryx);README local: cómo levantar U/A/S + Mongo en Docker;—;Epic 0 — Fundación;Fundación;desarrollado;n/a;cerrado;Ola0 cerrada 2026-07-27: proto connectia/ operativo
+E0.04;0. Fundación local (stack Hiryx);Variables de entorno ejemplo (.env.example) y secrets locales;S;Epic 0 — Fundación;Fundación;desarrollado;configurado;cerrado;Ola0 cerrada 2026-07-27: proto connectia/ operativo
+E0.05;0. Fundación local (stack Hiryx);Conexión MongoDB + índices base multi-tenant (empId);S;Epic 0 — Fundación;Fundación;desarrollado;configurado;cerrado;Ola0 cerrada 2026-07-27: proto connectia/ operativo
+E0.06;0. Fundación local (stack Hiryx);Modelo Tenant/Empresa mínimo + seed tenant demo;S A;Epic 0 — Fundación;Fundación;desarrollado;configurado;cerrado;Ola0 cerrada 2026-07-27: proto connectia/ operativo
+E0.07;0. Fundación local (stack Hiryx);Modelo Usuario + roles/capabilities base;S;Epic 0 — Fundación;Fundación;desarrollado;configurado;cerrado;Ola0 cerrada 2026-07-27: proto connectia/ operativo
+E0.08;0. Fundación local (stack Hiryx);Middleware auth JWT access+refresh (ADR-GAPS §A);S;Epic 0 — Fundación;Fundación;desarrollado;configurado;cerrado;Ola0 cerrada 2026-07-27: proto connectia/ operativo
+E0.09;0. Fundación local (stack Hiryx);Shell PWA U: layout móvil + desktop companion + router guards;U;Epic 0 — Fundación;Fundación;desarrollado;configurado;cerrado;Ola0 cerrada 2026-07-27: proto connectia/ operativo
+E0.10;0. Fundación local (stack Hiryx);Shell Admin A: layout + guards por capability;A;Epic 0 — Fundación;Fundación;desarrollado;configurado;cerrado;Ola0 cerrada 2026-07-27: proto connectia/ operativo
+E0.11;0. Fundación local (stack Hiryx);Design tokens base Connectia (CSS variables) + tipografía default;U A;Epic 0 — Fundación;Fundación;desarrollado;n/a;cerrado;tokens CSS + data-theme light/dark
+E0.12;0. Fundación local (stack Hiryx);Service worker / manifest PWA mínimo;U;Epic 0 — Fundación;Fundación;desarrollado;n/a;cerrado;Ola0 cerrada 2026-07-27: proto connectia/ operativo
+E0.13;0. Fundación local (stack Hiryx);Capa API client (axios) + manejo 401 refresh;U A;Epic 0 — Fundación;Fundación;desarrollado;configurado;cerrado;Ola0 cerrada 2026-07-27: proto connectia/ operativo
+E0.14;0. Fundación local (stack Hiryx);Feature flags / capabilities por tenant (premisa anti-hardcode);S A;Epic 0 — Fundación;Fundación;desarrollado;configurado;cerrado;Ola0 cerrada 2026-07-27: proto connectia/ operativo
+E0.15;0. Fundación local (stack Hiryx);Menú dinámico stub + selector de funciones stub;U A S;Epic 0 — Fundación;Fundación;desarrollado;configurado;cerrado;Ola0 cerrada 2026-07-27: proto connectia/ operativo
+E0.16;0. Fundación local (stack Hiryx);Observabilidad local: request-id + logs estructurados;S;Epic 0 — Fundación;Fundación;desarrollado;n/a;cerrado;Ola0 cerrada 2026-07-27: proto connectia/ operativo
+E0.17;0. Fundación local (stack Hiryx);Script de progreso: contar estados en CONNECTIA-STATUS.csv;—;Epic 0 — Fundación;Fundación;desarrollado;n/a;cerrado;Ola0 cerrada 2026-07-27: proto connectia/ operativo
+E0.18;0. Fundación local (stack Hiryx);Checklist no-regresión: placeholders Claro/Grido/ECR/EPEC (sin implementar aún);—;Epic 0 — Fundación;Fundación;desarrollado;configurado;cerrado;Ola0 cerrada 2026-07-27: proto connectia/ operativo
+E0.19;0. Fundación local (stack Hiryx);OpenAPI/Swagger interno CI (sin try-it público) — esqueleto;S;Epic 0 — Fundación;Fundación;desarrollado;n/a;cerrado;Ola0 cerrada 2026-07-27: proto connectia/ operativo
+E0.20;0. Fundación local (stack Hiryx);Política allowDesktop en shell (bloqueo total si false);U S;Epic 0 — Fundación;Fundación;desarrollado;configurado;cerrado;Ola0 cerrada 2026-07-27: proto connectia/ operativo
+01.01;1. Acceso, sesión e identidad;Acceso por ID (sin mail corporativo);U A S;Núcleo MVP;Funcional;desarrollado;configurado;cerrado;login mode=id legajo 1001
+01.02;1. Acceso, sesión e identidad;Login estándar;U A S;Núcleo MVP;Funcional;desarrollado;configurado;cerrado;login + lockout 5/15m
+01.03;1. Acceso, sesión e identidad;Pre-login / validación previa;U A S;Núcleo MVP;Funcional;desarrollado;configurado;cerrado;pre-login branding/methods
+01.04;1. Acceso, sesión e identidad;Login Azure AD / Microsoft;U A S;Núcleo MVP;Funcional;diferido;diferido;diferido;Azure/Entra adapter fase packs
+01.05;1. Acceso, sesión e identidad;Login por token;U A S;Núcleo MVP;Funcional;diferido;diferido;diferido;Login token deep-link fase 2
+01.06;1. Acceso, sesión e identidad;Login externo (solo encuestas);U A S;Núcleo MVP;Funcional;diferido;diferido;diferido;Enlace externo encuestas fase 2
+01.07;1. Acceso, sesión e identidad;Login legacy por empresa;U A S;Núcleo MVP;Funcional;diferido;diferido;diferido;Legacy por capability pack
+01.08;1. Acceso, sesión e identidad;Verificación en dos pasos (email);U A S;Núcleo MVP;Funcional;diferido;diferido;diferido;2FA email fase 2
+01.09;1. Acceso, sesión e identidad;Verificación SMS (Twilio);U A S;Núcleo MVP;Funcional;diferido;diferido;diferido;SMS Twilio fase 2
+01.10;1. Acceso, sesión e identidad;Recuperación de contraseña;U A S;Núcleo MVP;Funcional;desarrollado;configurado;cerrado;forgot+reset via Gmail EMAIL_* (patron Hiryx) + /reset-password U
+01.11;1. Acceso, sesión e identidad;Recordar / reanudar sesión;U A S;Núcleo MVP;Funcional;desarrollado;configurado;cerrado;remember local/session storage
+01.12;1. Acceso, sesión e identidad;Cierre de sesión;U A S;Núcleo MVP;Funcional;desarrollado;configurado;cerrado;logout current|all
+01.13;1. Acceso, sesión e identidad;Aceptar términos y condiciones;U A S;Núcleo MVP;Funcional;desarrollado;configurado;cerrado;accept-terms gate
+01.14;1. Acceso, sesión e identidad;Detección multi-tenant por host/usuario;U A S;Núcleo MVP;Funcional;desarrollado;pendiente;desarrollado;"host→subdomain basico; dominio custom pendiente"
+01.15;1. Acceso, sesión e identidad;Selector de empresa;U A S;Núcleo MVP;Funcional;diferido;diferido;diferido;Selector multi-empresa cuando user multi-tenant
+01.16;1. Acceso, sesión e identidad;Políticas de privacidad;U A S;Núcleo MVP;Funcional;desarrollado;configurado;cerrado;GET legal/privacy
+01.17;1. Acceso, sesión e identidad;Términos y condiciones (consulta);U A S;Núcleo MVP;Funcional;desarrollado;configurado;cerrado;GET legal/terms
+01.QA;1. Acceso, sesión e identidad;Criterios de aceptación del módulo verificados (checklist §);U A S;Núcleo MVP;Calidad;parcial;n/a;en_curso;Smoke checklist humano pendiente
+01.SEC;1. Acceso, sesión e identidad;Authz tenant + sin hardcode Emp_Id (premisa);U A S;Núcleo MVP;Calidad;desarrollado;n/a;cerrado;"tenant por codigo; sin Emp_Id hardcode"
+01.UX;1. Acceso, sesión e identidad;UX moderna móvil-primero revisada (§45);U A S;Núcleo MVP;Calidad;desarrollado;n/a;desarrollado_y_configurado;tabs usuario/ID + terminos + reset
+01.ADM;1. Acceso, sesión e identidad;Pantallas/admin de configuración del módulo listas (si aplica);U A S;Núcleo MVP;Calidad;desarrollado;configurado;desarrollado_y_configurado;loginMethods/allowDesktop en ComunidadView
+01.DOC;1. Acceso, sesión e identidad;OpenAPI / notas de contrato del módulo;U A S;Núcleo MVP;Calidad;desarrollado;n/a;desarrollado_y_configurado;openapi auth + forgot/reset
+02.01;2. Plataforma multi-empresa y seguridad;CRUD empresas;A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;CRUD tenant + PLATFORM
+02.02;2. Plataforma multi-empresa y seguridad;Dashboard estándar;A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;dashboard metrics reales
+02.03;2. Plataforma multi-empresa y seguridad;Dashboard Super Admin;A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;Suscriptores UI + seed PLATFORM/sooft
+02.04;2. Plataforma multi-empresa y seguridad;Guards de acceso;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;requireAdmin + requirePlatformAdmin
+02.05;2. Plataforma multi-empresa y seguridad;Branding YOMOB / SOOFIA;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado;uxShell connectia|modern|legacy (sin YOMOB/SOOFIA)
+02.06;2. Plataforma multi-empresa y seguridad;Personalización visual del tenant (app móvil) — mejora de reingeniería;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;branding + themeMode light/dark/system
+02.07;2. Plataforma multi-empresa y seguridad;Splash / bienvenida de marca al abrir la URL del tenant;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;splashTitle/Subtitle en login U
+02.08;2. Plataforma multi-empresa y seguridad;Imagen de fondo login;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;loginBgUrl en login U
+02.QA;2. Plataforma multi-empresa y seguridad;Criterios de aceptación del módulo verificados (checklist §);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+02.SEC;2. Plataforma multi-empresa y seguridad;Authz tenant + sin hardcode Emp_Id (premisa);U A S;Núcleo MVP;Calidad;desarrollado;n/a;desarrollado;authz admin tenant-scoped
+02.UX;2. Plataforma multi-empresa y seguridad;UX moderna móvil-primero revisada (§45);U A S;Núcleo MVP;Calidad;desarrollado;n/a;desarrollado_y_configurado;tema claro/oscuro U+A
+02.ADM;2. Plataforma multi-empresa y seguridad;Pantallas/admin de configuración del módulo listas (si aplica);U A S;Núcleo MVP;Calidad;desarrollado;configurado;desarrollado_y_configurado;Admin plataforma + tenant
+02.DOC;2. Plataforma multi-empresa y seguridad;OpenAPI / notas de contrato del módulo;U A S;Núcleo MVP;Calidad;desarrollado;n/a;desarrollado;rutas admin/tenants
+03.01;3. Perfil y cuenta;Ver / editar perfil;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;Ola6: GET/PATCH /api/me + /perfil U
+03.02;3. Perfil y cuenta;Foto de perfil;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;Ola6: POST/DELETE /api/me/avatar crop 512
+03.03;3. Perfil y cuenta;Cambiar contraseña;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;Ola6: POST /api/me/password + email verify code
+03.04;3. Perfil y cuenta;Datos adicionales de usuario;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §3
+03.05;3. Perfil y cuenta;Deshabilitar / eliminar cuenta;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §3
+03.06;3. Perfil y cuenta;Dispositivos registrados;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §3
+03.07;3. Perfil y cuenta;Historial de actividad;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §3
+03.08;3. Perfil y cuenta;Integración PeopleCare en perfil;S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §3
+03.QA;3. Perfil y cuenta;Criterios de aceptación del módulo verificados (checklist §);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+03.SEC;3. Perfil y cuenta;Authz tenant + sin hardcode Emp_Id (premisa);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+03.UX;3. Perfil y cuenta;UX moderna móvil-primero revisada (§45);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+03.ADM;3. Perfil y cuenta;Pantallas/admin de configuración del módulo listas (si aplica);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+03.DOC;3. Perfil y cuenta;OpenAPI / notas de contrato del módulo;U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+04.01;4. Contenido corporativo (muro, publicaciones, stories);Feed / muro de publicaciones;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;Ola3: GET /posts/feed + MuroView
+04.02;4. Contenido corporativo (muro, publicaciones, stories);Ver publicación;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;Ola3: GET /posts/:id (detalle en feed)
+04.03;4. Contenido corporativo (muro, publicaciones, stories);Búsqueda de publicaciones;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;Ola3: q en feed
+04.04;4. Contenido corporativo (muro, publicaciones, stories);Publicación por menú dinámico;U A S;Núcleo MVP;Funcional;diferido;n/a;diferido;Post por menú dinámico: post-Ola3
+04.05;4. Contenido corporativo (muro, publicaciones, stories);Tipos de publicación;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;tipos: noticia/aviso/beneficio/evento/general
+04.06;4. Contenido corporativo (muro, publicaciones, stories);CRUD publicaciones (admin);A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;admin CRUD /publicaciones
+04.07;4. Contenido corporativo (muro, publicaciones, stories);Publicar / mejorar contenido con IA;U A S;Núcleo MVP;Funcional;diferido;n/a;diferido;IA publicar: Ola6
+04.08;4. Contenido corporativo (muro, publicaciones, stories);Importación masiva de publicaciones;U A S;Núcleo MVP;Funcional;diferido;n/a;diferido;Import masiva post-MVP
+04.09;4. Contenido corporativo (muro, publicaciones, stories);Layouts de card;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;Ola3: vertical/horizontal/banner + PostCard
+04.10;4. Contenido corporativo (muro, publicaciones, stories);Comentarios en publicaciones;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;Hecho con §10 Ola9
+04.11;4. Contenido corporativo (muro, publicaciones, stories);Votación / reacciones;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;like/love/clap toggle
+04.12;4. Contenido corporativo (muro, publicaciones, stories);Stories;U A S;Núcleo MVP;Funcional;diferido;n/a;diferido;Stories post-MVP
+04.13;4. Contenido corporativo (muro, publicaciones, stories);Gestión del conocimiento;U A S;Núcleo MVP;Funcional;diferido;n/a;diferido;Gestión conocimiento post-MVP
+04.14;4. Contenido corporativo (muro, publicaciones, stories);Pre-home;U A S;Núcleo MVP;Funcional;diferido;n/a;diferido;Pre-home post-MVP
+04.15;4. Contenido corporativo (muro, publicaciones, stories);Deep links / filtros externos;U A S;Núcleo MVP;Funcional;diferido;n/a;diferido;Deep links post-MVP
+04.16;4. Contenido corporativo (muro, publicaciones, stories);Botonera inferior dinámica;U A S;Núcleo MVP;Funcional;diferido;n/a;diferido;Botonera inferior: con menú U
+04.17;4. Contenido corporativo (muro, publicaciones, stories);Calendario de publicaciones;U A S;Núcleo MVP;Funcional;diferido;n/a;diferido;Calendario pubs post-MVP
+04.18;4. Contenido corporativo (muro, publicaciones, stories);Publicación de colaboradores (UGC) + moderación admin;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;Composer U + cola admin pending_review
+04.19;4. Contenido corporativo (muro, publicaciones, stories);Análisis IA previo de UGC (sugerencia al admin);A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;Riesgo + acción sugerida; humano confirma
+04.20;4. Contenido corporativo (muro, publicaciones, stories);Rechazo UGC con motivo + mail/push/in-app; filtro Activas; refresh admin;A S U;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;notifyUgcRejected + PublicacionesView
+04.QA;4. Contenido corporativo (muro, publicaciones, stories);Criterios de aceptación del módulo verificados (checklist §);U A S;Núcleo MVP;Calidad;desarrollado;n/a;cerrado;Ola3 smoke feed/detalle/reacciones/layouts
+04.SEC;4. Contenido corporativo (muro, publicaciones, stories);Authz tenant + sin hardcode Emp_Id (premisa);U A S;Núcleo MVP;Calidad;desarrollado;n/a;desarrollado_y_configurado;tenantId desde JWT
+04.UX;4. Contenido corporativo (muro, publicaciones, stories);UX moderna móvil-primero revisada (§45);U A S;Núcleo MVP;Calidad;desarrollado;n/a;desarrollado_y_configurado;Feed Instagram-like + detalle + filtros tipo
+04.ADM;4. Contenido corporativo (muro, publicaciones, stories);Pantallas/admin de configuración del módulo listas (si aplica);U A S;Núcleo MVP;Calidad;desarrollado;configurado;desarrollado_y_configurado;PublicacionesView
+04.DOC;4. Contenido corporativo (muro, publicaciones, stories);OpenAPI / notas de contrato del módulo;U A S;Núcleo MVP;Calidad;parcial;n/a;en_curso;"Rutas en código; OpenAPI luego"
+05.01;5. Saludos automáticos;Saludos automáticos;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §5
+05.02;5. Saludos automáticos;Configuración de saludos;A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §5
+05.QA;5. Saludos automáticos;Criterios de aceptación del módulo verificados (checklist §);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+05.SEC;5. Saludos automáticos;Authz tenant + sin hardcode Emp_Id (premisa);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+05.UX;5. Saludos automáticos;UX moderna móvil-primero revisada (§45);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+05.ADM;5. Saludos automáticos;Pantallas/admin de configuración del módulo listas (si aplica);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+05.DOC;5. Saludos automáticos;OpenAPI / notas de contrato del módulo;U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+06.01;6. Eventos y calendario;Calendario corporativo;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §6
+06.02;6. Eventos y calendario;Conectar calendario personal (Outlook / Google) — verlo en la app;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §6
+06.03;6. Eventos y calendario;Política tenant — habilitar Outlook / Google;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §6
+06.04;6. Eventos y calendario;Vista unificada de agenda;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §6
+06.05;6. Eventos y calendario;Confirmar / consultar asistencia;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §6
+06.06;6. Eventos y calendario;Eliminar asistencia;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §6
+06.07;6. Eventos y calendario;Reporte de confirmaciones;A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §6
+06.QA;6. Eventos y calendario;Criterios de aceptación del módulo verificados (checklist §);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+06.SEC;6. Eventos y calendario;Authz tenant + sin hardcode Emp_Id (premisa);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+06.UX;6. Eventos y calendario;UX moderna móvil-primero revisada (§45);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+06.ADM;6. Eventos y calendario;Pantallas/admin de configuración del módulo listas (si aplica);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+06.DOC;6. Eventos y calendario;OpenAPI / notas de contrato del módulo;U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+07.01;7. Notificaciones push;Centro de notificaciones;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;U /avisos + A /notificaciones
+07.02;7. Notificaciones push;Registro de token push;U A S;Núcleo MVP;Funcional;hecho;hecho;parcial;Web Push VAPID (no FCM nativo)
+07.03;7. Notificaciones push;Envío de notificaciones (admin);A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;Campañas + IA + programar día/hora + audiencia
+07.04;7. Notificaciones push;Importación / exportación push;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;CSV opcional; flujo principal IA
+07.05;7. Notificaciones push;Proxy / envío push backend;U A S;Núcleo MVP;Funcional;hecho;—;hecho;pushService + scheduler
+07.06;7. Notificaciones push;Permisos y recepción in-app;U A S;Núcleo MVP;Funcional;hecho;—;hecho;SW + banner/modal
+07.QA;7. Notificaciones push;Criterios de aceptación del módulo verificados (checklist §);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;Postdev
+07.SEC;7. Notificaciones push;Authz tenant + sin hardcode Emp_Id (premisa);U A S;Núcleo MVP;Calidad;desarrollado;n/a;desarrollado;Tenant + admin.notificaciones
+07.UX;7. Notificaciones push;UX moderna móvil-primero revisada (§45);U A S;Núcleo MVP;Calidad;desarrollado;n/a;desarrollado;U avisos + A modal 20/80
+07.ADM;7. Notificaciones push;Pantallas/admin de configuración del módulo listas (si aplica);U A S;Núcleo MVP;Calidad;desarrollado;configurado;desarrollado_y_configurado;/notificaciones
+07.DOC;7. Notificaciones push;OpenAPI / notas de contrato del módulo;U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;Postdev
+08.01;8. Chat y comunicación;Chat interno;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;U /chat 1:1 + adjuntos + push
+08.02;8. Chat y comunicación;Chat por voz;U A S;Núcleo MVP;Funcional;diferido;n/a;diferido;Fase 2 WebRTC
+08.03;8. Chat y comunicación;Chat por video;U A S;Núcleo MVP;Funcional;diferido;n/a;diferido;Fase 2 WebRTC
+08.04;8. Chat y comunicación;Chat grupal;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;Crear grupo + historial
+08.05;8. Chat y comunicación;Moderación / retención de chat;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;A /chat-moderacion + bloqueo
+08.06;8. Chat y comunicación;Menciones, reacciones, mensajes anclados;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;@usuario + reacciones + pin
+08.07;8. Chat y comunicación;Buscador + resúmenes/transcripción IA;U A S;Núcleo MVP;Funcional;parcial;parcial;parcial;Buscador OK; IA diferida
+08.QA;8. Chat y comunicación;Criterios de aceptación del módulo verificados (checklist §);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;Postdev
+08.SEC;8. Chat y comunicación;Authz tenant + sin hardcode Emp_Id (premisa);U A S;Núcleo MVP;Calidad;desarrollado;n/a;desarrollado;tenantId + participante
+08.UX;8. Chat y comunicación;UX moderna móvil-primero revisada (§45);U A S;Núcleo MVP;Calidad;desarrollado;n/a;desarrollado;Lista + hilo
+08.ADM;8. Chat y comunicación;Pantallas/admin de configuración del módulo listas (si aplica);U A S;Núcleo MVP;Calidad;desarrollado;configurado;desarrollado_y_configurado;/chat-moderacion
+08.DOC;8. Chat y comunicación;OpenAPI / notas de contrato del módulo;U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;Postdev
+09.01;9. Consultas / tickets;Mis consultas;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;Ola4: listado U /requests
+09.02;9. Consultas / tickets;Crear consulta;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;Ola4: POST /requests
+09.03;9. Consultas / tickets;Hilo de mensajes;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;Ola4+: hilo + adjuntos URL + notas internas
+09.04;9. Consultas / tickets;Bandeja CRM / admin;A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;Ola4+: bandeja + estados tenant + campos en detalle + export
+09.05;9. Consultas / tickets;Tipos, áreas y campos de consulta;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;Ola4+: campos dinámicos por tipo + estados config admin
+09.06;9. Consultas / tickets;Novedades GeoPop;U A S;Núcleo MVP;Funcional;diferido;n/a;diferido;GeoPop post-MVP
+09.07;9. Consultas / tickets;Jobs SAP/ECR sobre consultas;S;Núcleo MVP;Funcional;diferido;n/a;diferido;SAP/ECR post-MVP
+09.08;9. Consultas / tickets;Notificaciones de consulta;U A S;Núcleo MVP;Funcional;diferido;n/a;diferido;Push/email: Ola6
+09.09;9. Consultas / tickets;Mis tickets Jira — soporte pendiente en la app;U A S;Núcleo MVP;Funcional;diferido;n/a;diferido;Jira adapter post-MVP
+09.10;9. Consultas / tickets;Configurar integración Jira (admin tenant) + vínculo de usuario;A S;Núcleo MVP;Funcional;diferido;n/a;diferido;Jira config post-MVP
+09.11;9. Consultas / tickets;Crear issue en Jira desde Connectia (opcional);U A S;Núcleo MVP;Funcional;diferido;n/a;diferido;Jira create post-MVP
+09.QA;9. Consultas / tickets;Criterios de aceptación del módulo verificados (checklist §);U A S;Núcleo MVP;Calidad;desarrollado;n/a;cerrado;Ola4 smoke list/create/hilo/bandeja
+09.SEC;9. Consultas / tickets;Authz tenant + sin hardcode Emp_Id (premisa);U A S;Núcleo MVP;Calidad;desarrollado;n/a;desarrollado_y_configurado;tenantId JWT + requester scope
+09.UX;9. Consultas / tickets;UX moderna móvil-primero revisada (§45);U A S;Núcleo MVP;Calidad;desarrollado;n/a;desarrollado_y_configurado;Mis solicitudes U móvil
+09.ADM;9. Consultas / tickets;Pantallas/admin de configuración del módulo listas (si aplica);U A S;Núcleo MVP;Calidad;desarrollado;configurado;desarrollado_y_configurado;Bandeja + Tipos
+09.DOC;9. Consultas / tickets;OpenAPI / notas de contrato del módulo;U A S;Núcleo MVP;Calidad;parcial;n/a;en_curso;Rutas en código
+10.01;10. Comentarios (moderación);Moderación de comentarios;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;Ola9: bandeja A + comentarios U
+10.02;10. Comentarios (moderación);Análisis automático con IA + sugerencias al administrador;A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;Ola9: commentModerationAi + accept-suggestion
+10.03;10. Comentarios (moderación);Configuración de moderación IA (admin tenant);A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;Ola9: tenant.commentsModeration
+10.QA;10. Comentarios (moderación);Criterios de aceptación del módulo verificados (checklist §);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;Postdev
+10.SEC;10. Comentarios (moderación);Authz tenant + sin hardcode Emp_Id (premisa);U A S;Núcleo MVP;Calidad;desarrollado;n/a;desarrollado_y_configurado;cap admin.comentarios
+10.UX;10. Comentarios (moderación);UX moderna móvil-primero revisada (§45);U A S;Núcleo MVP;Calidad;desarrollado;n/a;desarrollado_y_configurado;U detalle + A bandeja
+10.ADM;10. Comentarios (moderación);Pantallas/admin de configuración del módulo listas (si aplica);U A S;Núcleo MVP;Calidad;desarrollado;configurado;desarrollado_y_configurado;/moderacion-comentarios
+10.DOC;10. Comentarios (moderación);OpenAPI / notas de contrato del módulo;U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;Postdev
+11.01;11. Asistencia, turnos y marcación;Mis turnos / mi asistencia;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §11
+11.02;11. Asistencia, turnos y marcación;Marcación libre / en lugar / temporal;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §11
+11.03;11. Asistencia, turnos y marcación;Prefichada Geopop;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §11
+11.04;11. Asistencia, turnos y marcación;Objetivos y servicios;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §11
+11.05;11. Asistencia, turnos y marcación;Turnos supervisados;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §11
+11.06;11. Asistencia, turnos y marcación;Escaneo DNI / QR para marcación;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §11
+11.07;11. Asistencia, turnos y marcación;Novedades e historial de asistencia;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §11
+11.08;11. Asistencia, turnos y marcación;Marcas fuera de rango;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §11
+11.09;11. Asistencia, turnos y marcación;Domingos adicionales;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §11
+11.10;11. Asistencia, turnos y marcación;CRUD turnos (API);A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §11
+11.11;11. Asistencia, turnos y marcación;Panel supervisores ECR;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §11
+11.QA;11. Asistencia, turnos y marcación;Criterios de aceptación del módulo verificados (checklist §);U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+11.SEC;11. Asistencia, turnos y marcación;Authz tenant + sin hardcode Emp_Id (premisa);U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+11.UX;11. Asistencia, turnos y marcación;UX moderna móvil-primero revisada (§45);U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+11.ADM;11. Asistencia, turnos y marcación;Pantallas/admin de configuración del módulo listas (si aplica);U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+11.DOC;11. Asistencia, turnos y marcación;OpenAPI / notas de contrato del módulo;U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+12.01;12. Ausentismos;Solicitar ausentismo;U A S;Vertical opcional;Funcional;hecho;hecho;desarrollado_y_configurado;Ola 17
+12.02;12. Ausentismos;Aprobar / rechazar ausentismo;U A S;Vertical opcional;Funcional;hecho;hecho;desarrollado_y_configurado;Ola 17
+12.03;12. Ausentismos;Reporte de ausentismos;A S;Vertical opcional;Funcional;hecho;hecho;desarrollado_y_configurado;Ola 17
+12.04;12. Ausentismos;Integración ausentismo ECR;S;Vertical opcional;Funcional;diferido;diferido;diferido;ECR diferible ola 17
+12.QA;12. Ausentismos;Criterios de aceptación del módulo verificados (checklist §);U A S;Vertical opcional;Calidad;hecho;n/a;desarrollado_y_configurado;Ola 17
+12.SEC;12. Ausentismos;Authz tenant + sin hardcode Emp_Id (premisa);U A S;Vertical opcional;Calidad;hecho;n/a;desarrollado_y_configurado;Ola 17
+12.UX;12. Ausentismos;UX moderna móvil-primero revisada (§45);U A S;Vertical opcional;Calidad;hecho;n/a;desarrollado_y_configurado;Ola 17
+12.ADM;12. Ausentismos;Pantallas/admin de configuración del módulo listas (si aplica);U A S;Vertical opcional;Calidad;hecho;n/a;desarrollado_y_configurado;Ola 17
+12.DOC;12. Ausentismos;OpenAPI / notas de contrato del módulo;U A S;Vertical opcional;Calidad;parcial;n/a;parcial;Rutas Express documentadas en código
+13.01;13. Licencias y vacaciones;Solicitar licencia;U A S;Vertical opcional;Funcional;hecho;hecho;desarrollado_y_configurado;Ola 17
+13.02;13. Licencias y vacaciones;Aprobar / rechazar / editar licencia;U A S;Vertical opcional;Funcional;hecho;hecho;desarrollado_y_configurado;Ola 17
+13.03;13. Licencias y vacaciones;Consultar saldos y licencias devengadas;U A S;Vertical opcional;Funcional;hecho;hecho;desarrollado_y_configurado;Ola 17
+13.04;13. Licencias y vacaciones;Reportes de licencias;A S;Vertical opcional;Funcional;hecho;hecho;desarrollado_y_configurado;Ola 17
+13.05;13. Licencias y vacaciones;Módulo vacaciones;U A S;Vertical opcional;Funcional;hecho;hecho;desarrollado_y_configurado;Ola 17
+13.QA;13. Licencias y vacaciones;Criterios de aceptación del módulo verificados (checklist §);U A S;Vertical opcional;Calidad;hecho;n/a;desarrollado_y_configurado;Ola 17
+13.SEC;13. Licencias y vacaciones;Authz tenant + sin hardcode Emp_Id (premisa);U A S;Vertical opcional;Calidad;hecho;n/a;desarrollado_y_configurado;Ola 17
+13.UX;13. Licencias y vacaciones;UX moderna móvil-primero revisada (§45);U A S;Vertical opcional;Calidad;hecho;n/a;desarrollado_y_configurado;Ola 17
+13.ADM;13. Licencias y vacaciones;Pantallas/admin de configuración del módulo listas (si aplica);U A S;Vertical opcional;Calidad;hecho;n/a;desarrollado_y_configurado;Ola 17
+13.DOC;13. Licencias y vacaciones;OpenAPI / notas de contrato del módulo;U A S;Vertical opcional;Calidad;parcial;n/a;parcial;Rutas Express documentadas en código
+14.01;14. RRHH / legajo digital (PeopleCare);Ficha de colaborador;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §14
+14.02;14. RRHH / legajo digital (PeopleCare);Domicilios;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §14
+14.03;14. RRHH / legajo digital (PeopleCare);Familiares;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §14
+14.04;14. RRHH / legajo digital (PeopleCare);Obra social;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §14
+14.05;14. RRHH / legajo digital (PeopleCare);Datos bancarios;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §14
+14.06;14. RRHH / legajo digital (PeopleCare);Ficha médica;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §14
+14.07;14. RRHH / legajo digital (PeopleCare);Contratos / monotributo;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §14
+14.08;14. RRHH / legajo digital (PeopleCare);Carrera y habilidades;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §14
+14.09;14. RRHH / legajo digital (PeopleCare);Estados, líderes y clasificaciones;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §14
+14.10;14. RRHH / legajo digital (PeopleCare);Catálogos RRHH;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §14
+14.QA;14. RRHH / legajo digital (PeopleCare);Criterios de aceptación del módulo verificados (checklist §);U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+14.SEC;14. RRHH / legajo digital (PeopleCare);Authz tenant + sin hardcode Emp_Id (premisa);U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+14.UX;14. RRHH / legajo digital (PeopleCare);UX moderna móvil-primero revisada (§45);U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+14.ADM;14. RRHH / legajo digital (PeopleCare);Pantallas/admin de configuración del módulo listas (si aplica);U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+14.DOC;14. RRHH / legajo digital (PeopleCare);OpenAPI / notas de contrato del módulo;U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+15.01;15. Encuestas e inspecciones;Armar cuestionario con IA;U A S;Núcleo MVP;Funcional;diferido;n/a;diferido;Diferido Ola5 (post-nucleo)
+15.02;15. Encuestas e inspecciones;Publicar encuesta a empleados;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §15 | Ola5 nucleo 2026-07-27
+15.03;15. Encuestas e inspecciones;Medición de participación completa;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §15 | Ola5 nucleo 2026-07-27
+15.04;15. Encuestas e inspecciones;Agenda / ejecución de encuestas;U A S;Núcleo MVP;Funcional;diferido;n/a;diferido;Diferido Ola5 (post-nucleo)
+15.05;15. Encuestas e inspecciones;Tipos de pregunta;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §15 | Ola5 nucleo 2026-07-27
+15.06;15. Encuestas e inspecciones;Check-in / check-out facility;U A S;Núcleo MVP;Funcional;diferido;n/a;diferido;Diferido Ola5 (post-nucleo)
+15.07;15. Encuestas e inspecciones;Sincronización offline de encuestas;U A S;Núcleo MVP;Funcional;diferido;n/a;diferido;Diferido Ola5 (post-nucleo)
+15.08;15. Encuestas e inspecciones;Resultados de encuestas;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §15 | Ola5 nucleo 2026-07-27
+15.09;15. Encuestas e inspecciones;Encuestas embebidas en publicaciones;U A S;Núcleo MVP;Funcional;diferido;n/a;diferido;Diferido Ola5 (post-nucleo)
+15.10;15. Encuestas e inspecciones;Envío respuesta encuesta (API);S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §15 | Ola5 nucleo 2026-07-27
+15.11;15. Encuestas e inspecciones;Admin de encuestas externo;A S;Núcleo MVP;Funcional;diferido;n/a;diferido;Diferido Ola5 (post-nucleo)
+15.12;15. Encuestas e inspecciones;Variantes CODESAC / pedidos en encuesta;U A S;Núcleo MVP;Funcional;diferido;n/a;diferido;Diferido Ola5 (post-nucleo)
+15.QA;15. Encuestas e inspecciones;Criterios de aceptación del módulo verificados (checklist §);U A S;Núcleo MVP;Calidad;en_curso;n/a;en_curso;Ola5 smoke pendiente
+15.SEC;15. Encuestas e inspecciones;Authz tenant + sin hardcode Emp_Id (premisa);U A S;Núcleo MVP;Calidad;desarrollado;n/a;desarrollado_y_configurado;Ola5 nucleo 2026-07-27
+15.UX;15. Encuestas e inspecciones;UX moderna móvil-primero revisada (§45);U A S;Núcleo MVP;Calidad;desarrollado;n/a;desarrollado_y_configurado;Ola5 nucleo 2026-07-27
+15.ADM;15. Encuestas e inspecciones;Pantallas/admin de configuración del módulo listas (si aplica);U A S;Núcleo MVP;Calidad;desarrollado;n/a;desarrollado_y_configurado;Ola5 nucleo 2026-07-27
+15.DOC;15. Encuestas e inspecciones;OpenAPI / notas de contrato del módulo;U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+16.01;16. Onboarding;Offboarding;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §16
+16.02;16. Onboarding;Procesos de onboarding;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §16
+16.03;16. Onboarding;Encuestas de onboarding;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §16
+16.04;16. Onboarding;Incorporaciones (admin);A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §16
+16.QA;16. Onboarding;Criterios de aceptación del módulo verificados (checklist §);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+16.SEC;16. Onboarding;Authz tenant + sin hardcode Emp_Id (premisa);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+16.UX;16. Onboarding;UX moderna móvil-primero revisada (§45);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+16.ADM;16. Onboarding;Pantallas/admin de configuración del módulo listas (si aplica);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+16.DOC;16. Onboarding;OpenAPI / notas de contrato del módulo;U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+17.01;17. Documentos;Mis documentos;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §17 | Ola5 nucleo 2026-07-27
+17.02;17. Documentos;Gestión documental (admin);A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §17 | Ola5 nucleo 2026-07-27
+17.03;17. Documentos;Firma de documentos;U A S;Núcleo MVP;Funcional;diferido;n/a;diferido;Diferido Ola5 (post-nucleo)
+17.04;17. Documentos;Descarga / proxy de documentos;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §17 | Ola5 nucleo 2026-07-27
+17.05;17. Documentos;Integración documentos SAP;S;Núcleo MVP;Funcional;diferido;n/a;diferido;Diferido Ola5 (post-nucleo)
+17.06;17. Documentos;Reporte de descargas;A S;Núcleo MVP;Funcional;diferido;n/a;diferido;Diferido Ola5 (post-nucleo)
+17.QA;17. Documentos;Criterios de aceptación del módulo verificados (checklist §);U A S;Núcleo MVP;Calidad;en_curso;n/a;en_curso;Ola5 smoke pendiente
+17.SEC;17. Documentos;Authz tenant + sin hardcode Emp_Id (premisa);U A S;Núcleo MVP;Calidad;desarrollado;n/a;desarrollado_y_configurado;Ola5 nucleo 2026-07-27
+17.UX;17. Documentos;UX moderna móvil-primero revisada (§45);U A S;Núcleo MVP;Calidad;desarrollado;n/a;desarrollado_y_configurado;Ola5 nucleo 2026-07-27
+17.ADM;17. Documentos;Pantallas/admin de configuración del módulo listas (si aplica);U A S;Núcleo MVP;Calidad;desarrollado;n/a;desarrollado_y_configurado;Ola5 nucleo 2026-07-27
+17.DOC;17. Documentos;OpenAPI / notas de contrato del módulo;U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+18.01;18. Beneficios, billetera y recompensas;Catálogo de beneficios;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §18
+18.02;18. Beneficios, billetera y recompensas;Billetera;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §18
+18.03;18. Beneficios, billetera y recompensas;Pagos y transferencias;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §18
+18.04;18. Beneficios, billetera y recompensas;Premios / rewards;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §18
+18.05;18. Beneficios, billetera y recompensas;Integración Claro / YoClaro;S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §18
+18.06;18. Beneficios, billetera y recompensas;Beneficios como tipo de publicación;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §18
+18.QA;18. Beneficios, billetera y recompensas;Criterios de aceptación del módulo verificados (checklist §);U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+18.SEC;18. Beneficios, billetera y recompensas;Authz tenant + sin hardcode Emp_Id (premisa);U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+18.UX;18. Beneficios, billetera y recompensas;UX moderna móvil-primero revisada (§45);U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+18.ADM;18. Beneficios, billetera y recompensas;Pantallas/admin de configuración del módulo listas (si aplica);U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+18.DOC;18. Beneficios, billetera y recompensas;OpenAPI / notas de contrato del módulo;U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+19.01;19. Alarmas;Crear / actualizar / cancelar alarma;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §19
+19.02;19. Alarmas;Listado y pedidos de alarmas;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §19
+19.03;19. Alarmas;Renombre por empresa;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §19
+19.QA;19. Alarmas;Criterios de aceptación del módulo verificados (checklist §);U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+19.SEC;19. Alarmas;Authz tenant + sin hardcode Emp_Id (premisa);U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+19.UX;19. Alarmas;UX moderna móvil-primero revisada (§45);U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+19.ADM;19. Alarmas;Pantallas/admin de configuración del módulo listas (si aplica);U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+19.DOC;19. Alarmas;OpenAPI / notas de contrato del módulo;U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+20.01;20. Pedidos internos;Pedidos del usuario;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §20
+20.02;20. Pedidos internos;ABM pedidos (admin);A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §20
+20.QA;20. Pedidos internos;Criterios de aceptación del módulo verificados (checklist §);U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+20.SEC;20. Pedidos internos;Authz tenant + sin hardcode Emp_Id (premisa);U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+20.UX;20. Pedidos internos;UX moderna móvil-primero revisada (§45);U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+20.ADM;20. Pedidos internos;Pantallas/admin de configuración del módulo listas (si aplica);U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+20.DOC;20. Pedidos internos;OpenAPI / notas de contrato del módulo;U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+21.01;21. Datos útiles / directorio / teléfonos;Datos útiles / agenda laboral;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §21
+21.02;21. Datos útiles / directorio / teléfonos;Directorio de contactos API;S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §21
+21.03;21. Datos útiles / directorio / teléfonos;Teléfonos (admin);A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §21
+21.04;21. Datos útiles / directorio / teléfonos;Mapa / ubicación de contactos;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §21
+21.QA;21. Datos útiles / directorio / teléfonos;Criterios de aceptación del módulo verificados (checklist §);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+21.SEC;21. Datos útiles / directorio / teléfonos;Authz tenant + sin hardcode Emp_Id (premisa);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+21.UX;21. Datos útiles / directorio / teléfonos;UX moderna móvil-primero revisada (§45);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+21.ADM;21. Datos útiles / directorio / teléfonos;Pantallas/admin de configuración del módulo listas (si aplica);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+21.DOC;21. Datos útiles / directorio / teléfonos;OpenAPI / notas de contrato del módulo;U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+22.01;22. Farmacias y horarios de terminal;Farmacias de turno;U A S;Diferido / no núcleo;Funcional;diferido;diferido;diferido;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §22
+22.02;22. Farmacias y horarios de terminal;Horarios de terminal;U A S;Diferido / no núcleo;Funcional;diferido;diferido;diferido;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §22
+22.QA;22. Farmacias y horarios de terminal;Criterios de aceptación del módulo verificados (checklist §);U A S;Diferido / no núcleo;Calidad;diferido;n/a;diferido;
+22.SEC;22. Farmacias y horarios de terminal;Authz tenant + sin hardcode Emp_Id (premisa);U A S;Diferido / no núcleo;Calidad;diferido;n/a;diferido;
+22.UX;22. Farmacias y horarios de terminal;UX moderna móvil-primero revisada (§45);U A S;Diferido / no núcleo;Calidad;diferido;n/a;diferido;
+22.ADM;22. Farmacias y horarios de terminal;Pantallas/admin de configuración del módulo listas (si aplica);U A S;Diferido / no núcleo;Calidad;diferido;n/a;diferido;
+22.DOC;22. Farmacias y horarios de terminal;OpenAPI / notas de contrato del módulo;U A S;Diferido / no núcleo;Calidad;diferido;n/a;diferido;
+23.01;23. Supervisor comercial;Tareas comerciales;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §23
+23.02;23. Supervisor comercial;Sincronización offline de tareas;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §23
+23.03;23. Supervisor comercial;API de asignaciones;S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §23
+23.QA;23. Supervisor comercial;Criterios de aceptación del módulo verificados (checklist §);U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+23.SEC;23. Supervisor comercial;Authz tenant + sin hardcode Emp_Id (premisa);U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+23.UX;23. Supervisor comercial;UX moderna móvil-primero revisada (§45);U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+23.ADM;23. Supervisor comercial;Pantallas/admin de configuración del módulo listas (si aplica);U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+23.DOC;23. Supervisor comercial;OpenAPI / notas de contrato del módulo;U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+24.01;24. IA y QR;Chatbot IA con base de conocimientos;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §24
+24.02;24. IA y QR;Gestión de base de conocimientos del bot;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §24
+24.03;24. IA y QR;Búsqueda por IA;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §24
+24.04;24. IA y QR;Asistente de contenido;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §24
+24.05;24. IA y QR;Asistente de carga de datos;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §24
+24.06;24. IA y QR;Escaneo QR a vista;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §24
+24.07;24. IA y QR;Lectura QR DNI;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §24
+24.QA;24. IA y QR;Criterios de aceptación del módulo verificados (checklist §);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+24.SEC;24. IA y QR;Authz tenant + sin hardcode Emp_Id (premisa);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+24.UX;24. IA y QR;UX moderna móvil-primero revisada (§45);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+24.ADM;24. IA y QR;Pantallas/admin de configuración del módulo listas (si aplica);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+24.DOC;24. IA y QR;OpenAPI / notas de contrato del módulo;U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+25.01;25. Modo TV;Reproducción modo TV;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §25
+25.02;25. Modo TV;Emparejamiento móvil ↔ TV;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §25
+25.03;25. Modo TV;Configuración TV;A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §25
+25.04;25. Modo TV;Feed TV;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §25
+25.QA;25. Modo TV;Criterios de aceptación del módulo verificados (checklist §);U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+25.SEC;25. Modo TV;Authz tenant + sin hardcode Emp_Id (premisa);U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+25.UX;25. Modo TV;UX moderna móvil-primero revisada (§45);U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+25.ADM;25. Modo TV;Pantallas/admin de configuración del módulo listas (si aplica);U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+25.DOC;25. Modo TV;OpenAPI / notas de contrato del módulo;U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+26.01;26. FAQs y tutoriales (centro de ayuda);Consultar FAQs;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §26
+26.02;26. FAQs y tutoriales (centro de ayuda);ABM FAQs;A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §26
+26.03;26. FAQs y tutoriales (centro de ayuda);Apartado Tutoriales (U) + ABM (A) — obligatorio en Connectia;A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §26
+26.QA;26. FAQs y tutoriales (centro de ayuda);Criterios de aceptación del módulo verificados (checklist §);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+26.SEC;26. FAQs y tutoriales (centro de ayuda);Authz tenant + sin hardcode Emp_Id (premisa);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+26.UX;26. FAQs y tutoriales (centro de ayuda);UX moderna móvil-primero revisada (§45);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+26.ADM;26. FAQs y tutoriales (centro de ayuda);Pantallas/admin de configuración del módulo listas (si aplica);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+26.DOC;26. FAQs y tutoriales (centro de ayuda);OpenAPI / notas de contrato del módulo;U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+27.01;27. ABM de configuración;Grupos de usuarios;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §27
+27.02;27. ABM de configuración;Categorías de publicaciones;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §27
+27.03;27. ABM de configuración;Parámetros del sistema;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §27
+27.04;27. ABM de configuración;Áreas organizacionales;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §27
+27.05;27. ABM de configuración;Datos adicionales (campos);U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §27
+27.06;27. ABM de configuración;CRUD usuarios (admin);A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §27
+27.07;27. ABM de configuración;Importar usuarios desde archivo (Excel / CSV) — adicional;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §27
+27.08;27. ABM de configuración;Tomar usuarios desde Google (Workspace Directory) — adicional;U A S;Núcleo MVP;Funcional;desarrollado;pendiente;desarrollado_y_configurado;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §27
+27.09;27. ABM de configuración;Sync directorio Microsoft Entra ID (opcional, mismo patrón);U A S;Núcleo MVP;Funcional;desarrollado;pendiente;desarrollado_y_configurado;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §27
+27.10;27. ABM de configuración;CRUD roles y permisos;A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §27
+27.QA;27. ABM de configuración;Criterios de aceptación del módulo verificados (checklist §);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+27.SEC;27. ABM de configuración;Authz tenant + sin hardcode Emp_Id (premisa);U A S;Núcleo MVP;Calidad;desarrollado;n/a;desarrollado_y_configurado;
+27.UX;27. ABM de configuración;UX moderna móvil-primero revisada (§45);U A S;Núcleo MVP;Calidad;desarrollado;n/a;desarrollado_y_configurado;
+27.ADM;27. ABM de configuración;Pantallas/admin de configuración del módulo listas (si aplica);U A S;Núcleo MVP;Calidad;desarrollado;n/a;desarrollado_y_configurado;
+27.DOC;27. ABM de configuración;OpenAPI / notas de contrato del módulo;U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+28.01;28. Menú dinámico;Menú dinámico del usuario;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;GET /menu U con filtro audiencia
+28.02;28. Menú dinámico;ABM de menú móvil/web;A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;CRUD /admin/menu
+28.03;28. Menú dinámico;Asignación menú ↔ roles;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;audience.roles/capabilities
+28.04;28. Menú dinámico;Invalidar caché de menú;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;menuVersion + X-Menu-Version
+28.QA;28. Menú dinámico;Criterios de aceptación del módulo verificados (checklist §);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+28.SEC;28. Menú dinámico;Authz tenant + sin hardcode Emp_Id (premisa);U A S;Núcleo MVP;Calidad;desarrollado;n/a;desarrollado;tenant-scoped menu
+28.UX;28. Menú dinámico;UX moderna móvil-primero revisada (§45);U A S;Núcleo MVP;Calidad;desarrollado;n/a;desarrollado;ABM tabla admin
+28.ADM;28. Menú dinámico;Pantallas/admin de configuración del módulo listas (si aplica);U A S;Núcleo MVP;Calidad;desarrollado;configurado;desarrollado_y_configurado;MenuAdminView
+28.DOC;28. Menú dinámico;OpenAPI / notas de contrato del módulo;U A S;Núcleo MVP;Calidad;desarrollado;n/a;desarrollado;admin/menu API
+29.01;29. Reportes e informes;Tablero de adopción / uso de la app;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §29
+29.02;29. Reportes e informes;Campañas de impulso al uso;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §29
+29.03;29. Reportes e informes;Confirmaciones de eventos;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §29
+29.04;29. Reportes e informes;Visitas en publicaciones;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §29
+29.05;29. Reportes e informes;Contenido más consumido (ranking);U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §29
+29.06;29. Reportes e informes;Últimas conexiones / historial;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §29
+29.07;29. Reportes e informes;Sentimientos en publicaciones;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §29
+29.08;29. Reportes e informes;Resultados de encuestas;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §29
+29.09;29. Reportes e informes;Publicaciones por período / grupo;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §29
+29.10;29. Reportes e informes;Usuarios blanqueados;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §29
+29.11;29. Reportes e informes;Descargas de documentos;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §29
+29.12;29. Reportes e informes;Solicitudes de ausentismo;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §29
+29.13;29. Reportes e informes;Visitas en tiempo real (EPEC);U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §29
+29.14;29. Reportes e informes;Exportación Excel / filtros;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §29
+29.QA;29. Reportes e informes;Criterios de aceptación del módulo verificados (checklist §);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+29.SEC;29. Reportes e informes;Authz tenant + sin hardcode Emp_Id (premisa);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+29.UX;29. Reportes e informes;UX moderna móvil-primero revisada (§45);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+29.ADM;29. Reportes e informes;Pantallas/admin de configuración del módulo listas (si aplica);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+29.DOC;29. Reportes e informes;OpenAPI / notas de contrato del módulo;U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+30.01;30. Integraciones especiales;ECR Salud;U A S;Vertical / no-regresión;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §30
+30.02;30. Integraciones especiales;GeoVictoria;U A S;Vertical / no-regresión;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §30
+30.03;30. Integraciones especiales;Customizaciones ECR;U A S;Vertical / no-regresión;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §30
+30.04;30. Integraciones especiales;Customizaciones Claro / YoClaro;U A S;Vertical / no-regresión;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §30
+30.05;30. Integraciones especiales;Customizaciones EPEC;U A S;Vertical / no-regresión;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §30
+30.06;30. Integraciones especiales;Customizaciones Emp_Id 60;U A S;Vertical / no-regresión;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §30
+30.07;30. Integraciones especiales;Customizaciones Grido / Gridonet;U A S;Vertical / no-regresión;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §30
+30.08;30. Integraciones especiales;WhatsApp Business / WTA;U A S;Vertical / no-regresión;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §30
+30.09;30. Integraciones especiales;Google Maps;U A S;Vertical / no-regresión;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §30
+30.10;30. Integraciones especiales;SAP;U A S;Vertical / no-regresión;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §30
+30.QA;30. Integraciones especiales;Criterios de aceptación del módulo verificados (checklist §);U A S;Vertical / no-regresión;Calidad;pendiente;n/a;pendiente;
+30.SEC;30. Integraciones especiales;Authz tenant + sin hardcode Emp_Id (premisa);U A S;Vertical / no-regresión;Calidad;pendiente;n/a;pendiente;
+30.UX;30. Integraciones especiales;UX moderna móvil-primero revisada (§45);U A S;Vertical / no-regresión;Calidad;pendiente;n/a;pendiente;
+30.ADM;30. Integraciones especiales;Pantallas/admin de configuración del módulo listas (si aplica);U A S;Vertical / no-regresión;Calidad;pendiente;n/a;pendiente;
+30.DOC;30. Integraciones especiales;OpenAPI / notas de contrato del módulo;U A S;Vertical / no-regresión;Calidad;pendiente;n/a;pendiente;
+31.01;31. WhatsApp / WTA, email, archivos y plataforma;Envío de email;U A S;Vertical / no-regresión;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §31
+31.02;31. WhatsApp / WTA, email, archivos y plataforma;Gestión de archivos;U A S;Vertical / no-regresión;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §31
+31.03;31. WhatsApp / WTA, email, archivos y plataforma;Logging y health check;U A S;Vertical / no-regresión;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §31
+31.04;31. WhatsApp / WTA, email, archivos y plataforma;Capacidades PWA;U A S;Vertical / no-regresión;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §31
+31.05;31. WhatsApp / WTA, email, archivos y plataforma;Soporte (admin);A S;Vertical / no-regresión;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §31
+31.QA;31. WhatsApp / WTA, email, archivos y plataforma;Criterios de aceptación del módulo verificados (checklist §);U A S;Vertical / no-regresión;Calidad;pendiente;n/a;pendiente;
+31.SEC;31. WhatsApp / WTA, email, archivos y plataforma;Authz tenant + sin hardcode Emp_Id (premisa);U A S;Vertical / no-regresión;Calidad;pendiente;n/a;pendiente;
+31.UX;31. WhatsApp / WTA, email, archivos y plataforma;UX moderna móvil-primero revisada (§45);U A S;Vertical / no-regresión;Calidad;pendiente;n/a;pendiente;
+31.ADM;31. WhatsApp / WTA, email, archivos y plataforma;Pantallas/admin de configuración del módulo listas (si aplica);U A S;Vertical / no-regresión;Calidad;pendiente;n/a;pendiente;
+31.DOC;31. WhatsApp / WTA, email, archivos y plataforma;OpenAPI / notas de contrato del módulo;U A S;Vertical / no-regresión;Calidad;pendiente;n/a;pendiente;
+32.01;32. Gaps / no implementado o incompleto;Recibos de sueldo;U A S;Meta / backlog decisión;Funcional;pendiente;pendiente;meta;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §32
+32.02;32. Gaps / no implementado o incompleto;Videollamadas;U A S;Meta / backlog decisión;Funcional;pendiente;pendiente;meta;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §32
+32.03;32. Gaps / no implementado o incompleto;Solicitud turno carnet;U A S;Meta / backlog decisión;Funcional;pendiente;pendiente;meta;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §32
+32.04;32. Gaps / no implementado o incompleto;Gestión de atenciones;U A S;Meta / backlog decisión;Funcional;pendiente;pendiente;meta;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §32
+32.05;32. Gaps / no implementado o incompleto;Mapa de alarmas (admin);A S;Meta / backlog decisión;Funcional;pendiente;pendiente;meta;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §32
+32.06;32. Gaps / no implementado o incompleto;Visitas por menú (reporte);A S;Meta / backlog decisión;Funcional;pendiente;pendiente;meta;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §32
+32.07;32. Gaps / no implementado o incompleto;Documentación / tutoriales dashboard;A S;Meta / backlog decisión;Funcional;pendiente;pendiente;meta;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §32
+32.08;32. Gaps / no implementado o incompleto;Stories (API);S;Meta / backlog decisión;Funcional;pendiente;pendiente;meta;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §32
+32.09;32. Gaps / no implementado o incompleto;Admin de beneficios;A S;Meta / backlog decisión;Funcional;pendiente;pendiente;meta;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §32
+32.10;32. Gaps / no implementado o incompleto;Swagger interactivo;U A S;Meta / backlog decisión;Funcional;pendiente;pendiente;meta;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §32
+32.QA;32. Gaps / no implementado o incompleto;Criterios de aceptación del módulo verificados (checklist §);U A S;Meta / backlog decisión;Calidad;pendiente;n/a;pendiente;
+32.SEC;32. Gaps / no implementado o incompleto;Authz tenant + sin hardcode Emp_Id (premisa);U A S;Meta / backlog decisión;Calidad;pendiente;n/a;pendiente;
+32.UX;32. Gaps / no implementado o incompleto;UX moderna móvil-primero revisada (§45);U A S;Meta / backlog decisión;Calidad;pendiente;n/a;pendiente;
+32.ADM;32. Gaps / no implementado o incompleto;Pantallas/admin de configuración del módulo listas (si aplica);U A S;Meta / backlog decisión;Calidad;pendiente;n/a;pendiente;
+32.DOC;32. Gaps / no implementado o incompleto;OpenAPI / notas de contrato del módulo;U A S;Meta / backlog decisión;Calidad;pendiente;n/a;pendiente;
+33.QA;33. Mapa de integraciones con sistemas externos;Criterios de aceptación del módulo verificados (checklist §);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+33.SEC;33. Mapa de integraciones con sistemas externos;Authz tenant + sin hardcode Emp_Id (premisa);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+33.UX;33. Mapa de integraciones con sistemas externos;UX moderna móvil-primero revisada (§45);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+33.ADM;33. Mapa de integraciones con sistemas externos;Pantallas/admin de configuración del módulo listas (si aplica);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+33.DOC;33. Mapa de integraciones con sistemas externos;OpenAPI / notas de contrato del módulo;U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+34.01;34. Reserva de salas, espacios y cocheras;Catálogo de salas / espacios;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §34
+34.02;34. Reserva de salas, espacios y cocheras;Catálogo de cocheras / plazas;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §34
+34.03;34. Reserva de salas, espacios y cocheras;Disponibilidad y calendario;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §34
+34.04;34. Reserva de salas, espacios y cocheras;Reservar sala / espacio;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §34
+34.05;34. Reserva de salas, espacios y cocheras;Reservar cochera;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §34
+34.06;34. Reserva de salas, espacios y cocheras;Mis reservas;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §34
+34.07;34. Reserva de salas, espacios y cocheras;Aprobación de reservas;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §34
+34.08;34. Reserva de salas, espacios y cocheras;Check-in / liberación;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §34
+34.09;34. Reserva de salas, espacios y cocheras;Notificaciones de reserva;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §34
+34.10;34. Reserva de salas, espacios y cocheras;Reportes de uso;A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §34
+34.11;34. Reserva de salas, espacios y cocheras;Reserva vía chatbot;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §34
+34.QA;34. Reserva de salas, espacios y cocheras;Criterios de aceptación del módulo verificados (checklist §);U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+34.SEC;34. Reserva de salas, espacios y cocheras;Authz tenant + sin hardcode Emp_Id (premisa);U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+34.UX;34. Reserva de salas, espacios y cocheras;UX moderna móvil-primero revisada (§45);U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+34.ADM;34. Reserva de salas, espacios y cocheras;Pantallas/admin de configuración del módulo listas (si aplica);U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+34.DOC;34. Reserva de salas, espacios y cocheras;OpenAPI / notas de contrato del módulo;U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+35.01;35. Coworking y puestos de trabajo;Catálogo de sedes / plantas / zonas;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §35
+35.02;35. Coworking y puestos de trabajo;Catálogo de puestos;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §35
+35.03;35. Coworking y puestos de trabajo;Mapa / plano de planta;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §35
+35.04;35. Coworking y puestos de trabajo;Reservar puesto / hot desk;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §35
+35.05;35. Coworking y puestos de trabajo;“Voy a la oficina” / día en sede;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §35
+35.06;35. Coworking y puestos de trabajo;Mis días / mis puestos;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §35
+35.07;35. Coworking y puestos de trabajo;Check-in / check-out en sede;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §35
+35.08;35. Coworking y puestos de trabajo;Quién está hoy (opcional);U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §35
+35.09;35. Coworking y puestos de trabajo;Políticas híbridas y aforo;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §35
+35.10;35. Coworking y puestos de trabajo;Amenities coworking;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §35
+35.11;35. Coworking y puestos de trabajo;Encadenar con sala / cochera;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §35
+35.12;35. Coworking y puestos de trabajo;Notificaciones coworking;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §35
+35.13;35. Coworking y puestos de trabajo;Reportes de ocupación coworking;A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §35
+35.14;35. Coworking y puestos de trabajo;Coworking vía chatbot;U A S;Vertical opcional;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §35
+35.QA;35. Coworking y puestos de trabajo;Criterios de aceptación del módulo verificados (checklist §);U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+35.SEC;35. Coworking y puestos de trabajo;Authz tenant + sin hardcode Emp_Id (premisa);U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+35.UX;35. Coworking y puestos de trabajo;UX moderna móvil-primero revisada (§45);U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+35.ADM;35. Coworking y puestos de trabajo;Pantallas/admin de configuración del módulo listas (si aplica);U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+35.DOC;35. Coworking y puestos de trabajo;OpenAPI / notas de contrato del módulo;U A S;Vertical opcional;Calidad;pendiente;n/a;pendiente;
+36.01;36. Live streaming y broadcasts;Crear / programar live;U A S;Diferido fase 2+;Funcional;diferido;diferido;diferido;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §36
+36.02;36. Live streaming y broadcasts;Transmitir / ver live;U A S;Diferido fase 2+;Funcional;diferido;diferido;diferido;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §36
+36.03;36. Live streaming y broadcasts;Interacción y métricas;U A S;Diferido fase 2+;Funcional;diferido;diferido;diferido;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §36
+36.QA;36. Live streaming y broadcasts;Criterios de aceptación del módulo verificados (checklist §);U A S;Diferido fase 2+;Calidad;diferido;n/a;diferido;
+36.SEC;36. Live streaming y broadcasts;Authz tenant + sin hardcode Emp_Id (premisa);U A S;Diferido fase 2+;Calidad;diferido;n/a;diferido;
+36.UX;36. Live streaming y broadcasts;UX moderna móvil-primero revisada (§45);U A S;Diferido fase 2+;Calidad;diferido;n/a;diferido;
+36.ADM;36. Live streaming y broadcasts;Pantallas/admin de configuración del módulo listas (si aplica);U A S;Diferido fase 2+;Calidad;diferido;n/a;diferido;
+36.DOC;36. Live streaming y broadcasts;OpenAPI / notas de contrato del módulo;U A S;Diferido fase 2+;Calidad;diferido;n/a;diferido;
+37.01;37. Organigrama;Vista de organigrama;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §37
+37.02;37. Organigrama;Mantener jerarquía;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §37
+37.QA;37. Organigrama;Criterios de aceptación del módulo verificados (checklist §);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+37.SEC;37. Organigrama;Authz tenant + sin hardcode Emp_Id (premisa);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+37.UX;37. Organigrama;UX moderna móvil-primero revisada (§45);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+37.ADM;37. Organigrama;Pantallas/admin de configuración del módulo listas (si aplica);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+37.DOC;37. Organigrama;OpenAPI / notas de contrato del módulo;U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+38.01;38. Desarrollo de talento;OKRs / objetivos;U A S;Diferido fase 2+;Funcional;diferido;diferido;diferido;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §38
+38.02;38. Desarrollo de talento;Evaluación de desempeño;U A S;Diferido fase 2+;Funcional;diferido;diferido;diferido;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §38
+38.03;38. Desarrollo de talento;Plan de carrera;U A S;Diferido fase 2+;Funcional;diferido;diferido;diferido;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §38
+38.04;38. Desarrollo de talento;Aprendizaje (LMS);U A S;Diferido fase 2+;Funcional;diferido;diferido;diferido;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §38
+38.05;38. Desarrollo de talento;Búsquedas internas;U A S;Diferido fase 2+;Funcional;diferido;diferido;diferido;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §38
+38.QA;38. Desarrollo de talento;Criterios de aceptación del módulo verificados (checklist §);U A S;Diferido fase 2+;Calidad;diferido;n/a;diferido;
+38.SEC;38. Desarrollo de talento;Authz tenant + sin hardcode Emp_Id (premisa);U A S;Diferido fase 2+;Calidad;diferido;n/a;diferido;
+38.UX;38. Desarrollo de talento;UX moderna móvil-primero revisada (§45);U A S;Diferido fase 2+;Calidad;diferido;n/a;diferido;
+38.ADM;38. Desarrollo de talento;Pantallas/admin de configuración del módulo listas (si aplica);U A S;Diferido fase 2+;Calidad;diferido;n/a;diferido;
+38.DOC;38. Desarrollo de talento;OpenAPI / notas de contrato del módulo;U A S;Diferido fase 2+;Calidad;diferido;n/a;diferido;
+39.01;39. Cultura empresarial;Programa de referidos;U A S;Diferido fase 2+;Funcional;diferido;diferido;diferido;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §39
+39.02;39. Cultura empresarial;People Experience / pulso;U A S;Diferido fase 2+;Funcional;diferido;diferido;diferido;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §39
+39.03;39. Cultura empresarial;Marketplace interno;U A S;Diferido fase 2+;Funcional;diferido;diferido;diferido;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §39
+39.04;39. Cultura empresarial;Reconocimientos;U A S;Diferido fase 2+;Funcional;diferido;diferido;diferido;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §39
+39.QA;39. Cultura empresarial;Criterios de aceptación del módulo verificados (checklist §);U A S;Diferido fase 2+;Calidad;diferido;n/a;diferido;
+39.SEC;39. Cultura empresarial;Authz tenant + sin hardcode Emp_Id (premisa);U A S;Diferido fase 2+;Calidad;diferido;n/a;diferido;
+39.UX;39. Cultura empresarial;UX moderna móvil-primero revisada (§45);U A S;Diferido fase 2+;Calidad;diferido;n/a;diferido;
+39.ADM;39. Cultura empresarial;Pantallas/admin de configuración del módulo listas (si aplica);U A S;Diferido fase 2+;Calidad;diferido;n/a;diferido;
+39.DOC;39. Cultura empresarial;OpenAPI / notas de contrato del módulo;U A S;Diferido fase 2+;Calidad;diferido;n/a;diferido;
+40.01;40. Políticas corporativas;Biblioteca + acuse;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §40
+40.QA;40. Políticas corporativas;Criterios de aceptación del módulo verificados (checklist §);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+40.SEC;40. Políticas corporativas;Authz tenant + sin hardcode Emp_Id (premisa);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+40.UX;40. Políticas corporativas;UX moderna móvil-primero revisada (§45);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+40.ADM;40. Políticas corporativas;Pantallas/admin de configuración del módulo listas (si aplica);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+40.DOC;40. Políticas corporativas;OpenAPI / notas de contrato del módulo;U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+41.01;41. Workflows y motor de aprobaciones;Diseñador + instancias;U A S;Núcleo MVP;Funcional;desarrollado;desarrollado_y_configurado;parcial;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §41 · IA + 3 ejemplos
+41.02;41. Workflows y motor de aprobaciones;Bandeja de aprobaciones unificada;A S;Núcleo MVP;Funcional;desarrollado;desarrollado_y_configurado;parcial;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §41 · app U /aprobaciones
+41.QA;41. Workflows y motor de aprobaciones;Criterios de aceptación del módulo verificados (checklist §);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+41.SEC;41. Workflows y motor de aprobaciones;Authz tenant + sin hardcode Emp_Id (premisa);U A S;Núcleo MVP;Calidad;desarrollado;n/a;parcial;
+41.UX;41. Workflows y motor de aprobaciones;UX moderna móvil-primero revisada (§45);U A S;Núcleo MVP;Calidad;desarrollado;n/a;parcial;
+41.ADM;41. Workflows y motor de aprobaciones;Pantallas/admin de configuración del módulo listas (si aplica);U A S;Núcleo MVP;Calidad;desarrollado;desarrollado_y_configurado;parcial;
+41.DOC;41. Workflows y motor de aprobaciones;OpenAPI / notas de contrato del módulo;U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+42.01;42. Gestión de servicios (portal);Catálogo + portal;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §42
+42.02;42. Gestión de servicios (portal);Panel de agentes;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §42
+42.QA;42. Gestión de servicios (portal);Criterios de aceptación del módulo verificados (checklist §);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+42.SEC;42. Gestión de servicios (portal);Authz tenant + sin hardcode Emp_Id (premisa);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+42.UX;42. Gestión de servicios (portal);UX moderna móvil-primero revisada (§45);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+42.ADM;42. Gestión de servicios (portal);Pantallas/admin de configuración del módulo listas (si aplica);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+42.DOC;42. Gestión de servicios (portal);OpenAPI / notas de contrato del módulo;U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+43.01;43. Seguridad, privacidad y cumplimiento;Controles clave;U A S;Núcleo MVP;Funcional;pendiente;pendiente;pendiente;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §43
+43.QA;43. Seguridad, privacidad y cumplimiento;Criterios de aceptación del módulo verificados (checklist §);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+43.SEC;43. Seguridad, privacidad y cumplimiento;Authz tenant + sin hardcode Emp_Id (premisa);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+43.UX;43. Seguridad, privacidad y cumplimiento;UX moderna móvil-primero revisada (§45);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+43.ADM;43. Seguridad, privacidad y cumplimiento;Pantallas/admin de configuración del módulo listas (si aplica);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+43.DOC;43. Seguridad, privacidad y cumplimiento;OpenAPI / notas de contrato del módulo;U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+44.QA;44. Deuda técnica a no migrar;Criterios de aceptación del módulo verificados (checklist §);U A S;Transversal (cumplir siempre);Calidad;pendiente;n/a;pendiente;
+44.SEC;44. Deuda técnica a no migrar;Authz tenant + sin hardcode Emp_Id (premisa);U A S;Transversal (cumplir siempre);Calidad;pendiente;n/a;pendiente;
+44.UX;44. Deuda técnica a no migrar;UX moderna móvil-primero revisada (§45);U A S;Transversal (cumplir siempre);Calidad;pendiente;n/a;pendiente;
+44.ADM;44. Deuda técnica a no migrar;Pantallas/admin de configuración del módulo listas (si aplica);U A S;Transversal (cumplir siempre);Calidad;pendiente;n/a;pendiente;
+44.DOC;44. Deuda técnica a no migrar;OpenAPI / notas de contrato del módulo;U A S;Transversal (cumplir siempre);Calidad;pendiente;n/a;pendiente;
+45.QA;45. Modernización del producto;Criterios de aceptación del módulo verificados (checklist §);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+45.SEC;45. Modernización del producto;Authz tenant + sin hardcode Emp_Id (premisa);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+45.UX;45. Modernización del producto;UX moderna móvil-primero revisada (§45);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+45.ADM;45. Modernización del producto;Pantallas/admin de configuración del módulo listas (si aplica);U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+45.DOC;45. Modernización del producto;OpenAPI / notas de contrato del módulo;U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+46.01;46. Hub de accesos / enlaces (launchpad);Pantalla launchpad (U);U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §46 | Ola5 nucleo 2026-07-27
+46.02;46. Hub de accesos / enlaces (launchpad);ABM de accesos + tarjetas (A);A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §46 | Ola5 nucleo 2026-07-27
+46.03;46. Hub de accesos / enlaces (launchpad);Tipos / categorías;U A S;Núcleo MVP;Funcional;desarrollado;configurado;desarrollado_y_configurado;Spec: ECRMOBILE-FUNCIONES-CONSOLIDADO.md §46 | Ola5 nucleo 2026-07-27
+46.04;46. Hub de accesos / enlaces (launchpad);Destinos tipados y SSO;U A S;Núcleo MVP;Funcional;diferido;n/a;diferido;Diferido Ola5 (post-nucleo)
+46.05;46. Hub de accesos / enlaces (launchpad);Favoritos + telemetría;U A S;Núcleo MVP;Funcional;diferido;n/a;diferido;Diferido Ola5 (post-nucleo)
+46.QA;46. Hub de accesos / enlaces (launchpad);Criterios de aceptación del módulo verificados (checklist §);U A S;Núcleo MVP;Calidad;en_curso;n/a;en_curso;Ola5 smoke pendiente
+46.SEC;46. Hub de accesos / enlaces (launchpad);Authz tenant + sin hardcode Emp_Id (premisa);U A S;Núcleo MVP;Calidad;desarrollado;n/a;desarrollado_y_configurado;Ola5 nucleo 2026-07-27
+46.UX;46. Hub de accesos / enlaces (launchpad);UX moderna móvil-primero revisada (§45);U A S;Núcleo MVP;Calidad;desarrollado;n/a;desarrollado_y_configurado;Ola5 nucleo 2026-07-27
+46.ADM;46. Hub de accesos / enlaces (launchpad);Pantallas/admin de configuración del módulo listas (si aplica);U A S;Núcleo MVP;Calidad;desarrollado;n/a;desarrollado_y_configurado;Ola5 nucleo 2026-07-27
+46.DOC;46. Hub de accesos / enlaces (launchpad);OpenAPI / notas de contrato del módulo;U A S;Núcleo MVP;Calidad;pendiente;n/a;pendiente;
+NR.CLARO;NR. Packs no-regresión clientes estratégicos;Pack no-regresión Claro/YoClaro (SSO Azure, hub, beneficios, bandeja estado 8);U A S;Núcleo MVP;No-regresión;pendiente;pendiente;pendiente;Particularidades por empresa en consolidado
+NR.GRIDO;NR. Packs no-regresión clientes estratégicos;Pack no-regresión Grido/Gridonet (AD, appMobile, deep links, branding);U A S;Núcleo MVP;No-regresión;pendiente;pendiente;pendiente;Particularidades por empresa en consolidado
+NR.ECR;NR. Packs no-regresión clientes estratégicos;Pack no-regresión ECR + asociadas (salud, GeoVictoria, ausentismo, supervisores);U A S;Núcleo MVP;No-regresión;pendiente;pendiente;pendiente;Particularidades por empresa en consolidado
+NR.EPEC;NR. Packs no-regresión clientes estratégicos;Pack no-regresión EPEC (visitas, WTA, reglas home);U A S;Núcleo MVP;No-regresión;pendiente;pendiente;pendiente;Particularidades por empresa en consolidado
+NR.EMP60;NR. Packs no-regresión clientes estratégicos;Pack labels Emp 60 (Feedback vecinos / renombres vía metadata);U A;Vertical opcional;No-regresión;pendiente;pendiente;pendiente;Particularidades por empresa en consolidado
