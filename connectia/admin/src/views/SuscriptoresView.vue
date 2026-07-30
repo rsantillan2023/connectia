@@ -141,6 +141,52 @@
           </span>
         </label>
 
+        <fieldset class="space-y-3 rounded-xl border border-slate-200 p-4">
+          <legend class="px-1 text-sm font-semibold text-slate-800">Módulos contratados</legend>
+          <p class="text-xs text-slate-500 -mt-1">
+            Lo que compra el cliente. El admin de la comunidad solo puede activar módulos dentro de esta lista.
+          </p>
+          <div class="flex flex-wrap gap-2">
+            <label
+              v-for="p in PACK_OPTIONS"
+              :key="p.id"
+              class="flex-1 min-w-[9rem] cursor-pointer rounded-lg border px-3 py-2 text-sm"
+              :class="
+                draft.pack === p.id
+                  ? 'border-teal-600 bg-teal-50 text-teal-900'
+                  : 'border-slate-200 bg-white text-slate-700'
+              "
+            >
+              <input v-model="draft.pack" type="radio" class="sr-only" :value="p.id" :disabled="saving" @change="onPackChange" />
+              <span class="font-medium">{{ p.label }}</span>
+              <span class="mt-0.5 block text-[11px] leading-snug text-slate-500">{{ p.hint }}</span>
+            </label>
+          </div>
+          <div v-if="draft.pack === 'personalizado'" class="grid gap-2 sm:grid-cols-2">
+            <label
+              v-for="mod in MODULE_CATALOG"
+              :key="mod.id"
+              class="flex items-start gap-2 rounded-lg border border-slate-100 bg-slate-50 px-2.5 py-2 text-sm"
+            >
+              <input
+                v-model="draft.moduleIds"
+                type="checkbox"
+                class="mt-0.5"
+                :value="mod.id"
+                :disabled="saving"
+              />
+              <span>
+                <span class="font-medium text-slate-800">{{ mod.label }}</span>
+                <span class="block text-[11px] text-slate-500">{{ mod.hint }}</span>
+              </span>
+            </label>
+          </div>
+          <p v-else class="text-xs text-slate-600">
+            Incluye:
+            <span class="font-medium">{{ packPreviewLabels }}</span>
+          </p>
+        </fieldset>
+
         <p v-if="saving" class="text-sm text-teal-700">
           Leyendo la web, armando marca y preparando la comunidad… puede tardar unos segundos.
         </p>
@@ -193,13 +239,18 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import api from '../services/api'
 import ScreenHelp from '../components/ScreenHelp.vue'
 import TenantOnboardingPanel from '../components/TenantOnboardingPanel.vue'
 import { resolveMediaUrl } from '../utils/media.js'
-
-const DEFAULT_CAPS = ['muro', 'solicitudes', 'encuestas', 'docs', 'hub', 'chat', 'menu.dynamic']
+import {
+  MODULE_CATALOG,
+  MODULE_PACKS,
+  PACK_OPTIONS,
+  detectPack,
+  resolvePackSelection,
+} from '../utils/moduleCatalog.js'
 
 const items = ref([])
 const draft = ref(null)
@@ -208,6 +259,13 @@ const msg = ref('')
 const saving = ref(false)
 const seedInfo = ref(null)
 const copyFlash = ref('')
+
+const packPreviewLabels = computed(() => {
+  if (!draft.value) return ''
+  const ids = resolvePackSelection(draft.value.pack, draft.value.moduleIds)
+  const byId = new Map(MODULE_CATALOG.map((m) => [m.id, m.label]))
+  return ids.map((id) => byId.get(id) || id).join(' · ')
+})
 
 function logoOf(t) {
   const raw = t?.onboarding?.logoUrl || t?.branding?.logoUrl || t?.branding?.splash?.logoUrl || ''
@@ -242,6 +300,15 @@ function onCopied(label) {
   }, 2000)
 }
 
+function onPackChange() {
+  if (!draft.value) return
+  if (draft.value.pack !== 'personalizado') {
+    draft.value.moduleIds = resolvePackSelection(draft.value.pack, [])
+  } else if (!draft.value.moduleIds?.length) {
+    draft.value.moduleIds = [...MODULE_PACKS.basico]
+  }
+}
+
 async function load() {
   error.value = ''
   try {
@@ -260,12 +327,19 @@ function openNew() {
     activo: true,
     websiteUrl: '',
     notes: '',
+    pack: 'basico',
+    moduleIds: [...MODULE_PACKS.basico],
   }
   msg.value = ''
 }
 
 function edit(t) {
-  draft.value = { ...t }
+  const licensed = t.licensedCapabilities?.length ? t.licensedCapabilities : t.capabilities || []
+  draft.value = {
+    ...t,
+    pack: detectPack(licensed),
+    moduleIds: licensed.length ? [...licensed] : [...MODULE_PACKS.basico],
+  }
   msg.value = ''
   copyFlash.value = ''
 }
@@ -278,11 +352,16 @@ function openEditFromSeed() {
 
 async function save() {
   try {
+    const licensed = resolvePackSelection(draft.value.pack, draft.value.moduleIds)
     if (draft.value.id) {
+      // Solo pack/licencia: el backend preserva caps operativas fuera del MODULE_CATALOG
+      // (directorio, talento, cultura, supervision.equipo, …) al clampear.
       await api.patch(`/admin/tenants/${draft.value.id}`, {
         nombre: draft.value.nombre,
         allowDesktop: draft.value.allowDesktop,
         activo: draft.value.activo,
+        pack: draft.value.pack,
+        licensedCapabilities: licensed,
       })
       msg.value = 'Suscriptor actualizado'
       draft.value = null
@@ -294,7 +373,8 @@ async function save() {
           empCodigo: draft.value.empCodigo,
           nombre: draft.value.nombre,
           allowDesktop: draft.value.allowDesktop !== false,
-          capabilities: DEFAULT_CAPS,
+          pack: draft.value.pack,
+          capabilities: licensed,
           websiteUrl: draft.value.websiteUrl || undefined,
           notes: draft.value.notes || undefined,
         },

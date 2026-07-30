@@ -7,18 +7,26 @@ export default defineConfig({
     vue(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'],
+      includeAssets: [
+        'icons/icon-192.png',
+        'icons/icon-512.png',
+        'icons/apple-touch-icon.png',
+        'icons/favicon.png',
+        'icons/favicon-32.png',
+        'branding/connectyx/connectyx-mark.svg',
+        'branding/connectyx/favicon1.png',
+      ],
       manifest: {
         id: '/',
-        name: 'Connectia',
-        short_name: 'Connectia',
+        name: 'Connectyx',
+        short_name: 'Connectyx',
         description: 'Tu comunidad: información y trámites, fácil.',
         start_url: '/?source=pwa',
         scope: '/',
         display: 'standalone',
         orientation: 'portrait-primary',
-        background_color: '#0F766E',
-        theme_color: '#0F766E',
+        background_color: '#8453C8',
+        theme_color: '#8453C8',
         lang: 'es',
         icons: [
           {

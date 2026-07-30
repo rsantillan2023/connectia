@@ -11,6 +11,7 @@ export const DEFAULT_POINTS_RULES = [
   { event: 'comment_created', points: 5, dailyCap: 20 },
   { event: 'post_saved', points: 1, dailyCap: 15 },
   { event: 'post_shared', points: 5, dailyCap: 10 },
+  { event: 'recognition_received', points: 15, dailyCap: 20 },
 ]
 
 export function startOfUtcDay(d = new Date()) {

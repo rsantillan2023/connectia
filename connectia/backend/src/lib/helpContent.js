@@ -44,6 +44,7 @@ export function deepLinkFor(kind, id) {
   if (kind === 'faq') return `/ayuda/faq/${sid}`
   if (kind === 'tutorial') return `/ayuda/tutorial/${sid}`
   if (kind === 'policy') return `/politicas/${sid}`
+  if (kind === 'document') return `/docs`
   return '/'
 }
 
@@ -75,6 +76,17 @@ export function buildKbDocument({ kind, doc }) {
     body = String(doc?.cuerpo || '').trim()
     tags = normalizeKeywords(doc?.keywords)
     if (doc?.codigo) tags = [...new Set([...tags, String(doc.codigo).toLowerCase()])]
+  } else if (kind === 'document') {
+    title = String(doc?.titulo || '').trim()
+    body = [
+      String(doc?.descripcion || '').trim(),
+      doc?.category ? `Categoría: ${doc.category}` : '',
+      doc?.fileName ? `Archivo: ${doc.fileName}` : '',
+      doc?.fileUrl ? `Descarga: ${doc.fileUrl}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n')
+    tags = normalizeKeywords([doc?.category, doc?.fileType, 'documento', 'docs'].filter(Boolean))
   }
 
   return {

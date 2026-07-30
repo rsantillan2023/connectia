@@ -2,7 +2,7 @@
   <section class="help">
     <header class="help-head">
       <h1>Ayuda</h1>
-      <p>FAQs y tutoriales para usar Connectia en tu comunidad.</p>
+      <p>FAQs y tutoriales para usar Connectyx en tu comunidad.</p>
     </header>
 
     <div class="help-tabs" role="tablist">

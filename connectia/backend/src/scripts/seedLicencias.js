@@ -321,8 +321,8 @@ export async function seedLicenciasForTenant({
           s.decisionComentario ||
           (s.estado === 'aprobada' ? 'Aprobado en seed' : s.estado === 'rechazada' ? 'Rechazado en seed' : ''),
         ecrSync: {
-          status: 'deferred',
-          note: 'Integración ECR diferida (12.04); gestión local Connectia.',
+          status: 'none',
+          note: 'Seed local · sync ECR al crear/decidir en runtime (12.04).',
         },
         historial: [
           {

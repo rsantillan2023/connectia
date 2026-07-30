@@ -1,7 +1,7 @@
 <template>
   <div class="min-h-dvh flex items-center justify-center p-6 text-center">
     <div class="max-w-md">
-      <p class="font-display text-3xl text-brand">Abrí Connectia en el celular</p>
+      <p class="font-display text-3xl text-brand">Abrí Connectyx en el celular</p>
       <p class="mt-3 text-slate-600 text-sm">
         Esta comunidad no permite usar la app desde escritorio. Escaneá el enlace o abrilo en tu teléfono.
       </p>

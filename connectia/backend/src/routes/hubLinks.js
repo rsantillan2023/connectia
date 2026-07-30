@@ -15,7 +15,9 @@ import {
   openModeForKind,
   buildTemplateContext,
   resolveHubAction,
+  applyTemplates,
 } from '../lib/hubKinds.js'
+import { getOrCreateWalletAccount, tenantHasWallet } from '../lib/walletService.js'
 
 const router = Router()
 
@@ -31,10 +33,13 @@ function serializeLink(l, categoryMeta = null, opts = {}) {
   const visibleUntil = l.visibleUntil || defaultVisibleUntil()
   const kind = normalizeHubKind(l.kind, l.openMode)
   const target = l.target || l.url || ''
+  const ctx = opts.templateCtx
+  const titulo = ctx ? applyTemplates(l.titulo || '', ctx) : l.titulo
+  const subtitulo = ctx ? applyTemplates(l.subtitulo || '', ctx) : l.subtitulo || ''
   return {
     id: String(l._id),
-    titulo: l.titulo,
-    subtitulo: l.subtitulo || '',
+    titulo,
+    subtitulo,
     kind,
     target,
     url: target,
@@ -87,6 +92,16 @@ router.get('/', requireAuth, async (req, res, next) => {
     )
     const hasCats = categories.length > 0
 
+    let templateCtx = buildTemplateContext(req.user, req.tenant)
+    try {
+      if (tenantHasWallet(req.tenant)) {
+        const acc = await getOrCreateWalletAccount(tenantId, req.user._id)
+        templateCtx = buildTemplateContext(req.user, req.tenant, { puntos: acc.balance })
+      }
+    } catch {
+      /* sin billetera: contexto sin puntos */
+    }
+
     const visible = items.filter((l) => {
       if (!isLinkVisibleNow(l, now)) return false
       if (!hasCats) return true
@@ -99,7 +114,7 @@ router.get('/', requireAuth, async (req, res, next) => {
     for (const l of visible) {
       const cat = l.category || 'General'
       if (!byCat[cat]) byCat[cat] = []
-      byCat[cat].push(serializeLink(l, catByName[cat]))
+      byCat[cat].push(serializeLink(l, catByName[cat], { templateCtx }))
     }
 
     const orderedCats = [
@@ -118,7 +133,7 @@ router.get('/', requireAuth, async (req, res, next) => {
     }
 
     res.json({
-      items: visible.map((l) => serializeLink(l, catByName[l.category || 'General'])),
+      items: visible.map((l) => serializeLink(l, catByName[l.category || 'General'], { templateCtx })),
       categories: orderedCats,
       grouped: byCat,
       quickByCategory,
@@ -156,10 +171,20 @@ router.post('/:id/click', requireAuth, async (req, res, next) => {
     await link.save()
 
     const ctx = buildTemplateContext(req.user, req.tenant)
+    try {
+      if (tenantHasWallet(req.tenant)) {
+        const acc = await getOrCreateWalletAccount(req.tenant._id, req.user._id)
+        Object.assign(ctx, buildTemplateContext(req.user, req.tenant, { puntos: acc.balance }))
+      }
+    } catch {
+      /* ignore */
+    }
     const resolved = resolveHubAction(link.toObject ? link.toObject() : link, ctx)
 
     res.json({
       ...resolved,
+      titulo: applyTemplates(link.titulo || '', ctx),
+      subtitulo: applyTemplates(link.subtitulo || '', ctx),
       kind: normalizeHubKind(link.kind, link.openMode),
       openMode: openModeForKind(normalizeHubKind(link.kind, link.openMode)),
       url: resolved.url || link.target || link.url,

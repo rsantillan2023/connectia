@@ -10,11 +10,12 @@ const KIND_TO_CATEGORIA = {
   faq: 'faq',
   tutorial: 'guia',
   policy: 'politica',
+  document: 'general',
 }
 
 /**
  * Marca payload local + upsert en KbArticle.
- * @param {'faq'|'tutorial'|'policy'} kind
+ * @param {'faq'|'tutorial'|'policy'|'document'} kind
  * @param {import('mongoose').Document} doc
  */
 export async function syncKbSource(kind, doc) {

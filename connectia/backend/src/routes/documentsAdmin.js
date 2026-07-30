@@ -23,6 +23,8 @@ import {
   validateDocsDropConfig,
 } from '../lib/docsDropConfig.js'
 import { syncDocsDrop, testDropPattern } from '../services/docDropSync.js'
+import { syncKbSource } from '../services/kbIndex.js'
+import { KbArticle } from '../models/KbArticle.js'
 
 const router = Router()
 const ObjectId = mongoose.Types.ObjectId
@@ -385,6 +387,7 @@ router.post('/', requireAuth, requireCapability('admin.documentos'), async (req,
         console.warn('[workflow] doc instance', wfErr?.message || wfErr)
       }
     }
+    await syncKbSource('document', doc)
     res.status(201).json({ document: serializeDoc(doc) })
   } catch (e) {
     next(e)
@@ -425,6 +428,7 @@ router.patch('/:id', requireAuth, requireCapability('admin.documentos'), async (
       doc.status = body.status
     }
     await doc.save()
+    await syncKbSource('document', doc)
     res.json({ document: serializeDoc(doc) })
   } catch (e) {
     next(e)
@@ -433,8 +437,13 @@ router.patch('/:id', requireAuth, requireCapability('admin.documentos'), async (
 
 router.delete('/:id', requireAuth, requireCapability('admin.documentos'), async (req, res, next) => {
   try {
-    const r = await DocItem.deleteOne({ _id: req.params.id, tenantId: req.tenant._id })
-    if (!r.deletedCount) return res.status(404).json({ error: 'No encontrado' })
+    const doc = await DocItem.findOne({ _id: req.params.id, tenantId: req.tenant._id })
+    if (!doc) return res.status(404).json({ error: 'No encontrado' })
+    await KbArticle.updateMany(
+      { tenantId: req.tenant._id, sourceKind: 'document', sourceId: doc._id },
+      { $set: { status: 'archived' } },
+    )
+    await DocItem.deleteOne({ _id: doc._id, tenantId: req.tenant._id })
     res.json({ ok: true })
   } catch (e) {
     next(e)

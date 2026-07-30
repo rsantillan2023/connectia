@@ -14,6 +14,7 @@ import {
 } from '../lib/workflowEngine.js'
 import { isFullAdmin } from '../middleware/auth.js'
 import { normalizeSolicitudesConfig } from '../lib/solicitudesConfig.js'
+import { syncKbSource } from './kbIndex.js'
 
 function actorName(user) {
   return [user?.nombre, user?.apellido].filter(Boolean).join(' ') || user?.usuario || 'Usuario'
@@ -416,9 +417,11 @@ async function applyOriginSideEffects(inst, decision, tenant) {
       doc.status = 'published'
       doc.publishedAt = new Date()
       await doc.save()
+      await syncKbSource('document', doc)
     } else if (decision === 'rechazar') {
       doc.status = 'draft'
       await doc.save()
+      await syncKbSource('document', doc)
     }
     return
   }
@@ -469,6 +472,15 @@ async function applyOriginSideEffects(inst, decision, tenant) {
         at: new Date(),
       })
       await aus.save()
+      try {
+        const { persistEcrSync } = await import('./ecrAusentismoAdapter.js')
+        await persistEcrSync(aus, {
+          tenant: tenant || { _id: inst.tenantId, capabilities: tenant?.capabilities },
+          event: 'decide',
+        })
+      } catch (syncErr) {
+        console.warn('[ecr] wf absence', syncErr?.message || syncErr)
+      }
       try {
         const { notifyAbsenceDecided } = await import('./notifyTramite.js')
         await notifyAbsenceDecided({ tenant: tenant || { _id: inst.tenantId }, absence: aus })

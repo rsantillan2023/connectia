@@ -2,7 +2,7 @@
   <section class="perfil">
     <header class="perfil-head">
       <h1>Mi perfil</h1>
-      <p>{{ auth.tenant?.nombre || 'Tu cuenta en Connectia' }}</p>
+      <p>{{ auth.tenant?.nombre || 'Tu cuenta en Connectyx' }}</p>
     </header>
 
     <div class="perfil-card">

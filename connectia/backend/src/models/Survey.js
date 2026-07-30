@@ -28,9 +28,10 @@ const surveySchema = new mongoose.Schema(
     questions: { type: [questionSchema], default: [] },
     version: { type: Number, default: 1 },
     audience: {
-      mode: { type: String, enum: ['all', 'restricted'], default: 'all' },
+      mode: { type: String, enum: ['all', 'restricted', 'users', 'none'], default: 'all' },
       areaIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'OrgArea' }],
       groupIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'UserGroup' }],
+      userIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     },
     /**
      * Congelado al publicar: cuántas personas “recibieron” esta encuesta.
@@ -42,6 +43,7 @@ const surveySchema = new mongoose.Schema(
       mode: { type: String, default: '' },
       areaIds: [{ type: mongoose.Schema.Types.ObjectId }],
       groupIds: [{ type: mongoose.Schema.Types.ObjectId }],
+      userIds: [{ type: mongoose.Schema.Types.ObjectId }],
     },
     startsAt: { type: Date, default: null },
     endsAt: { type: Date, default: null },

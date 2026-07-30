@@ -23,8 +23,8 @@ import { WorkflowDefinition } from '../models/WorkflowDefinition.js'
 import { WORKFLOW_USE_CASE_EXAMPLES } from '../services/workflowAi.js'
 import { seedHubKindsForTenant } from './seedHubKinds.js'
 import { seedNotificationsForTenant } from './seedNotifications.js'
-import { seedGreetingsForTenant } from './seedGreetings.js'
 import { seedBenefitsForTenant } from '../lib/benefitsSeed.js'
+import { seedSpacesForTenant } from '../lib/spacesSeed.js'
 import { postLedgerEntry } from '../lib/walletService.js'
 import { Benefit, BenefitPartnerLink } from '../models/Benefit.js'
 import { seedLicenciasForTenant } from './seedLicencias.js'
@@ -81,16 +81,18 @@ const MENU = [
   { key: 'agenda', label: 'Agenda', route: '/agenda', icon: 'calendar', order: 32, channel: 'u' },
   { key: 'docs', label: 'Mis documentos', route: '/docs', icon: 'file', order: 40, channel: 'u' },
   { key: 'mi-legajo', label: 'Mi legajo', route: '/mi-legajo', icon: 'file', order: 42, channel: 'u' },
-  { key: 'bienvenida', label: 'Bienvenida', route: '/bienvenida', icon: 'sparkles', order: 43, channel: 'u' },
+  { key: 'bienvenida', label: 'Tu ingreso', route: '/bienvenida', icon: 'sparkles', order: 43, channel: 'u' },
   { key: 'hub', label: 'Enlaces', route: '/accesos', icon: 'grid', order: 50, channel: 'u' },
   { key: 'beneficios', label: 'Beneficios', route: '/beneficios', icon: 'gift', order: 52, channel: 'u' },
+  { key: 'espacios', label: 'Espacios', route: '/espacios', icon: 'building', order: 53, channel: 'u' },
+  { key: 'oficina', label: 'Oficina', route: '/oficina', icon: 'grid', order: 54, channel: 'u' },
   { key: 'avisos', label: 'Avisos', route: '/avisos', icon: 'bell', order: 55, channel: 'u' },
   { key: 'chat', label: 'Chat', route: '/chat', icon: 'chat', order: 60, channel: 'u' },
   { key: 'admin.home', label: 'Dashboard', route: '/', icon: 'home', order: 10, channel: 'a' },
   { key: 'admin.users', label: 'Usuarios', route: '/usuarios', icon: 'users', order: 15, channel: 'a' },
-  { key: 'admin.legajos', label: 'Legajos RRHH', route: '/legajos', icon: 'file', order: 15.5, channel: 'a' },
-  { key: 'admin.hrcatalog', label: 'Catálogos RRHH', route: '/catalogos-rrhh', icon: 'tag', order: 15.6, channel: 'a' },
-  { key: 'admin.onboarding', label: 'Onboarding y egreso', route: '/onboarding', icon: 'sparkles', order: 15.7, channel: 'a' },
+  { key: 'admin.legajos', label: 'Fichas de empleado', route: '/legajos', icon: 'file', order: 15.5, channel: 'a' },
+  { key: 'admin.hrcatalog', label: 'Listas del legajo', route: '/catalogos-rrhh', icon: 'tag', order: 15.6, channel: 'a' },
+  { key: 'admin.onboarding', label: 'Ingreso y egreso', route: '/onboarding', icon: 'sparkles', order: 15.7, channel: 'a' },
   { key: 'admin.org', label: 'Organización', route: '/organizacion', icon: 'building', order: 16, channel: 'a' },
   { key: 'admin.requests', label: 'Bandeja', route: '/solicitudes', icon: 'inbox', order: 18, channel: 'a' },
   { key: 'admin.reqsend', label: 'Pedir datos a un grupo', route: '/enviar-solicitud', icon: 'send', order: 18.5, channel: 'a' },
@@ -111,6 +113,7 @@ const MENU = [
   { key: 'admin.directorio', label: 'Datos útiles', route: '/directorio', icon: 'grid', order: 46.1, channel: 'a' },
   { key: 'admin.eventos', label: 'Eventos', route: '/eventos', icon: 'calendar', order: 46.2, channel: 'a' },
   { key: 'admin.beneficios', label: 'Beneficios y billetera', route: '/beneficios', icon: 'gift', order: 46.3, channel: 'a' },
+  { key: 'admin.reservas', label: 'Reserva de espacios', route: '/reservas', icon: 'building', order: 46.4, channel: 'a' },
   { key: 'admin.hub', label: 'Enlaces', route: '/accesos', icon: 'grid', order: 47, channel: 'a' },
   { key: 'admin.tenants', label: 'Comunidad', route: '/comunidad', icon: 'building', order: 50, channel: 'a' },
   { key: 'admin.menu', label: 'Menú dinámico', route: '/menu', icon: 'menu', order: 55, channel: 'a' },
@@ -160,7 +163,7 @@ export async function seedArcorTenant(passwordHash) {
       allowDesktop: true,
       branding: { ...ARCOR_BRANDING, splash: { ...ARCOR_BRANDING.splash } },
       loginMethods: ['password', 'id'],
-      capabilities: ['muro', 'solicitudes', 'licencias', 'ausentismos', 'encuestas', 'docs', 'hub', 'chat', 'menu.dynamic', 'beneficios', 'beneficios.billetera', 'beneficios.partners'],
+      capabilities: ['muro', 'solicitudes', 'licencias', 'ausentismos', 'encuestas', 'docs', 'hub', 'chat', 'menu.dynamic', 'beneficios', 'beneficios.billetera', 'beneficios.partners', 'espacios', 'espacios.salas', 'espacios.cocheras', 'espacios.coworking', 'pedidos', 'pedidos.alarma', 'admin.pedidos'],
       timezone: 'America/Argentina/Buenos_Aires',
       uxShell: 'connectia',
       ugc: { enabled: true, requireApproval: true },
@@ -188,6 +191,13 @@ export async function seedArcorTenant(passwordHash) {
       'beneficios',
       'beneficios.billetera',
       'beneficios.partners',
+      'espacios',
+      'espacios.salas',
+      'espacios.cocheras',
+      'espacios.coworking',
+      'pedidos',
+      'pedidos.alarma',
+      'admin.pedidos',
     ]
     tenant.ugc = { enabled: true, requireApproval: true }
     tenant.peopleCare = { enabled: true, label: 'Mi legajo' }
@@ -256,6 +266,7 @@ export async function seedArcorTenant(passwordHash) {
         'admin.hub',
         'admin.workflows',
         'admin.beneficios',
+        'admin.reservas',
       ],
       areaKey: 'marketing',
       groupKeys: ['corporativo', 'liderazgo'],
@@ -274,6 +285,7 @@ export async function seedArcorTenant(passwordHash) {
         'admin.organizacion',
         'admin.workflows',
         'admin.beneficios',
+        'admin.reservas',
         'admin.licencias',
         'admin.ausentismos',
         'admin.legajos',
@@ -786,6 +798,41 @@ export async function seedArcorTenant(passwordHash) {
         },
         { key: 'urgente', label: 'Bloquea mi trabajo', tipo: 'check', required: false, orden: 30 },
         { key: 'detalle', label: 'Detalle', tipo: 'textarea', required: true, orden: 40 },
+      ],
+    },
+    {
+      key: 'turno_carnet',
+      nombre: 'Turno carnet',
+      descripcion: 'Pedido de turno para tramitar carnet / credencial (ex-gap 32.03).',
+      area: 'RRHH',
+      orden: 60,
+      audience: { mode: 'all', areaIds: [], groupIds: [] },
+      campos: [
+        {
+          key: 'tipo_carnet',
+          label: 'Tipo de carnet',
+          tipo: 'select',
+          required: true,
+          orden: 10,
+          opciones: ['Credencial de acceso', 'Carnet de identificación', 'Otro'],
+        },
+        { key: 'fecha_preferida', label: 'Fecha preferida', tipo: 'date', required: true, orden: 20 },
+        {
+          key: 'franja',
+          label: 'Franja horaria',
+          tipo: 'select',
+          required: true,
+          orden: 30,
+          opciones: ['Mañana', 'Tarde', 'Indistinto'],
+        },
+        {
+          key: 'motivo',
+          label: 'Motivo',
+          tipo: 'textarea',
+          required: true,
+          orden: 40,
+          placeholder: 'Alta, renovación, extravío…',
+        },
       ],
     },
   ]
@@ -1318,8 +1365,11 @@ export async function seedArcorTenant(passwordHash) {
   }
   console.log(`Guardados y notificaciones ARCOR OK (${notif.inApp} in-app · ${notif.campaigns} campañas)`)
 
-  const greetings = await seedGreetingsForTenant({ tenantId: tenant._id, brandName: 'Arcor' })
-  console.log(`Saludos ARCOR: ${greetings.created} reglas`)
+  const { seedOla8ForTenant } = await import('./seedOla8ForTenant.js')
+  const ola8 = await seedOla8ForTenant(tenant._id, { brandName: 'Arcor' })
+  console.log(
+    `Ola 8 ARCOR: ${ola8.greetingRules} reglas · ${ola8.usersTouched}/${ola8.usersTotal} usuarios con fechas/hitos`,
+  )
 
   const benefitsSeed = await seedBenefitsForTenant(tenant._id, { brandName: 'Arcor' })
   // Beneficios propios Arcor (Club Arcor+)
@@ -1434,10 +1484,37 @@ export async function seedArcorTenant(passwordHash) {
     `Beneficios ARCOR: base ${benefitsSeed.created}+${benefitsSeed.skipped} · extras ${arcorCreated} nuevos / ${arcorUpdated} geo · puntos a ${walletUsers.length} usuarios`,
   )
 
+  const spacesSeed = await seedSpacesForTenant(tenant._id, { brandName: 'Arcor' })
+  console.log(
+    `Espacios ARCOR: ${spacesSeed.sites} sedes · ${spacesSeed.resourcesCreated} recursos nuevos / ${spacesSeed.resourcesUpdated} actualizados`,
+  )
+
   const { ensureDefaultPointsRules } = await import('../lib/pointsRules.js')
   const pointsRulesSeed = await ensureDefaultPointsRules(tenant._id, { createdBy: admin?._id })
   console.log(
     `Reglas de puntos comunidad ARCOR: ${pointsRulesSeed.created} nuevas / ${pointsRulesSeed.skipped} existentes`,
+  )
+
+  const { seedOla36ForTenant } = await import('../lib/ola36Seed.js')
+  const ola36 = await seedOla36ForTenant(tenant._id, {
+    brandName: 'Arcor',
+    createdBy: admin?._id,
+    ensureSpaces: false, // ya se sembraron espacios arriba
+  })
+  console.log(
+    `Ola 36 ARCOR: plantillas +${ola36.templates} · NL ${ola36.newsletterRules} · clientes +${ola36.clients} · pubs +${ola36.posts} · espacios +${ola36.spaceExtras}`,
+  )
+
+  const { seedPedidosForTenant } = await import('../lib/pedidosSeed.js')
+  const pedSeed = await seedPedidosForTenant(tenant, { force: true, brandName: 'Arcor' })
+  console.log(
+    `Ola 25 ARCOR: cats +${pedSeed.categoriesCreated} · arts +${pedSeed.articlesCreated} · alarma demo ${pedSeed.alarmCreated ? 'sí' : 'ya existía'}`,
+  )
+
+  const { seedServiciosForTenant } = await import('../lib/serviciosSeed.js')
+  const srvSeed = await seedServiciosForTenant(tenant, { force: true })
+  console.log(
+    `Ola 43 ARCOR: áreas +${srvSeed.areasCreated} · ítems +${srvSeed.itemsCreated} · req +${srvSeed.requestsCreated}`,
   )
 
   const licSeed = await seedLicenciasForTenant({

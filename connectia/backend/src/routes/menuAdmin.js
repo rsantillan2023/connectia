@@ -24,6 +24,12 @@ function serialize(i) {
     order: i.order,
     channel: i.channel,
     activo: i.activo,
+    showInTabbar: Boolean(i.showInTabbar),
+    tabOrder: Number(i.tabOrder) || 100,
+    showInAdminSidebar: Boolean(i.showInAdminSidebar),
+    showInAdminHeader: Boolean(i.showInAdminHeader),
+    actionType: i.actionType === 'compose_post' ? 'compose_post' : 'navigate',
+    actionParams: i.actionParams && typeof i.actionParams === 'object' ? i.actionParams : {},
     audience: {
       roles: i.audience?.roles || [],
       capabilities: i.audience?.capabilities || [],
@@ -51,7 +57,22 @@ router.get('/', requireAuth, requireCapability('admin.menu'), async (req, res, n
 
 router.post('/', requireAuth, requireCapability('admin.menu'), async (req, res, next) => {
   try {
-    const { key, label, route, icon, order, channel, audience, activo } = req.body || {}
+    const {
+      key,
+      label,
+      route,
+      icon,
+      order,
+      channel,
+      audience,
+      activo,
+      showInTabbar,
+      tabOrder,
+      showInAdminSidebar,
+      showInAdminHeader,
+      actionType,
+      actionParams,
+    } = req.body || {}
     if (!key || !label || !route) {
       return res.status(400).json({ error: 'key, label y route son obligatorios' })
     }
@@ -64,6 +85,12 @@ router.post('/', requireAuth, requireCapability('admin.menu'), async (req, res, 
       order: Number(order) || 100,
       channel: ['u', 'a', 'both'].includes(channel) ? channel : 'u',
       activo: activo !== false,
+      showInTabbar: Boolean(showInTabbar),
+      tabOrder: Number(tabOrder) || 100,
+      showInAdminSidebar: Boolean(showInAdminSidebar),
+      showInAdminHeader: Boolean(showInAdminHeader),
+      actionType: actionType === 'compose_post' ? 'compose_post' : 'navigate',
+      actionParams: actionParams && typeof actionParams === 'object' ? actionParams : {},
       audience: {
         roles: audience?.roles || [],
         capabilities: audience?.capabilities || [],
@@ -88,6 +115,16 @@ router.patch('/:id', requireAuth, requireCapability('admin.menu'), async (req, r
     if (body.order != null) item.order = Number(body.order)
     if (['u', 'a', 'both'].includes(body.channel)) item.channel = body.channel
     if (typeof body.activo === 'boolean') item.activo = body.activo
+    if (typeof body.showInTabbar === 'boolean') item.showInTabbar = body.showInTabbar
+    if (body.tabOrder != null) item.tabOrder = Number(body.tabOrder) || 100
+    if (typeof body.showInAdminSidebar === 'boolean') item.showInAdminSidebar = body.showInAdminSidebar
+    if (typeof body.showInAdminHeader === 'boolean') item.showInAdminHeader = body.showInAdminHeader
+    if (body.actionType === 'compose_post' || body.actionType === 'navigate') {
+      item.actionType = body.actionType
+    }
+    if (body.actionParams && typeof body.actionParams === 'object') {
+      item.actionParams = body.actionParams
+    }
     if (body.audience) {
       item.audience = {
         roles: body.audience.roles || [],

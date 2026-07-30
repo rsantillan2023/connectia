@@ -5,9 +5,11 @@ import fs from 'fs'
 import { fileURLToPath } from 'url'
 import mongoose from 'mongoose'
 import { DocItem } from '../models/DocItem.js'
+import { DocumentDownload } from '../models/DocumentDownload.js'
 import { OrgArea } from '../models/OrgArea.js'
 import { User } from '../models/User.js'
 import { requireAuth } from '../middleware/auth.js'
+import { channelFromUa } from '../lib/xlsxExport.js'
 import {
   audienceFilterForUser,
   userMatchesAudience,
@@ -401,6 +403,17 @@ router.post('/:id/download', requireAuth, async (req, res, next) => {
     log.push({ userId: req.user._id, at: new Date() })
     doc.downloads = log.slice(-200)
     await doc.save()
+    // Log escalable para reportes §29.11
+    DocumentDownload.create({
+      tenantId: req.tenant._id,
+      docId: doc._id,
+      userId: req.user._id,
+      titulo: doc.titulo || '',
+      fileType: doc.fileType || 'other',
+      result: 'ok',
+      channel: channelFromUa(req.headers['user-agent'] || ''),
+      ip: String(req.ip || req.headers['x-forwarded-for'] || '').slice(0, 80),
+    }).catch(() => {})
     const resolved = resolveDocumentDownload(doc)
     res.json({
       fileUrl: resolved.fileUrl || doc.fileUrl,

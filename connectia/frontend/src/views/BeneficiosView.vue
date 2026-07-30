@@ -55,6 +55,17 @@
           </button>
           <div class="ben-card-actions">
             <button type="button" class="fav-btn" @click="toggleFav(item)">{{ item.favorite ? '★' : '☆' }}</button>
+            <a
+              v-if="item.directionsUrl"
+              class="dir-btn"
+              :href="item.directionsUrl"
+              target="_blank"
+              rel="noopener"
+              title="Cómo llegar"
+              @click.stop
+            >
+              Ir
+            </a>
             <button type="button" class="add-btn" @click="addToCart(item)">+ Carrito</button>
           </div>
         </div>
@@ -107,6 +118,25 @@
         </a>
       </li>
     </ul>
+
+    <!-- Cómo sumar puntos -->
+    <div v-if="tab === 'earn'" class="ben-panel">
+      <div class="ben-wallet-card">
+        <span>Tu saldo</span>
+        <strong>{{ balance ?? 0 }}</strong>
+        <small>puntos</small>
+      </div>
+      <h3 class="ben-earn-title">Cómo sumar puntos</h3>
+      <p class="ben-muted">Participá en la comunidad y sumá. Estas son las reglas activas:</p>
+      <ul v-if="earnRules.length" class="ben-earn-list">
+        <li v-for="r in earnRules" :key="r.id">
+          <strong>{{ r.label || r.eventLabel }}</strong>
+          <span>+{{ r.points }} pts</span>
+          <small v-if="r.dailyCap != null">tope {{ r.dailyCap }}/día</small>
+        </li>
+      </ul>
+      <p v-else class="ben-muted">Todavía no hay reglas de puntos configuradas.</p>
+    </div>
 
     <!-- Billetera -->
     <div v-if="tab === 'wallet'" class="ben-panel">
@@ -172,10 +202,12 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import api from '../services/api'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
+const route = useRoute()
 const CART_KEY = 'connectia.benefits.cart'
 
 const tab = ref('all')
@@ -186,6 +218,7 @@ const partners = ref([])
 const txs = ref([])
 const mapItems = ref([])
 const balance = ref(null)
+const earnRules = ref([])
 const walletEnabled = ref(false)
 const partnersEnabled = ref(false)
 const loading = ref(true)
@@ -197,6 +230,10 @@ const lastRedemptions = ref([])
 const mapEl = ref(null)
 let map = null
 let markersLayer = null
+/** Cache GPS para no bloquear el catálogo en cada carga */
+let cachedGeo = null
+let geoPromise = null
+let loadSeq = 0
 
 const walletMode = ref('transfer')
 const xferUsuario = ref('')
@@ -224,7 +261,10 @@ const tabs = computed(() => {
     { id: 'cart', label: 'Carrito' },
   ]
   if (partnersEnabled.value) base.push({ id: 'partners', label: 'Partners' })
-  if (walletEnabled.value) base.push({ id: 'wallet', label: 'Billetera' })
+  if (walletEnabled.value) {
+    base.push({ id: 'earn', label: 'Cómo sumar' })
+    base.push({ id: 'wallet', label: 'Billetera' })
+  }
   return base
 })
 
@@ -263,8 +303,27 @@ function setTab(t) {
   tab.value = t
   view.value = 'list'
   if (t === 'wallet') loadWallet()
+  else if (t === 'earn') loadEarn()
   else if (t === 'partners') loadPartners()
   else if (t !== 'cart') load()
+}
+
+async function loadEarn() {
+  loading.value = true
+  error.value = ''
+  try {
+    const [w, r] = await Promise.all([
+      api.get('/wallet/points'),
+      api.get('/wallet/how-to-earn'),
+    ])
+    balance.value = w.data.balance
+    earnRules.value = r.data.items || []
+    walletEnabled.value = true
+  } catch (e) {
+    error.value = e.response?.data?.error || 'No se pudieron cargar las reglas de puntos'
+  } finally {
+    loading.value = false
+  }
 }
 
 function addToCart(item) {
@@ -311,64 +370,101 @@ async function checkout() {
   }
 }
 
+function catalogParams(extra = {}) {
+  const params = { ...extra }
+  if (q.value.trim()) params.q = q.value.trim()
+  if (tab.value === 'benefit' || tab.value === 'reward') params.kind = tab.value
+  if (tab.value === 'fav') params.favoritos = '1'
+  if (cachedGeo) {
+    params.lat = cachedGeo.lat
+    params.lng = cachedGeo.lng
+  }
+  return params
+}
+
+/** GPS en paralelo / cache; no bloquea el listado. */
+function ensureGeo() {
+  if (cachedGeo) return Promise.resolve(cachedGeo)
+  if (geoPromise) return geoPromise
+  if (!navigator.geolocation) return Promise.resolve(null)
+  geoPromise = new Promise((resolve) => {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        cachedGeo = { lat: pos.coords.latitude, lng: pos.coords.longitude }
+        resolve(cachedGeo)
+      },
+      () => resolve(null),
+      { timeout: 4000, maximumAge: 120000 },
+    )
+  }).finally(() => {
+    geoPromise = null
+  })
+  return geoPromise
+}
+
 async function load() {
+  const seq = ++loadSeq
   loading.value = true
   error.value = ''
   try {
-    const params = {}
-    if (q.value.trim()) params.q = q.value.trim()
-    if (tab.value === 'benefit' || tab.value === 'reward') params.kind = tab.value
-    if (tab.value === 'fav') params.favoritos = '1'
-    if (navigator.geolocation) {
-      try {
-        const pos = await new Promise((resolve, reject) =>
-          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 4000 }),
-        )
-        params.lat = pos.coords.latitude
-        params.lng = pos.coords.longitude
-      } catch {
-        /* ok */
-      }
-    }
-    const { data } = await api.get('/benefits', { params })
+    const { data } = await api.get('/benefits', { params: catalogParams() })
+    if (seq !== loadSeq) return
     items.value = data.items || []
     walletEnabled.value = Boolean(data.walletEnabled)
     partnersEnabled.value = Boolean(data.partnersEnabled)
     if (walletEnabled.value && balance.value == null) {
-      try {
-        const w = await api.get('/wallet/points')
-        balance.value = w.data.balance
-      } catch {
-        /* */
-      }
+      api
+        .get('/wallet/points')
+        .then((w) => {
+          if (seq === loadSeq) balance.value = w.data.balance
+        })
+        .catch(() => {})
+    }
+    // Refinar distancias cuando llegue GPS (sin spinner)
+    if (!cachedGeo) {
+      ensureGeo().then(async (geo) => {
+        if (!geo || seq !== loadSeq || !catalogTab.value) return
+        try {
+          const { data: again } = await api.get('/benefits', { params: catalogParams() })
+          if (seq !== loadSeq) return
+          items.value = again.items || []
+        } catch {
+          /* ok */
+        }
+      })
     }
   } catch (e) {
-    error.value = e.response?.data?.error || 'No se pudo cargar'
+    if (seq === loadSeq) error.value = e.response?.data?.error || 'No se pudo cargar'
   } finally {
-    loading.value = false
+    if (seq === loadSeq) loading.value = false
   }
 }
 
 async function openMap() {
   view.value = 'map'
   loading.value = true
+  error.value = ''
   try {
-    const params = {}
-    if (navigator.geolocation) {
-      try {
-        const pos = await new Promise((resolve, reject) =>
-          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 4000 }),
-        )
-        params.lat = pos.coords.latitude
-        params.lng = pos.coords.longitude
-      } catch {
-        /* */
-      }
-    }
+    const params = cachedGeo ? { lat: cachedGeo.lat, lng: cachedGeo.lng } : {}
     const { data } = await api.get('/benefits/map', { params })
     mapItems.value = data.items || []
     await nextTick()
     ensureMap()
+    if (!cachedGeo) {
+      ensureGeo().then(async (geo) => {
+        if (!geo || view.value !== 'map') return
+        try {
+          const { data: again } = await api.get('/benefits/map', {
+            params: { lat: geo.lat, lng: geo.lng },
+          })
+          mapItems.value = again.items || []
+          await nextTick()
+          ensureMap()
+        } catch {
+          /* ok */
+        }
+      })
+    }
   } catch (e) {
     error.value = e.response?.data?.error || 'No se pudo cargar el mapa'
   } finally {
@@ -397,7 +493,15 @@ function ensureMap() {
       fillColor: '#0f766e',
       fillOpacity: 0.95,
     })
-    m.bindPopup(`<strong>${escapeHtml(it.titulo)}</strong><br/>${it.costoPuntos || 0} pts`)
+    const dirHref = it.directionsUrl ? escapeHtml(it.directionsUrl) : ''
+    const detailHref = `/beneficios/${encodeURIComponent(it.id)}`
+    m.bindPopup(
+      `<strong>${escapeHtml(it.titulo)}</strong><br/>${it.costoPuntos || 0} pts` +
+        (dirHref
+          ? `<br/><a href="${dirHref}" target="_blank" rel="noopener">Cómo llegar</a>`
+          : '') +
+        `<br/><a href="${detailHref}">Ver ficha</a>`,
+    )
     m.on('click', () => {
       /* detail via popup */
     })
@@ -530,7 +634,13 @@ watch(view, (v) => {
   if (v === 'map') openMap()
 })
 
-onMounted(load)
+onMounted(() => {
+  if (route.query.tab === 'earn' || route.query.tab === 'wallet') {
+    setTab(String(route.query.tab))
+  } else {
+    load()
+  }
+})
 onBeforeUnmount(() => {
   if (map) {
     map.remove()
@@ -687,7 +797,8 @@ onBeforeUnmount(() => {
   padding: 0 0.65rem 0.65rem;
 }
 .fav-btn,
-.add-btn {
+.add-btn,
+.dir-btn {
   border: 1px solid #e2e8f0;
   background: #fff;
   border-radius: 999px;
@@ -702,6 +813,10 @@ onBeforeUnmount(() => {
 }
 .add-btn {
   color: #0f766e;
+}
+.dir-btn {
+  color: #1d4ed8;
+  text-decoration: none;
 }
 .ben-err {
   color: #b91c1c;
@@ -792,6 +907,43 @@ onBeforeUnmount(() => {
   margin: 0.25rem 0;
 }
 .ben-wallet-card {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 14px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--brand-primary, #0f766e) 12%, #fff);
+  margin-bottom: 12px;
+}
+.ben-earn-title {
+  margin: 8px 0 4px;
+  font-size: 1.05rem;
+}
+.ben-earn-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.ben-earn-list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: baseline;
+  border: 1px solid var(--cx-border, #e2e8f0);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+.ben-earn-list li span {
+  margin-left: auto;
+  font-weight: 800;
+  color: var(--brand-primary, #0f766e);
+}
+.ben-earn-list li small {
+  width: 100%;
+  color: var(--cx-muted, #64748b);
+}
   background: linear-gradient(145deg, #0f766e, #134e4a);
   color: #fff;
   border-radius: 1.25rem;

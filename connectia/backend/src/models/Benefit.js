@@ -6,8 +6,17 @@ import mongoose from 'mongoose'
 const benefitSchema = new mongoose.Schema(
   {
     tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
-    /** benefit | reward */
+    /** benefit | reward (motor canje) */
     kind: { type: String, enum: ['benefit', 'reward'], default: 'benefit', index: true },
+    /**
+     * Tipología producto (admin wizard / legado):
+     * informativo | canjeable | premio | geo | partner
+     */
+    offerType: {
+      type: String,
+      enum: ['informativo', 'canjeable', 'premio', 'geo', 'partner'],
+      index: true,
+    },
     titulo: { type: String, required: true, trim: true, maxlength: 160 },
     descripcion: { type: String, default: '', maxlength: 4000 },
     condiciones: { type: String, default: '', maxlength: 4000 },
@@ -54,6 +63,9 @@ const benefitSchema = new mongoose.Schema(
 
 benefitSchema.index({ tenantId: 1, status: 1, kind: 1, orden: 1 })
 benefitSchema.index({ tenantId: 1, categoria: 1, status: 1 })
+/** Sort del catálogo U: destacado → orden → título */
+benefitSchema.index({ tenantId: 1, status: 1, destacado: -1, orden: 1, titulo: 1 })
+benefitSchema.index({ tenantId: 1, status: 1, 'audience.mode': 1 })
 
 export const Benefit = mongoose.model('Benefit', benefitSchema)
 

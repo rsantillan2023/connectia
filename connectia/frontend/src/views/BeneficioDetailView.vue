@@ -34,9 +34,21 @@
           <p class="bd-text">{{ item.condiciones }}</p>
         </div>
 
-        <div v-if="item.sucursal" class="bd-block">
-          <h2>Sucursal</h2>
-          <p class="bd-text">{{ item.sucursal }}</p>
+        <div v-if="item.sucursal || item.hasLocation" class="bd-block">
+          <h2>Ubicación</h2>
+          <p v-if="item.sucursal" class="bd-text">{{ item.sucursal }}</p>
+          <p v-if="item.lat != null && item.lng != null" class="bd-coords">
+            {{ Number(item.lat).toFixed(5) }}, {{ Number(item.lng).toFixed(5) }}
+          </p>
+          <button
+            v-if="item.directionsUrl || item.hasLocation"
+            type="button"
+            class="bd-cta ghost"
+            :disabled="directionsBusy"
+            @click="openDirections"
+          >
+            {{ directionsBusy ? 'Abriendo ruta…' : 'Cómo llegar' }}
+          </button>
         </div>
 
         <a
@@ -93,6 +105,7 @@ const error = ref('')
 const redeemBusy = ref(false)
 const redemption = ref(null)
 const okMsg = ref('')
+const directionsBusy = ref(false)
 
 const heroStyle = computed(() =>
   item.value?.imageUrl
@@ -106,6 +119,51 @@ const redeemLabel = computed(() => {
   if (c > 0) return `Canjear por ${c} pts`
   return 'Obtener código'
 })
+
+function buildDirectionsUrl(origin) {
+  const it = item.value
+  if (!it) return ''
+  const hasCoords = it.lat != null && it.lng != null
+  const dest = hasCoords
+    ? `${Number(it.lat)},${Number(it.lng)}`
+    : String(it.sucursal || '').trim()
+  if (!dest) return it.directionsUrl || ''
+  const params = new URLSearchParams({
+    api: '1',
+    destination: dest,
+    travelmode: 'driving',
+  })
+  if (origin?.lat != null && origin?.lng != null) {
+    params.set('origin', `${origin.lat},${origin.lng}`)
+  }
+  return `https://www.google.com/maps/dir/?${params.toString()}`
+}
+
+function openDirections() {
+  if (!item.value) return
+  directionsBusy.value = true
+  const fallback = item.value.directionsUrl || buildDirectionsUrl()
+  const open = (url) => {
+    window.open(url || fallback, '_blank', 'noopener')
+    directionsBusy.value = false
+  }
+  if (!navigator.geolocation) {
+    open(fallback)
+    return
+  }
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      open(
+        buildDirectionsUrl({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+        }),
+      )
+    },
+    () => open(fallback),
+    { enableHighAccuracy: false, timeout: 6000, maximumAge: 120000 },
+  )
+}
 
 async function load() {
   loading.value = true
@@ -267,6 +325,12 @@ onMounted(load)
   color: #334155;
   line-height: 1.45;
   font-size: 0.95rem;
+}
+.bd-coords {
+  margin: 0.25rem 0 0.5rem;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  font-family: ui-monospace, monospace;
 }
 .bd-link {
   display: inline-block;

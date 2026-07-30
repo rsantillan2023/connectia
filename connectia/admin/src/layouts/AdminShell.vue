@@ -1,72 +1,555 @@
 <template>
-  <div class="admin-shell">
-    <aside class="admin-aside">
-      <p class="font-semibold text-lg">{{ auth.isPlatformAdmin ? 'Connectia · Plataforma' : 'Connectia Admin' }}</p>
-      <p class="text-xs text-slate-400 mt-1">{{ auth.tenant?.nombre }}</p>
-      <p v-if="auth.isPlatformAdmin" class="mt-2 text-[10px] uppercase tracking-wide text-amber-400">Admin general</p>
-      <p v-else-if="!auth.isFullAdmin" class="mt-2 text-[10px] uppercase tracking-wide text-teal-400">Gestión (permisos)</p>
-      <nav class="mt-6 space-y-1 flex-1">
-        <template v-for="entry in menuTree" :key="entry.id">
-          <RouterLink
-            v-if="entry.type === 'link'"
-            :to="entry.route"
-            class="block rounded px-3 py-2 text-sm hover:bg-slate-800"
-            :active-class="entry.route === '/' ? '' : '!bg-teal-700'"
-            exact-active-class="!bg-teal-700"
-          >
-            {{ entry.label }}
-          </RouterLink>
-          <div v-else class="pt-2 first:pt-0">
+  <!-- Shell estilo Hiryx MainLayout: chatbot izq · header fijo · sidebar der hover · contenido -->
+  <div class="admin-shell flex h-screen" style="background: var(--canvas, #111019)">
+    <button
+      v-if="isChatbotCollapsed"
+      type="button"
+      class="admin-fab fixed z-40 flex items-center gap-3 rounded-full border px-3 py-2 shadow-lg transition-all hover:scale-105 hover:shadow-xl"
+      :class="isMobile ? 'bottom-6 right-6' : 'bottom-6 right-24'"
+      title="¿Necesitás ayuda? Abrí el asistente ampliado"
+      aria-label="Abrir asistente ampliado"
+      @click="openChatbotMaximized"
+    >
+      <div class="admin-fab__avatar h-12 w-12 flex-shrink-0 overflow-hidden rounded-full ring-2">
+        <img :src="PRODUCT_ICON" alt="" class="h-full w-full object-cover" />
+      </div>
+      <span class="admin-fab__label whitespace-nowrap pr-1 text-sm font-medium">¿Necesitás ayuda?</span>
+    </button>
+
+    <div
+      class="admin-chat-rail fixed bottom-0 left-0 z-30 overflow-hidden transition-all duration-300"
+      :class="[
+        isMobile ? 'top-16' : 'top-20',
+        isChatbotCollapsed
+          ? 'w-14 border-r shadow-none'
+          : 'w-96 border-r shadow-lg',
+      ]"
+    >
+      <AdminShellChatbot v-model:collapsed="isChatbotCollapsed" />
+    </div>
+
+    <div
+      class="admin-right-rail fixed bottom-0 right-0 z-40 flex justify-end transition-all duration-300 ease-out"
+      :class="[isMobile ? 'top-16 w-20' : sidebarHovered ? 'top-20 w-20' : 'top-20 w-10']"
+      @mouseenter="!isMobile && onSidebarEnter()"
+      @mouseleave="!isMobile && onSidebarLeave()"
+    >
+      <aside
+        class="sidebar flex h-full flex-shrink-0 flex-col overflow-x-hidden overflow-y-hidden border-l border-gray-200 bg-white text-gray-800 shadow-lg transition-all duration-300 ease-out"
+        :class="isMobile || sidebarHovered ? 'w-20' : 'w-10'"
+      >
+        <div
+          v-if="!isMobile && !sidebarHovered"
+          class="flex h-full w-full items-start justify-center pt-4"
+          title="Menú"
+        >
+          <i class="fas fa-bars text-lg text-gray-600 transition-colors hover:text-purple-600"></i>
+        </div>
+
+        <nav v-show="isMobile || sidebarHovered" class="flex flex-1 flex-col justify-end">
+          <div class="px-3 py-1">
+            <RouterLink
+              to="/"
+              class="flex flex-col items-center justify-center rounded-lg px-2 py-1.5 text-sm text-gray-800 transition-colors hover:bg-gray-100"
+              title="Dashboard"
+            >
+              <i class="fas fa-home mb-0.5 text-lg"></i>
+              <span class="text-center text-[8px] leading-tight">Inicio</span>
+            </RouterLink>
+          </div>
+          <div class="px-3 py-1">
             <button
               type="button"
-              class="flex w-full items-center justify-between rounded px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-              @click="toggleGroup(entry.id)"
+              class="flex w-full flex-col items-center justify-center rounded-lg px-2 py-1.5 text-sm text-gray-800 transition-colors hover:bg-gray-100"
+              title="Mapa del sitio"
+              @click="showAdminFunctions = true"
             >
-              <span>{{ entry.label }}</span>
-              <span class="text-slate-500 transition-transform" :class="openGroups[entry.id] ? 'rotate-90' : ''">›</span>
+              <i class="fas fa-sitemap mb-0.5 text-lg"></i>
+              <span class="text-center text-[8px] leading-tight">Mapa</span>
             </button>
-            <div v-show="openGroups[entry.id]" class="mt-0.5 space-y-0.5 border-l border-slate-700 ml-3 pl-2">
-              <RouterLink
-                v-for="item in entry.items"
-                :key="item.key"
-                :to="item.route"
-                class="block rounded px-3 py-1.5 text-sm text-slate-300 hover:bg-slate-800 hover:text-white"
-                active-class="!bg-teal-700 !text-white"
-              >
-                {{ item.label }}
-              </RouterLink>
+          </div>
+          <div v-for="pin in sidebarPins" :key="'sb-' + (pin.id || pin.key || pin.route)" class="px-3 py-1">
+            <RouterLink
+              :to="pin.route"
+              class="flex flex-col items-center justify-center rounded-lg px-2 py-1.5 text-sm text-gray-800 transition-colors hover:bg-gray-100"
+              :title="pin.label"
+            >
+              <i :class="[resolveMenuFaIcon(pin), 'mb-0.5 text-lg']"></i>
+              <span class="text-center text-[8px] leading-tight">{{ pin.label }}</span>
+            </RouterLink>
+          </div>
+          <div class="mb-4 space-y-1 px-3 py-2">
+            <button
+              type="button"
+              class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-purple-600 text-sm font-semibold text-white shadow-md transition-colors hover:bg-purple-700"
+              :title="displayName"
+              @click="showUserPanel = true"
+            >
+              {{ userInitials }}
+            </button>
+            <button
+              type="button"
+              class="flex w-full flex-col items-center justify-center rounded-lg px-2 py-1.5 text-sm text-gray-800 transition-colors hover:bg-gray-100"
+              title="Cerrar sesión"
+              @click="showUserPanel = true"
+            >
+              <i class="fas fa-sign-out-alt mb-0.5 text-lg"></i>
+              <span class="text-center text-[8px] leading-tight">Salir</span>
+            </button>
+          </div>
+        </nav>
+      </aside>
+    </div>
+
+    <div
+      class="flex min-w-0 flex-1 flex-col transition-all duration-300 md:mr-4 md:pl-2"
+      :class="isChatbotCollapsed ? 'md:ml-14' : 'md:ml-96'"
+    >
+      <header
+        class="admin-top-header fixed left-0 top-0 z-30 flex w-full items-center"
+        :class="isMobile ? 'h-16 px-2' : 'h-20 px-6'"
+      >
+        <div v-if="isMobile" class="flex w-full items-center justify-between gap-2">
+          <RouterLink to="/" class="flex min-w-0 items-center gap-2">
+            <img :src="headerLogo" alt="Connectyx" class="h-8 max-w-[200px] object-contain object-left" />
+          </RouterLink>
+          <button
+            type="button"
+            class="header-button flex flex-shrink-0 items-center gap-1 rounded-lg px-2 py-1.5 text-xs text-white"
+            @click="showAdminFunctions = true"
+          >
+            <i class="fas fa-sitemap text-white"></i>
+            <span>Mapa</span>
+          </button>
+          <ThemeToggle />
+        </div>
+
+        <div v-else class="flex h-full w-full items-center px-2">
+          <RouterLink to="/" class="flex w-[260px] flex-shrink-0 items-center justify-start">
+            <img :src="headerLogo" alt="Connectyx" class="h-10 max-w-[240px] object-contain object-left" />
+          </RouterLink>
+
+          <div class="flex min-w-0 flex-1 justify-center px-4">
+            <div
+              class="header-identity flex max-w-full min-w-0 items-center justify-center gap-2.5 text-sm"
+              :title="headerIdentityTitle"
+            >
+              <template v-if="auth.tenant?.nombre || showTenantLogo">
+                <img
+                  v-if="showTenantLogo"
+                  :src="tenantLogoUrl"
+                  :alt="auth.tenant?.nombre || 'Cliente'"
+                  class="header-tenant__logo h-7 w-auto max-w-[100px] flex-shrink-0 object-contain"
+                  @error="tenantLogoBroken = true"
+                />
+                <span
+                  v-if="auth.tenant?.nombre"
+                  class="header-tenant__name max-w-[10rem] truncate font-medium"
+                  style="color: var(--ink)"
+                >
+                  {{ auth.tenant.nombre }}
+                </span>
+                <span class="header-identity__sep flex-shrink-0" aria-hidden="true">·</span>
+              </template>
+              <span class="header-admin-badge flex-shrink-0 text-sm">
+                {{ auth.isPlatformAdmin ? 'Plataforma' : 'Administrador' }}
+              </span>
+              <template v-if="displayName">
+                <span class="header-identity__sep flex-shrink-0" aria-hidden="true">·</span>
+                <span class="header-admin-nombre max-w-[12rem] truncate" style="color: var(--ink-soft)">
+                  {{ displayName }}
+                </span>
+              </template>
             </div>
           </div>
-        </template>
-      </nav>
-      <button class="text-left text-sm text-slate-400 hover:text-white" @click="auth.logout(); $router.push('/login')">
-        Salir
-      </button>
-    </aside>
-    <main ref="mainEl" class="admin-main" tabindex="-1">
-      <RouterView />
-    </main>
+
+          <div class="flex items-center space-x-2">
+            <button
+              type="button"
+              class="header-button flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-white"
+              @click="showAdminFunctions = true"
+            >
+              <i class="fas fa-sitemap text-xs text-white"></i>
+              <span>Mapa del sitio</span>
+            </button>
+            <RouterLink
+              v-for="pin in headerPins"
+              :key="'hd-' + (pin.id || pin.key || pin.route)"
+              :to="pin.route"
+              class="header-button flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-white"
+            >
+              <i :class="[resolveMenuFaIcon(pin), 'text-xs text-white']"></i>
+              <span>{{ pin.label }}</span>
+            </RouterLink>
+            <ThemeToggle />
+            <div class="relative flex-shrink-0" data-ai-dropdown>
+              <button
+                type="button"
+                data-ai-dropdown-button
+                class="flex items-center gap-1.5 rounded-lg border border-purple-200 px-3 py-1.5 text-sm font-medium shadow-md transition-colors hover:opacity-90"
+                style="background-color: #e2d3f8; color: #4c1d95"
+                title="Asistentes IA"
+                @click.stop="toggleAIAssistantsDropdown"
+              >
+                <i class="fas fa-magic text-sm" style="color: #4c1d95"></i>
+                <span>Asistentes IA</span>
+                <i class="fas fa-chevron-down text-[10px]" style="color: #4c1d95"></i>
+              </button>
+              <div
+                v-if="showAIAssistantsDropdown"
+                class="absolute right-0 z-[99999] mt-2 w-72 rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+                data-ai-dropdown
+                @click.stop
+              >
+                <button
+                  v-for="option in aiAssistantOptions"
+                  :key="option.label"
+                  type="button"
+                  class="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-gray-700 transition-colors hover:bg-sky-50"
+                  @click="handleAIAssistantSelect(option)"
+                >
+                  <i :class="[option.icon || 'fas fa-magic', 'text-sky-500']" aria-hidden="true"></i>
+                  <span class="min-w-0 truncate">{{ option.label }}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main
+        ref="mainEl"
+        class="admin-main min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-6 sm:px-6"
+        :class="isMobile ? 'mt-16' : 'mt-20'"
+        tabindex="-1"
+      >
+        <RouterView />
+      </main>
+    </div>
+
+    <AdminFunctionsModal
+      v-model="showAdminFunctions"
+      :sections="adminFnSections"
+      :can-edit-chrome="canEditMenuChrome"
+      @toggle-chrome="onToggleChrome"
+    />
+
+    <div
+      v-if="showUserPanel"
+      class="fixed inset-0 z-[100003] flex items-end justify-end bg-black/40 p-4 sm:items-center sm:justify-center"
+      @click.self="showUserPanel = false"
+    >
+      <div
+        class="w-full max-w-sm rounded-xl p-5 shadow-2xl"
+        style="background: var(--panel); color: var(--ink); border: 1px solid var(--line)"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="logout-confirm-title"
+        @click.stop
+      >
+        <div class="mb-4 flex items-center gap-3">
+          <div
+            v-if="showTenantLogo"
+            class="flex h-12 w-12 flex-shrink-0 items-center justify-center overflow-hidden rounded-full bg-white ring-2 ring-purple-200"
+          >
+            <img :src="tenantLogoUrl" alt="" class="h-full w-full object-contain p-1" @error="tenantLogoBroken = true" />
+          </div>
+          <div v-else class="flex h-12 w-12 items-center justify-center rounded-full bg-purple-600 text-sm font-semibold text-white">
+            {{ userInitials }}
+          </div>
+          <div class="min-w-0">
+            <p class="truncate font-semibold" style="color: var(--ink)">{{ displayName }}</p>
+            <p class="truncate text-xs" style="color: var(--ink-soft)">{{ auth.user?.email || auth.user?.usuario || '' }}</p>
+            <p v-if="auth.tenant?.nombre" class="truncate text-xs" style="color: var(--brand-ink)">{{ auth.tenant.nombre }}</p>
+          </div>
+        </div>
+        <p id="logout-confirm-title" class="mb-4 text-sm" style="color: var(--ink-soft)">
+          ¿Cerrar sesión en Connectyx Admin?
+        </p>
+        <button
+          type="button"
+          class="w-full rounded-lg px-4 py-2.5 text-sm font-semibold text-white"
+          style="background-color: var(--brand)"
+          :disabled="loggingOut"
+          @click.stop="doLogout"
+        >
+          {{ loggingOut ? 'Saliendo…' : 'Salir' }}
+        </button>
+        <button
+          type="button"
+          class="mt-2 w-full rounded-lg px-4 py-2 text-sm"
+          style="border: 1px solid var(--line-2); color: var(--ink-soft); background: var(--panel-2)"
+          :disabled="loggingOut"
+          @click.stop="showUserPanel = false"
+        >
+          Cancelar
+        </button>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import api from '../services/api'
 import { useAuthStore } from '../stores/auth'
 import { capabilityForRoute } from '../utils/adminCapabilities'
+import { PRODUCT_ICON, PRODUCT_LOGO_LIGHT, PRODUCT_LOGO_SVG } from '../constants/brand'
+import { useThemeStore } from '../stores/theme'
+import { resolveMenuFaIcon, withAdminChromeDefaults, GROUP_HEADER_FA } from '../utils/menuChrome'
+import { resolveMediaUrl } from '../utils/media'
+import AdminFunctionsModal from '../components/AdminFunctionsModal.vue'
+import AdminShellChatbot from '../components/AdminShellChatbot.vue'
+import ThemeToggle from '../components/ThemeToggle.vue'
 
 const auth = useAuthStore()
+const theme = useThemeStore()
 const route = useRoute()
+const router = useRouter()
+const headerLogo = computed(() => (theme.resolved === 'dark' ? PRODUCT_LOGO_SVG : PRODUCT_LOGO_LIGHT))
+
+/** Logo de la comunidad/cliente (además del nombre en el centro del header). */
+const tenantLogoUrl = computed(() => {
+  const b = auth.tenant?.branding || {}
+  const raw = b.logoUrl || b.splash?.logoUrl || ''
+  return resolveMediaUrl(raw)
+})
+const tenantLogoBroken = ref(false)
+watch(tenantLogoUrl, () => {
+  tenantLogoBroken.value = false
+})
+const showTenantLogo = computed(() => Boolean(tenantLogoUrl.value) && !tenantLogoBroken.value)
 const apiMenu = ref([])
 const openGroups = reactive({})
 const mainEl = ref(null)
+
+const isChatbotCollapsed = ref(true)
+
+/** Paridad Hiryx: FAB / atajo abre rail + modal maximizado. */
+function openChatbotMaximized() {
+  isChatbotCollapsed.value = false
+  window.dispatchEvent(new CustomEvent('expand-chatbot'))
+}
+const showAdminFunctions = ref(false)
+const showUserPanel = ref(false)
+const loggingOut = ref(false)
+const sidebarHovered = ref(false)
+const isMobile = ref(false)
+const showAIAssistantsDropdown = ref(false)
+let sidebarHoverTimeout = null
+
+/** Dropdown header — asistentes / pantallas IA disponibles en Connectyx Admin. */
+const aiAssistantOptionsBase = [
+  {
+    label: 'Asistente Admin',
+    description: 'Chat del panel',
+    icon: 'fas fa-comments',
+    action: 'openChat',
+  },
+  {
+    label: 'Base de conocimientos',
+    route: '/asistente-kb',
+    icon: 'fas fa-book',
+  },
+  {
+    label: 'Asistente de comunicaciones',
+    route: '/comunicaciones',
+    icon: 'fas fa-envelope',
+  },
+  {
+    label: 'Notificaciones (copy IA)',
+    route: '/notificaciones',
+    icon: 'fas fa-bell',
+  },
+  {
+    label: 'Live streaming',
+    route: '/live',
+    icon: 'fas fa-broadcast-tower',
+  },
+  {
+    label: 'Modo TV',
+    route: '/modo-tv',
+    icon: 'fas fa-tv',
+  },
+  {
+    label: 'Centro de ayuda',
+    route: '/ayuda',
+    icon: 'fas fa-question-circle',
+  },
+]
+
+const aiAssistantOptions = computed(() =>
+  aiAssistantOptionsBase.filter((o) => {
+    if (o.action === 'openChat') return true
+    if (!o.route) return false
+    return canQuick(o.route)
+  }),
+)
+
+function toggleAIAssistantsDropdown() {
+  showAIAssistantsDropdown.value = !showAIAssistantsDropdown.value
+}
+
+function handleAIAssistantSelect(option) {
+  showAIAssistantsDropdown.value = false
+  if (option?.action === 'openChat') {
+    openChatbotMaximized()
+    return
+  }
+  if (option?.route) router.push(option.route).catch(() => {})
+}
+
+function onDocClickAiDropdown(e) {
+  if (!showAIAssistantsDropdown.value) return
+  const t = e.target
+  if (t?.closest?.('[data-ai-dropdown]')) return
+  showAIAssistantsDropdown.value = false
+}
+
+function checkMobile() {
+  isMobile.value = window.matchMedia('(max-width: 768px)').matches
+}
+
+function onSidebarEnter() {
+  if (sidebarHoverTimeout) {
+    clearTimeout(sidebarHoverTimeout)
+    sidebarHoverTimeout = null
+  }
+  sidebarHovered.value = true
+}
+
+function onSidebarLeave() {
+  sidebarHoverTimeout = setTimeout(() => {
+    sidebarHovered.value = false
+    sidebarHoverTimeout = null
+  }, 150)
+}
+
+const displayName = computed(() => {
+  const u = auth.user
+  if (!u) return ''
+  return u.nombreCompleto || u.name || u.nombre || u.usuario || u.email || 'Usuario'
+})
+
+const headerIdentityTitle = computed(() => {
+  const parts = [
+    auth.tenant?.nombre,
+    auth.isPlatformAdmin ? 'Plataforma' : 'Administrador',
+    displayName.value,
+  ].filter(Boolean)
+  return parts.join(' · ')
+})
+
+const userInitials = computed(() => {
+  const n = String(displayName.value || '').trim()
+  if (!n) return '?'
+  const parts = n.split(/\s+/).filter(Boolean)
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase()
+  return n.slice(0, 2).toUpperCase()
+})
+
+function canQuick(path) {
+  if (auth.isPlatformAdmin) return path === '/' || path === '/suscriptores'
+  const cap = capabilityForRoute(path)
+  if (!cap) return true
+  return auth.can(cap)
+}
+
+const canEditMenuChrome = computed(() => auth.can('admin.menu') || auth.isFullAdmin)
+
+const sidebarPins = computed(() =>
+  flatMenu.value.filter(
+    (i) => i.showInAdminSidebar && i.route && i.route !== '/' && canQuick(i.route),
+  ),
+)
+
+const headerPins = computed(() =>
+  flatMenu.value.filter(
+    (i) => i.showInAdminHeader && i.route && i.route !== '/' && canQuick(i.route),
+  ),
+)
+
+const adminFnSections = computed(() => {
+  const sections = []
+  const loose = []
+  for (const entry of menuTree.value) {
+    if (entry.type === 'link') {
+      loose.push({
+        id: entry.id,
+        key: entry.key,
+        label: entry.label,
+        route: entry.route,
+        icon: resolveMenuFaIcon(entry),
+        showInAdminSidebar: Boolean(entry.showInAdminSidebar),
+        showInAdminHeader: Boolean(entry.showInAdminHeader),
+      })
+    } else {
+      sections.push({
+        title: entry.label,
+        headerIcon: GROUP_HEADER_FA[entry.id] || 'fas fa-folder-open',
+        items: (entry.items || []).map((i) => ({
+          id: i.id,
+          key: i.key,
+          label: i.label,
+          route: i.route,
+          icon: resolveMenuFaIcon(i),
+          showInAdminSidebar: Boolean(i.showInAdminSidebar),
+          showInAdminHeader: Boolean(i.showInAdminHeader),
+        })),
+      })
+    }
+  }
+  if (loose.length) {
+    sections.unshift({ title: 'Inicio', headerIcon: GROUP_HEADER_FA.inicio, items: loose })
+  }
+  return sections
+})
+
+async function reloadApiMenu() {
+  if (auth.isPlatformAdmin) return
+  try {
+    const { data } = await api.get('/menu', { params: { channel: 'a' } })
+    apiMenu.value = (data.items || []).map(withAdminChromeDefaults)
+  } catch {
+    /* keep previous */
+  }
+}
+
+async function onToggleChrome({ id, field, value }) {
+  if (!id || (field !== 'showInAdminSidebar' && field !== 'showInAdminHeader')) return
+  // Optimistic update en apiMenu
+  const idx = apiMenu.value.findIndex((i) => String(i.id) === String(id))
+  if (idx >= 0) {
+    apiMenu.value[idx] = { ...apiMenu.value[idx], [field]: Boolean(value) }
+  }
+  try {
+    await api.patch(`/admin/menu/${id}`, { [field]: Boolean(value) })
+  } catch {
+    await reloadApiMenu()
+  }
+}
+
+async function doLogout() {
+  if (loggingOut.value) return
+  loggingOut.value = true
+  showUserPanel.value = false
+  try {
+    // Limpia tokens en localStorage de forma síncrona; el POST al API no debe bloquear.
+    await Promise.race([
+      auth.logout().catch(() => {}),
+      new Promise((r) => setTimeout(r, 400)),
+    ])
+  } finally {
+    // Hard navigation: evita quedar atrapado dentro de AdminShell / guards.
+    window.location.assign('/login')
+  }
+}
 
 async function scrollContentToTop() {
   await nextTick()
   if (mainEl.value) mainEl.value.scrollTop = 0
   window.scrollTo(0, 0)
-  // Enfoca el área de contenido para que el título quede arriba / accesible
   mainEl.value?.focus?.({ preventScroll: true })
 }
 
@@ -78,7 +561,7 @@ const platformMenu = [
 const fallbackMenu = [
   { key: 'home', label: 'Dashboard', route: '/' },
   { key: 'usuarios', label: 'Usuarios', route: '/usuarios' },
-  { key: 'legajos', label: 'Legajos RRHH', route: '/legajos' },
+  { key: 'legajos', label: 'Listado de legajos', route: '/legajos' },
   { key: 'catalogos-rrhh', label: 'Catálogos RRHH', route: '/catalogos-rrhh' },
   { key: 'onboarding', label: 'Onboarding y egreso', route: '/onboarding' },
   { key: 'org', label: 'Organización', route: '/organizacion' },
@@ -93,8 +576,10 @@ const fallbackMenu = [
   { key: 'feriados', label: 'Feriados', route: '/feriados' },
   { key: 'ausentismos', label: 'Ausentismos', route: '/ausentismos' },
   { key: 'pubs', label: 'Publicaciones', route: '/publicaciones' },
+  { key: 'stories', label: 'Stories', route: '/stories' },
   { key: 'postcats', label: 'Categorías de pubs', route: '/categorias-publicaciones' },
   { key: 'newsletters', label: 'Newsletters', route: '/newsletters' },
+  { key: 'comunicaciones', label: 'Comunicaciones', route: '/comunicaciones' },
   { key: 'engagement', label: 'Emociones', route: '/emociones' },
   { key: 'encuestas', label: 'Encuestas', route: '/encuestas' },
   { key: 'notificaciones', label: 'Notificaciones', route: '/notificaciones' },
@@ -105,6 +590,7 @@ const fallbackMenu = [
   { key: 'directorio', label: 'Datos útiles', route: '/directorio' },
   { key: 'eventos', label: 'Eventos', route: '/eventos' },
   { key: 'beneficios', label: 'Beneficios y billetera', route: '/beneficios' },
+  { key: 'reservas', label: 'Reserva de espacios', route: '/reservas' },
   { key: 'ayuda', label: 'Ayuda', route: '/ayuda' },
   { key: 'politicas', label: 'Políticas y cumplimiento', route: '/politicas' },
   { key: 'accesos', label: 'Enlaces', route: '/accesos' },
@@ -118,24 +604,36 @@ const fallbackMenu = [
 const MENU_GROUPS = [
   {
     id: 'solicitudes',
-    label: 'Solicitudes',
+    label: 'Procesos',
     match: (item) => {
       const r = String(item.route || '')
       const k = String(item.key || '')
       return (
         r.includes('solicitud') ||
         r === '/workflows' ||
+        r === '/reservas' ||
+        r === '/asistencia' ||
+        r === '/pedidos' ||
+        r === '/relevamientos' ||
         [
           'admin.requests',
           'admin.reqsend',
           'admin.reqtypes',
           'admin.reqstates',
           'admin.workflows',
+          'admin.reservas',
+          'admin.asistencia',
+          'admin.pedidos',
+          'admin.relevamientos',
           'solicitudes',
           'enviar',
           'tipos',
           'estados',
           'workflows',
+          'reservas',
+          'asistencia',
+          'pedidos',
+          'relevamientos',
         ].includes(k)
       )
     },
@@ -147,15 +645,13 @@ const MENU_GROUPS = [
       const r = String(item.route || '')
       const k = String(item.key || '')
       return (
-        ['/licencias', '/tipos-licencia', '/feriados', '/ausentismos'].includes(r) ||
+        ['/licencias', '/tipos-licencia', '/ausentismos'].includes(r) ||
         [
           'admin.licencias',
           'admin.tipos-licencia',
-          'admin.feriados',
           'admin.ausentismos',
           'licencias',
           'tipos-licencia',
-          'feriados',
           'ausentismos',
         ].includes(k)
       )
@@ -171,7 +667,17 @@ const MENU_GROUPS = [
         r === '/usuarios' ||
         r === '/organizacion' ||
         r === '/roles' ||
-        ['admin.users', 'admin.org', 'admin.roles', 'usuarios', 'org', 'roles'].includes(k)
+        r === '/documentos' ||
+        [
+          'admin.users',
+          'admin.org',
+          'admin.roles',
+          'admin.docs',
+          'usuarios',
+          'org',
+          'roles',
+          'documentos',
+        ].includes(k)
       )
     },
   },
@@ -182,8 +688,39 @@ const MENU_GROUPS = [
       const r = String(item.route || '')
       const k = String(item.key || '')
       return (
-        ['/legajos', '/catalogos-rrhh', '/onboarding'].includes(r) ||
-        ['admin.legajos', 'admin.hrcatalog', 'admin.onboarding', 'legajos', 'hrcatalog', 'onboarding'].includes(k)
+        ['/catalogos-rrhh', '/onboarding', '/talento', '/cultura', '/politicas'].includes(r) ||
+        [
+          'admin.hrcatalog',
+          'admin.onboarding',
+          'admin.talento',
+          'admin.cultura',
+          'admin.politicas',
+          'hrcatalog',
+          'onboarding',
+          'talento',
+          'cultura',
+          'politicas',
+        ].includes(k)
+      )
+    },
+  },
+  {
+    id: 'negocio',
+    label: 'Configuración de Negocio',
+    match: (item) => {
+      const r = String(item.route || '')
+      const k = String(item.key || '')
+      return (
+        ['/legajos', '/feriados', '/categorias-publicaciones'].includes(r) ||
+        [
+          'admin.legajos',
+          'legajos',
+          'admin.feriados',
+          'feriados',
+          'admin.postcats',
+          'postcats',
+          'categorias-publicaciones',
+        ].includes(k)
       )
     },
   },
@@ -194,20 +731,39 @@ const MENU_GROUPS = [
       const r = String(item.route || '')
       const k = String(item.key || '')
       return (
-        ['/publicaciones', '/categorias-publicaciones', '/encuestas', '/notificaciones', '/saludos', '/eventos'].includes(r) ||
+        ['/publicaciones', '/stories', '/saludos', '/eventos', '/beneficios', '/directorio'].includes(r) ||
         [
           'admin.pubs',
-          'admin.postcats',
-          'admin.surveys',
-          'admin.notifications',
+          'admin.stories',
           'admin.saludos',
           'admin.eventos',
+          'admin.beneficios',
+          'admin.directorio',
           'pubs',
-          'postcats',
-          'encuestas',
-          'notificaciones',
+          'stories',
           'saludos',
           'eventos',
+          'beneficios',
+          'directorio',
+        ].includes(k)
+      )
+    },
+  },
+  {
+    id: 'comunicaciones',
+    label: 'Comunicaciones',
+    match: (item) => {
+      const r = String(item.route || '')
+      const k = String(item.key || '')
+      return (
+        ['/comunicaciones', '/notificaciones', '/newsletters'].includes(r) ||
+        [
+          'admin.comunicaciones',
+          'admin.notifications',
+          'admin.newsletters',
+          'comunicaciones',
+          'notificaciones',
+          'newsletters',
         ].includes(k)
       )
     },
@@ -219,14 +775,12 @@ const MENU_GROUPS = [
       const r = String(item.route || '')
       const k = String(item.key || '')
       return (
-        ['/emociones', '/newsletters', '/moderacion-comentarios', '/chat-moderacion'].includes(r) ||
+        ['/emociones', '/moderacion-comentarios', '/chat-moderacion'].includes(r) ||
         [
           'admin.engagement',
-          'admin.newsletters',
           'admin.comentarios',
           'admin.chatmod',
           'engagement',
-          'newsletters',
           'moderacion-comentarios',
           'chatmod',
         ].includes(k)
@@ -240,21 +794,17 @@ const MENU_GROUPS = [
       const r = String(item.route || '')
       const k = String(item.key || '')
       return (
-        ['/documentos', '/directorio', '/beneficios', '/accesos', '/ayuda', '/politicas'].includes(r) ||
+        ['/ayuda', '/modo-tv', '/live', '/encuestas'].includes(r) ||
         [
-          'admin.docs',
-          'admin.directorio',
-          'admin.beneficios',
-          'admin.hub',
           'admin.ayuda',
-          'admin.politicas',
-          'documentos',
-          'directorio',
-          'beneficios',
-          'accesos',
-          'hub',
+          'admin.tv',
+          'admin.live',
+          'admin.surveys',
           'ayuda',
-          'politicas',
+          'modo-tv',
+          'tv',
+          'live',
+          'encuestas',
         ].includes(k)
       )
     },
@@ -266,18 +816,21 @@ const MENU_GROUPS = [
       const r = String(item.route || '')
       const k = String(item.key || '')
       return (
-        ['/comunidad', '/menu', '/parametros', '/asistente-kb'].includes(r) ||
+        ['/comunidad', '/menu', '/parametros', '/asistente-kb', '/accesos'].includes(r) ||
         [
           'admin.tenants',
           'admin.menu',
           'admin.params',
           'admin.kb',
           'admin.ia',
+          'admin.hub',
           'comunidad',
           'menu',
           'parametros',
           'asistente-kb',
           'kb',
+          'accesos',
+          'hub',
         ].includes(k)
       )
     },
@@ -318,6 +871,41 @@ function withBeneficiosLink(items) {
     (i) => i.route === '/documentos' || i.key === 'admin.docs' || i.key === 'documentos',
   )
   const at = dirIdx >= 0 ? dirIdx + 1 : docsIdx >= 0 ? docsIdx + 1 : -1
+  if (at >= 0) {
+    const next = [...items]
+    next.splice(at, 0, entry)
+    return next
+  }
+  return [...items, entry]
+}
+
+/** Reserva de espacios / coworking (ola 21). */
+function withReservasLink(items) {
+  if (!auth.can('admin.reservas')) return items
+  if (
+    items.some(
+      (i) => i.route === '/reservas' || i.key === 'admin.reservas' || i.key === 'reservas',
+    )
+  ) {
+    return items.map((i) =>
+      i.route === '/reservas' || i.key === 'admin.reservas' || i.key === 'reservas'
+        ? { ...i, label: 'Reserva de espacios' }
+        : i,
+    )
+  }
+  const entry = {
+    key: 'admin.reservas',
+    label: 'Reserva de espacios',
+    route: '/reservas',
+    icon: 'building',
+  }
+  const benIdx = items.findIndex(
+    (i) => i.route === '/beneficios' || i.key === 'admin.beneficios' || i.key === 'beneficios',
+  )
+  const dirIdx = items.findIndex(
+    (i) => i.route === '/directorio' || i.key === 'admin.directorio' || i.key === 'directorio',
+  )
+  const at = benIdx >= 0 ? benIdx + 1 : dirIdx >= 0 ? dirIdx + 1 : -1
   if (at >= 0) {
     const next = [...items]
     next.splice(at, 0, entry)
@@ -387,13 +975,20 @@ function withDirectorioLink(items) {
   return [...items, entry]
 }
 
-/** Si el menú en DB aún no tiene Legajos RRHH, lo insertamos tras Usuarios. */
+/** Si el menú en DB aún no tiene Listado de legajos, lo insertamos tras Usuarios. */
 function withLegajosLink(items) {
   if (!auth.can('admin.legajos')) return items
-  if (items.some((i) => i.route === '/legajos' || i.key === 'admin.legajos' || i.key === 'legajos')) {
-    return items
+  const existingIdx = items.findIndex(
+    (i) => i.route === '/legajos' || i.key === 'admin.legajos' || i.key === 'legajos',
+  )
+  if (existingIdx >= 0) {
+    const cur = items[existingIdx]
+    if (cur.label === 'Listado de legajos') return items
+    const next = [...items]
+    next[existingIdx] = { ...cur, label: 'Listado de legajos' }
+    return next
   }
-  const entry = { key: 'admin.legajos', label: 'Legajos RRHH', route: '/legajos', icon: 'file' }
+  const entry = { key: 'admin.legajos', label: 'Listado de legajos', route: '/legajos', icon: 'file' }
   const usersIdx = items.findIndex(
     (i) => i.route === '/usuarios' || i.key === 'admin.users' || i.key === 'usuarios',
   )
@@ -504,6 +1099,29 @@ function withParametrosLink(items) {
   return [...items, entry]
 }
 
+/** Stories (Ola 3) tras Publicaciones. */
+function withStoriesLink(items) {
+  if (!auth.can('admin.publicaciones')) return items
+  if (items.some((i) => i.route === '/stories' || i.key === 'admin.stories' || i.key === 'stories')) {
+    return items
+  }
+  const entry = {
+    key: 'admin.stories',
+    label: 'Stories',
+    route: '/stories',
+    icon: 'sparkles',
+  }
+  const pubsIdx = items.findIndex(
+    (i) => i.route === '/publicaciones' || i.key === 'admin.pubs' || i.key === 'pubs',
+  )
+  if (pubsIdx >= 0) {
+    const next = [...items]
+    next.splice(pubsIdx + 1, 0, entry)
+    return next
+  }
+  return [...items, entry]
+}
+
 /** Categorías de publicaciones (§27.02) tras Publicaciones. */
 function withCategoriasPubsLink(items) {
   if (!auth.can('admin.publicaciones')) return items
@@ -588,6 +1206,34 @@ function withNewslettersLink(items) {
   if (at >= 0) {
     const next = [...items]
     next.splice(at, 0, entry)
+    return next
+  }
+  return [...items, entry]
+}
+
+/** Centro de comunicaciones (Ola 28). */
+function withComunicacionesLink(items) {
+  if (!auth.can('admin.comunicaciones') && !auth.isFullAdmin) return items
+  if (
+    items.some(
+      (i) =>
+        i.route === '/comunicaciones' ||
+        i.key === 'admin.comunicaciones' ||
+        i.key === 'comunicaciones',
+    )
+  ) {
+    return items
+  }
+  const entry = {
+    key: 'admin.comunicaciones',
+    label: 'Comunicaciones',
+    route: '/comunicaciones',
+    icon: 'mail',
+  }
+  const nlIdx = items.findIndex((i) => i.route === '/newsletters' || i.key === 'admin.newsletters')
+  if (nlIdx >= 0) {
+    const next = [...items]
+    next.splice(nlIdx + 1, 0, entry)
     return next
   }
   return [...items, entry]
@@ -694,26 +1340,30 @@ function withKbLink(items) {
 const flatMenu = computed(() => {
   if (auth.isPlatformAdmin) return platformMenu
   const source = apiMenu.value.length ? apiMenu.value : fallbackMenu
-  return withCanonicalLabels(
+  const enriched = withCanonicalLabels(
     withKbLink(
       withChatModLink(
         withModeracionLink(
           withWorkflowsLink(
             withSaludosLink(
               withNotificacionesLink(
+                withComunicacionesLink(
                 withNewslettersLink(
                   withEngagementLink(
                     withCategoriasPubsLink(
+                      withStoriesLink(
                       withAyudaPoliticasLinks(
-                        withBeneficiosLink(
-                          withEventosLink(
-                            withDirectorioLink(
-                              withParametrosLink(
-                                withRolesLink(
-                                  withLicenciasLinks(
-                                    withOnboardingLink(
-                                      withCatalogosRrhhLink(
-                                        withLegajosLink(source.filter(allowedMenuItem)),
+                        withReservasLink(
+                          withBeneficiosLink(
+                            withEventosLink(
+                              withDirectorioLink(
+                                withParametrosLink(
+                                  withRolesLink(
+                                    withLicenciasLinks(
+                                      withOnboardingLink(
+                                        withCatalogosRrhhLink(
+                                          withLegajosLink(source.filter(allowedMenuItem)),
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -724,7 +1374,9 @@ const flatMenu = computed(() => {
                         ),
                       ),
                     ),
+                    ),
                   ),
+                ),
                 ),
               ),
             ),
@@ -733,6 +1385,7 @@ const flatMenu = computed(() => {
       ),
     ),
   )
+  return enriched.map(withAdminChromeDefaults)
 })
 
 /** Workflows / aprobaciones dentro del grupo Solicitudes. */
@@ -857,9 +1510,13 @@ const menuTree = computed(() => {
     if (groupForItem(item)) continue
     tree.push({
       type: 'link',
-      id: item.key || item.route,
+      id: item.id,
+      key: item.key,
       label: item.label,
       route: item.route,
+      icon: item.icon,
+      showInAdminSidebar: Boolean(item.showInAdminSidebar),
+      showInAdminHeader: Boolean(item.showInAdminHeader),
     })
     used.add(item.key || item.route)
   }
@@ -877,10 +1534,9 @@ const menuTree = computed(() => {
         ? [...children].sort((a, b) => {
             const rank = (item) => {
               const r = String(item.route || '')
-              if (r === '/feriados') return 1
-              if (r === '/licencias') return 2
-              if (r === '/tipos-licencia') return 3
-              if (r === '/ausentismos') return 4
+              if (r === '/licencias') return 1
+              if (r === '/tipos-licencia') return 2
+              if (r === '/ausentismos') return 3
               return 50
             }
             return rank(a) - rank(b)
@@ -900,9 +1556,13 @@ const menuTree = computed(() => {
     if (used.has(id)) continue
     tree.push({
       type: 'link',
-      id,
+      id: item.id,
+      key: item.key,
       label: item.label,
       route: item.route,
+      icon: item.icon,
+      showInAdminSidebar: Boolean(item.showInAdminSidebar),
+      showInAdminHeader: Boolean(item.showInAdminHeader),
     })
   }
 
@@ -924,51 +1584,115 @@ function syncOpenGroups() {
   }
 }
 
+
 watch(menuTree, syncOpenGroups, { immediate: true })
-watch(() => route.path, () => {
-  syncOpenGroups()
-  scrollContentToTop()
-})
+watch(
+  () => route.path,
+  () => {
+    syncOpenGroups()
+    scrollContentToTop()
+  },
+)
 
 onMounted(async () => {
+  checkMobile()
+  window.addEventListener('resize', checkMobile)
+  document.addEventListener('click', onDocClickAiDropdown)
   scrollContentToTop()
   if (auth.isPlatformAdmin) return
   try {
     const { data } = await api.get('/menu', { params: { channel: 'a' } })
-    apiMenu.value = data.items || []
+    apiMenu.value = (data.items || []).map(withAdminChromeDefaults)
   } catch {
     apiMenu.value = []
   }
 })
+
+onUnmounted(() => {
+  window.removeEventListener('resize', checkMobile)
+  document.removeEventListener('click', onDocClickAiDropdown)
+  if (sidebarHoverTimeout) clearTimeout(sidebarHoverTimeout)
+})
 </script>
 
 <style scoped>
-.admin-shell {
-  display: flex;
-  height: 100vh;
-  height: 100dvh;
-  overflow: hidden;
-  background: #f8fafc;
-}
-.admin-aside {
-  width: 14rem;
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  padding: 1rem;
-  background: #0f172a;
-  color: #f1f5f9;
-  overflow-x: hidden;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-}
 .admin-main {
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
-  padding: 2rem;
-  overflow: auto;
-  -webkit-overflow-scrolling: touch;
   outline: none;
+  background: var(--canvas, #111019) !important;
+  color: var(--ink, #ece9f4);
+}
+.admin-top-header {
+  background: var(--panel) !important;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  box-shadow: var(--sh);
+}
+.admin-shell .sidebar {
+  background: var(--panel) !important;
+  color: var(--ink) !important;
+  border-color: var(--line) !important;
+}
+.admin-shell .admin-chat-rail {
+  background: var(--panel-2) !important;
+  border-color: var(--line) !important;
+}
+.admin-fab {
+  background: var(--panel) !important;
+  border-color: var(--line) !important;
+  color: var(--ink);
+}
+.admin-fab__label {
+  color: var(--ink-soft);
+}
+.admin-fab__avatar {
+  ring-color: var(--brand-line);
+  box-shadow: 0 0 0 2px var(--brand-line);
+}
+.header-button {
+  background-color: var(--brand) !important;
+}
+.header-button:hover {
+  background-color: #5b4be0 !important;
+}
+.header-admin-badge {
+  display: inline;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: var(--brand-ink);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: default;
+  user-select: none;
+  pointer-events: none;
+}
+.header-identity {
+  line-height: 1.2;
+}
+.header-identity__sep {
+  color: var(--ink-faint);
+  opacity: 0.7;
+  user-select: none;
+}
+.admin-shell .sidebar a,
+.admin-shell .sidebar button {
+  color: var(--ink-soft);
+}
+.admin-shell .sidebar a:hover,
+.admin-shell .sidebar button:hover {
+  background: var(--panel-2);
+  color: var(--ink);
+}
+[data-theme='dark'] [data-ai-dropdown] .absolute {
+  background: var(--panel);
+  border-color: var(--line);
+}
+[data-theme='dark'] [data-ai-dropdown] button.text-left {
+  color: var(--ink-soft);
+}
+[data-theme='dark'] [data-ai-dropdown] button.text-left:hover {
+  background: var(--panel-2);
+  color: var(--ink);
 }
 </style>

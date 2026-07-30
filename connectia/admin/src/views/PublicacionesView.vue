@@ -20,6 +20,14 @@
           <button
             type="button"
             class="btn-ghost pubs-nl-btn"
+            title="Importar desde Excel/CSV"
+            @click="importOpen = true"
+          >
+            Importar
+          </button>
+          <button
+            type="button"
+            class="btn-ghost pubs-nl-btn"
             :class="{ on: selectMode }"
             :title="selectMode ? 'Salir del modo selección' : 'Newsletter'"
             @click="selectMode ? toggleSelectMode() : (newsletterChooserOpen = true)"
@@ -32,6 +40,36 @@
         </div>
       </div>
     </header>
+
+    <!-- Import masivo -->
+    <div v-if="importOpen" class="sheet" @click.self="importOpen = false">
+      <div class="confirm-panel new-post-chooser" role="dialog" aria-modal="true" aria-labelledby="import-title">
+        <header class="sheet-head">
+          <div>
+            <h2 id="import-title">Importar publicaciones</h2>
+            <p>Subí un Excel/CSV con título, cuerpo, tipo y estado. Filas inválidas se reportan sin frenar el resto.</p>
+          </div>
+          <button type="button" class="icon-btn" title="Cerrar" aria-label="Cerrar" @click="importOpen = false">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg>
+          </button>
+        </header>
+        <div class="new-post-options">
+          <button type="button" class="new-post-option" @click="downloadImportTemplate">
+            <strong>Descargar plantilla</strong>
+            <small>Excel con columnas y un ejemplo.</small>
+          </button>
+          <label class="new-post-option primary" style="cursor:pointer">
+            <strong>{{ importBusy ? 'Procesando…' : 'Elegir archivo' }}</strong>
+            <small>CSV o XLSX · máx 5 MB</small>
+            <input type="file" accept=".csv,.xlsx,.xls" hidden :disabled="importBusy" @change="onImportFile" />
+          </label>
+        </div>
+        <p v-if="importMsg" class="hint" style="padding:0 16px 8px">{{ importMsg }}</p>
+        <footer class="sheet-foot">
+          <button type="button" class="btn-ghost" @click="importOpen = false">Cerrar</button>
+        </footer>
+      </div>
+    </div>
 
     <!-- Newsletter: armar o historial -->
     <div v-if="newsletterChooserOpen" class="sheet" @click.self="newsletterChooserOpen = false">
@@ -78,6 +116,10 @@
             <strong>Crear a mano</strong>
             <small>Escribís título, mensaje y media vos.</small>
           </button>
+          <button type="button" class="new-post-option" @click="chooseNewTemplate">
+            <strong>Desde plantilla</strong>
+            <small>Elegís una plantilla (cumple, feriado, aviso, beneficio…) y la editás.</small>
+          </button>
           <button type="button" class="new-post-option" @click="chooseNewWeb">
             <strong>Desde la web</strong>
             <small>Tomás una nota o artículo online y lo adaptás al muro.</small>
@@ -89,6 +131,39 @@
         </div>
         <footer class="sheet-foot">
           <button type="button" class="btn-ghost" @click="newPostChooserOpen = false">Cancelar</button>
+        </footer>
+      </div>
+    </div>
+
+    <!-- Elegir plantilla -->
+    <div v-if="templatesChooserOpen" class="sheet" @click.self="templatesChooserOpen = false">
+      <div class="confirm-panel new-post-chooser" role="dialog" aria-modal="true" aria-labelledby="tpl-chooser-title">
+        <header class="sheet-head">
+          <div>
+            <h2 id="tpl-chooser-title">Desde plantilla</h2>
+            <p>Elegí una plantilla para prellenar el editor.</p>
+          </div>
+          <button type="button" class="icon-btn" title="Cerrar" aria-label="Cerrar" @click="templatesChooserOpen = false">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg>
+          </button>
+        </header>
+        <div class="new-post-options">
+          <p v-if="templatesLoading" class="muted">Cargando plantillas…</p>
+          <p v-else-if="templatesError" class="err">{{ templatesError }}</p>
+          <p v-else-if="!templates.length" class="muted">Todavía no hay plantillas creadas.</p>
+          <button
+            v-for="tpl in templates"
+            :key="tpl.id"
+            type="button"
+            class="new-post-option"
+            @click="pickTemplate(tpl)"
+          >
+            <strong>{{ tpl.nombre }}</strong>
+            <small>{{ tipoLabel(tpl.tipo) }}<template v-if="tpl.titulo"> · {{ tpl.titulo }}</template></small>
+          </button>
+        </div>
+        <footer class="sheet-foot">
+          <button type="button" class="btn-ghost" @click="templatesChooserOpen = false">Cancelar</button>
         </footer>
       </div>
     </div>
@@ -1074,15 +1149,31 @@
                   </template>
 
                   <template v-else>
-                    <label class="sr-only" for="imageUrlVideo">URL de media</label>
-                    <input
-                      id="imageUrlVideo"
-                      v-model="draft.imageUrl"
-                      class="input"
-                      type="text"
-                      inputmode="url"
-                      :placeholder="mediaPlaceholder"
-                    />
+                    <div class="url-with-search">
+                      <label class="sr-only" for="imageUrlVideo">URL de media</label>
+                      <input
+                        id="imageUrlVideo"
+                        v-model="draft.imageUrl"
+                        class="input"
+                        type="text"
+                        inputmode="url"
+                        :placeholder="mediaPlaceholder"
+                      />
+                      <button
+                        type="button"
+                        class="btn-ghost sm"
+                        title="Buscar video en YouTube"
+                        @click="openMediaPicker('youtube')"
+                      >
+                        Buscar en YouTube
+                      </button>
+                    </div>
+                    <p class="hint">
+                      Pegá la URL
+                      <template v-if="mediaType === 'youtube'"> del video de YouTube</template>
+                      <template v-else> del archivo de video</template>
+                      o buscá uno en YouTube.
+                    </p>
                     <p v-if="draft.imageUrl" class="hint">
                       Detectado: <strong>{{ detectedMediaLabel || '—' }}</strong>
                     </p>
@@ -1094,9 +1185,6 @@
                         :autoplay-on-visible="false"
                       />
                     </div>
-                    <p v-else class="hint">
-                      Pegá la URL del {{ mediaType === 'youtube' ? 'video de YouTube' : 'archivo de video' }} para verlo acá.
-                    </p>
                   </template>
                 </div>
 
@@ -1104,17 +1192,27 @@
                   <h4 class="media-split-heading">Audio</h4>
                   <p class="hint">
                     Opcional. Solo tiene sentido con <strong>imagen o carrusel</strong> (no video).
-                    Pegá un link a mp3, m4a, ogg o wav.
+                    Pegá un link a mp3, m4a, ogg o wav, o buscá uno en la red.
                   </p>
                   <div class="field">
                     <label for="audioUrl">URL de audio</label>
-                    <input
-                      id="audioUrl"
-                      v-model="draft.audioUrl"
-                      class="input"
-                      type="url"
-                      placeholder="https://…/nota.mp3"
-                    />
+                    <div class="url-with-search">
+                      <input
+                        id="audioUrl"
+                        v-model="draft.audioUrl"
+                        class="input"
+                        type="url"
+                        placeholder="https://…/nota.mp3"
+                      />
+                      <button
+                        type="button"
+                        class="btn-ghost sm"
+                        title="Buscar audio en la red"
+                        @click="openMediaPicker('audio')"
+                      >
+                        Buscar en la red
+                      </button>
+                    </div>
                   </div>
                   <div v-if="draft.audioUrl" class="audio-admin-preview">
                     <p class="media-preview-label">Escuchar acá</p>
@@ -1295,14 +1393,58 @@
                     <input v-model="draft.pinned" type="checkbox" />
                     <span>
                       <strong>Fijar arriba del muro</strong>
-                      <small>Queda primero hasta que la desfijés.</small>
+                      <small>Queda primero; podés limitar la duración abajo.</small>
                     </span>
                   </label>
+                  <div v-if="draft.pinned" class="field">
+                    <label>Duración de la fijación</label>
+                    <div class="chip-row">
+                      <button
+                        v-for="pr in pinPresets"
+                        :key="pr.id"
+                        type="button"
+                        class="chip"
+                        :class="{ on: draft.pinnedPreset === pr.id }"
+                        @click="applyPinPreset(pr.id)"
+                      >
+                        {{ pr.label }}
+                      </button>
+                    </div>
+                    <label class="hint" style="display:block;margin-top:8px">O fecha/hora exacta de desfije</label>
+                    <input v-model="draft.pinnedUntilLocal" type="datetime-local" class="input" />
+                  </div>
+                  <div class="field">
+                    <label for="expiresAt">Vencimiento (opcional)</label>
+                    <p class="hint">Al llegar esa fecha/hora sale del muro (archivada).</p>
+                    <input id="expiresAt" v-model="draft.expiresAtLocal" type="datetime-local" class="input" />
+                  </div>
+                  <div class="field">
+                    <label for="section">Sección editorial</label>
+                    <p class="hint">Ej. deporte, internacional, moda, cultura…</p>
+                    <input
+                      id="section"
+                      v-model="draft.section"
+                      class="input"
+                      list="section-suggestions"
+                      maxlength="80"
+                      placeholder="Sin sección"
+                    />
+                    <datalist id="section-suggestions">
+                      <option v-for="s in sectionSuggestions" :key="s" :value="s" />
+                    </datalist>
+                  </div>
                   <label class="check">
                     <input v-model="draft.commentsEnabled" type="checkbox" />
                     <span>
                       <strong>Permitir comentarios</strong>
                       <small>Si lo desactivás, en la app no se puede comentar esta publicación.</small>
+                    </span>
+                  </label>
+                  <label class="check">
+                    <input v-model="draft.isKnowledge" type="checkbox" />
+                    <span>
+                      <strong>Biblioteca de conocimiento</strong>
+                      <small>Aparece en /conocimiento y en deep links ?knowledge=1.</small>
                     </span>
                   </label>
                 </div>
@@ -1833,6 +1975,14 @@
       :tenant-name="auth.tenant?.nombre || 'tu comunidad'"
       @close="webNewsOpen = false"
       @draft="applyWebNewsDraft"
+    />
+
+    <MediaUrlPickerModal
+      v-if="mediaPickerOpen"
+      :kind="mediaPickerKind"
+      :initial-query="mediaPickerInitialQuery"
+      @close="mediaPickerOpen = false"
+      @select="applyMediaPickerSelection"
     />
 
     <!-- Modal solo preview (click en card) -->
@@ -2388,6 +2538,7 @@ import PostMedia from '../components/PostMedia.vue'
 import PostMediaCarousel from '../components/PostMediaCarousel.vue'
 import ScreenHelp from '../components/ScreenHelp.vue'
 import WebNewsWizard from '../components/WebNewsWizard.vue'
+import MediaUrlPickerModal from '../components/MediaUrlPickerModal.vue'
 import { mediaKind, mediaKindLabel, resolveMediaUrl, isPostCarousel } from '../utils/media'
 import {
   POST_SHOW_KEYS,
@@ -2470,6 +2621,30 @@ const imageFileInput = ref(null)
 const imageDragOver = ref(false)
 const imageUploading = ref(false)
 const imageUploadError = ref('')
+const mediaPickerOpen = ref(false)
+const mediaPickerKind = ref('youtube')
+
+const mediaPickerInitialQuery = computed(() => {
+  const t = String(draft.value?.titulo || '').trim()
+  return t.length >= 2 ? t.slice(0, 80) : ''
+})
+
+function openMediaPicker(kind) {
+  mediaPickerKind.value = kind === 'audio' ? 'audio' : 'youtube'
+  mediaPickerOpen.value = true
+}
+
+function applyMediaPickerSelection(payload) {
+  if (!draft.value || !payload?.url) return
+  if (payload.kind === 'audio') {
+    draft.value.audioUrl = payload.url
+  } else {
+    draft.value.imageUrl = payload.url
+    draft.value.imageUrls = []
+    mediaType.value = 'youtube'
+  }
+  mediaPickerOpen.value = false
+}
 
 const mediaPlaceholder = computed(() => {
   if (mediaType.value === 'video') return 'https://…/video.mp4 o /uploads/…'
@@ -2810,6 +2985,29 @@ function toLocalInput(isoOrDate) {
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`
 }
 
+const pinPresets = [
+  { id: '1h', label: '1 h' },
+  { id: '8h', label: '8 h' },
+  { id: '1d', label: '1 día' },
+  { id: '3d', label: '3 días' },
+  { id: '7d', label: '7 días' },
+  { id: '', label: 'Sin límite' },
+]
+const sectionSuggestions = ['deporte', 'internacional', 'moda', 'cultura', 'empresa', 'beneficio', 'aviso']
+
+function applyPinPreset(id) {
+  if (!draft.value) return
+  draft.value.pinned = true
+  draft.value.pinnedPreset = id
+  if (!id) {
+    draft.value.pinnedUntilLocal = ''
+    return
+  }
+  const ms = { '1h': 3600e3, '8h': 8 * 3600e3, '1d': 864e5, '3d': 3 * 864e5, '7d': 7 * 864e5 }[id]
+  if (!ms) return
+  draft.value.pinnedUntilLocal = toLocalInput(new Date(Date.now() + ms))
+}
+
 const scheduleDate = computed({
   get() {
     return draft.value?.scheduledLocal?.slice(0, 10) || ''
@@ -3103,6 +3301,54 @@ const draftFromAi = ref(false)
 const webNewsOpen = ref(false)
 const newPostChooserOpen = ref(false)
 const newsletterChooserOpen = ref(false)
+const importOpen = ref(false)
+const importBusy = ref(false)
+const importMsg = ref('')
+
+async function downloadImportTemplate() {
+  try {
+    const { data } = await api.get('/admin/posts/import/template', {
+      params: { format: 'xlsx' },
+      responseType: 'blob',
+    })
+    const url = URL.createObjectURL(data)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'plantilla-publicaciones.xlsx'
+    a.click()
+    URL.revokeObjectURL(url)
+  } catch (e) {
+    importMsg.value = e?.response?.data?.error || 'No se pudo descargar la plantilla'
+  }
+}
+
+async function onImportFile(ev) {
+  const file = ev.target?.files?.[0]
+  ev.target.value = ''
+  if (!file) return
+  importBusy.value = true
+  importMsg.value = ''
+  try {
+    const fd = new FormData()
+    fd.append('file', file)
+    const { data } = await api.post('/admin/posts/import/commit', fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    importMsg.value = `Creadas ${data.created || 0}. Fallidas ${data.failed || 0}.`
+    if (data.created) {
+      await load()
+    }
+  } catch (e) {
+    importMsg.value = e?.response?.data?.error || 'No se pudo importar'
+  } finally {
+    importBusy.value = false
+  }
+}
+const templatesChooserOpen = ref(false)
+const templates = ref([])
+const templatesLoading = ref(false)
+const templatesError = ref('')
+const templatesLoaded = ref(false)
 const router = useRouter()
 const surveyOptions = ref([])
 const linkedSurveyDetail = ref(null)
@@ -3550,7 +3796,7 @@ const typeConfigPreviewModel = computed(() => {
       encodeURIComponent(
         `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="500" viewBox="0 0 800 500">
           <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-            <stop stop-color="#0f766e"/><stop offset="1" stop-color="#134e4a"/>
+            <stop stop-color="var(--brand-primary)"/><stop offset="1" stop-color="var(--brand-secondary)"/>
           </linearGradient></defs>
           <rect width="800" height="500" fill="url(#g)"/>
           <text x="400" y="250" text-anchor="middle" fill="white" font-family="sans-serif" font-size="28" font-weight="700">Vista previa</text>
@@ -4101,6 +4347,10 @@ function openNew() {
     audioUrl: '',
     layout: postsConfig.value?.byTipo?.noticia?.defaultLayout || 'vertical',
     pinned: false,
+    pinnedPreset: '',
+    pinnedUntilLocal: '',
+    expiresAtLocal: '',
+    section: '',
     priority: 0,
     status: 'published',
     scheduledLocal: '',
@@ -4108,6 +4358,7 @@ function openNew() {
     notifyAudience: false,
     renotifyAudience: false,
     commentsEnabled: true,
+    isKnowledge: false,
     audience: emptyAudience(),
     display: emptyDisplayOverrides(),
     linkedSurveyId: '',
@@ -4128,6 +4379,44 @@ function chooseNewWeb() {
 function chooseNewAi() {
   newPostChooserOpen.value = false
   openAiNew()
+}
+
+async function loadTemplates() {
+  templatesLoading.value = true
+  templatesError.value = ''
+  try {
+    const { data } = await api.get('/admin/post-templates')
+    templates.value = data.items || []
+    templatesLoaded.value = true
+  } catch (e) {
+    templatesError.value = e.response?.data?.error || e.message || 'No se pudieron cargar las plantillas'
+  } finally {
+    templatesLoading.value = false
+  }
+}
+
+function chooseNewTemplate() {
+  newPostChooserOpen.value = false
+  templatesChooserOpen.value = true
+  if (!templatesLoaded.value) loadTemplates()
+}
+
+function pickTemplate(tpl) {
+  templatesChooserOpen.value = false
+  openFromTemplate(tpl)
+}
+
+/** Prellena el editor con una plantilla (Ola 36-c). Igual que openNew pero con campos de la plantilla. */
+function openFromTemplate(tpl) {
+  openNew()
+  draft.value.tipo = tpl.tipo || draft.value.tipo
+  draft.value.titulo = tpl.titulo || ''
+  draft.value.cuerpo = tpl.cuerpo || ''
+  draft.value.layout = tpl.layout || postsConfig.value?.byTipo?.[draft.value.tipo]?.defaultLayout || 'vertical'
+  draft.value.section = tpl.section || ''
+  draft.value.imageUrl = tpl.imageUrl || ''
+  draft.value.pinned = Boolean(tpl.pinned)
+  syncMediaTypeFromUrl(draft.value.imageUrl, draft.value.imageUrls)
 }
 
 function openAiNew() {
@@ -4165,6 +4454,7 @@ function applyWebNewsDraft(payload) {
     notifyAudience: false,
     renotifyAudience: false,
     commentsEnabled: true,
+    isKnowledge: false,
     audience: emptyAudience(),
     display: emptyDisplayOverrides(),
     linkedSurveyId: '',
@@ -4274,6 +4564,7 @@ async function runAiCreate() {
       notifyAudience: false,
       renotifyAudience: false,
       commentsEnabled: true,
+      isKnowledge: false,
       audience: emptyAudience(),
       display: emptyDisplayOverrides(),
       linkedSurveyId: '',
@@ -4338,9 +4629,15 @@ function edit(p) {
     notifyAudience: Boolean(p.notifyAudience),
     renotifyAudience: false,
     commentsEnabled: p.commentsEnabled !== false,
+    isKnowledge: Boolean(p.isKnowledge),
     rejectionReason: p.rejectionReason || '',
     scheduledLocal: p.scheduledAt ? toLocalInput(p.scheduledAt) : '',
     publishWhen: p.status === 'scheduled' ? 'scheduled' : 'now',
+    pinned: Boolean(p.pinned),
+    pinnedPreset: '',
+    pinnedUntilLocal: p.pinnedUntil ? toLocalInput(p.pinnedUntil) : '',
+    expiresAtLocal: p.expiresAt ? toLocalInput(p.expiresAt) : '',
+    section: p.section || '',
     audience: normalizeAudienceDraft(p.audience),
     display: {
       show: { ...(p.display?.show || {}) },
@@ -4381,6 +4678,7 @@ function clonePost(p) {
     notifyAudience: false,
     renotifyAudience: false,
     commentsEnabled: p.commentsEnabled !== false,
+    isKnowledge: Boolean(p.isKnowledge),
     linkedSurveyId: p.linkedSurveyId || '',
     audience: normalizeAudienceDraft(p.audience),
     display: {
@@ -4501,9 +4799,21 @@ async function persist(statusOverride, { keepOpen = false } = {}) {
       audioUrl: draft.value.audioUrl || '',
       layout: draft.value.layout || 'vertical',
       pinned: draft.value.pinned,
+      pinnedUntil:
+        draft.value.pinned && draft.value.pinnedUntilLocal
+          ? new Date(draft.value.pinnedUntilLocal).toISOString()
+          : draft.value.pinned
+            ? null
+            : null,
+      pinnedPreset: draft.value.pinned ? draft.value.pinnedPreset || undefined : undefined,
+      expiresAt: draft.value.expiresAtLocal
+        ? new Date(draft.value.expiresAtLocal).toISOString()
+        : null,
+      section: draft.value.section || '',
       priority: Number(draft.value.priority) || 0,
       notifyAudience: Boolean(draft.value.notifyAudience),
       commentsEnabled: draft.value.commentsEnabled !== false,
+      isKnowledge: Boolean(draft.value.isKnowledge),
       status,
       scheduledAt:
         status === 'scheduled' && draft.value.scheduledLocal
@@ -4939,12 +5249,12 @@ onMounted(async () => {
   cursor: pointer;
 }
 .new-post-option:hover {
-  border-color: #0f766e;
-  background: color-mix(in srgb, #0f766e 8%, var(--cx-surface));
+  border-color: var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary) 8%, var(--cx-surface));
 }
 .new-post-option.primary {
-  border-color: color-mix(in srgb, #0f766e 45%, var(--cx-border));
-  background: color-mix(in srgb, #0f766e 10%, var(--cx-surface));
+  border-color: color-mix(in srgb, var(--brand-primary) 45%, var(--cx-border));
+  background: color-mix(in srgb, var(--brand-primary) 10%, var(--cx-surface));
 }
 .new-post-option strong {
   display: block;
@@ -4957,12 +5267,17 @@ onMounted(async () => {
   line-height: 1.4;
   color: var(--cx-muted);
 }
-.btn-primary { border: 0; background: #0f766e; color: #fff; border-radius: 12px; padding: 11px 16px; font-weight: 700; font-size: 14px; }
+.new-post-options > p.muted {
+  color: var(--cx-muted);
+  font-size: 13px;
+  margin: 4px 0;
+}
+.btn-primary { border: 0; background: var(--brand-primary); color: #fff; border-radius: 12px; padding: 11px 16px; font-weight: 700; font-size: 14px; }
 .btn-ghost { border: 1px solid var(--cx-border); background: transparent; color: var(--cx-text); border-radius: 12px; padding: 11px 16px; font-weight: 600; font-size: 14px; }
 .btn-ghost.on {
-  background: color-mix(in srgb, #0f766e 14%, var(--cx-surface));
-  border-color: #0f766e;
-  color: #0f766e;
+  background: color-mix(in srgb, var(--brand-primary) 14%, var(--cx-surface));
+  border-color: var(--brand-primary);
+  color: var(--brand-primary);
 }
 .nl-bar {
   display: flex;
@@ -4973,9 +5288,9 @@ onMounted(async () => {
   margin-bottom: 14px;
   padding: 14px 16px;
   border-radius: 16px;
-  border: 1px solid color-mix(in srgb, #0f766e 28%, var(--cx-border));
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 28%, var(--cx-border));
   background:
-    linear-gradient(135deg, color-mix(in srgb, #0f766e 10%, transparent), transparent 55%),
+    linear-gradient(135deg, color-mix(in srgb, var(--brand-primary) 10%, transparent), transparent 55%),
     var(--cx-surface);
 }
 .nl-bar-main { display: grid; gap: 4px; min-width: min(100%, 320px); }
@@ -4987,12 +5302,12 @@ onMounted(async () => {
 .nl-bar-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .btn-primary.sm { padding: 9px 12px; font-size: 13px; }
 .row.selected, .grid-row.selected {
-  border-color: #0f766e;
-  background: color-mix(in srgb, #0f766e 7%, var(--cx-surface));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, #0f766e 35%, transparent);
+  border-color: var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary) 7%, var(--cx-surface));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand-primary) 35%, transparent);
 }
 .row-check { display: grid; place-items: center; align-self: center; }
-.row-check input, .check-col input, .g-check input { width: 16px; height: 16px; accent-color: #0f766e; cursor: pointer; }
+.row-check input, .check-col input, .g-check input { width: 16px; height: 16px; accent-color: var(--brand-primary); cursor: pointer; }
 .check-col { width: 36px; text-align: center; }
 .list .row:has(.row-check) {
   grid-template-columns: 28px 96px minmax(0, 1fr) auto;
@@ -5007,7 +5322,7 @@ onMounted(async () => {
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #0f766e;
+  color: var(--brand-primary);
 }
 .nl-body { display: grid; gap: 16px; }
 .nl-section h3, .nl-sample h3 {
@@ -5024,7 +5339,7 @@ onMounted(async () => {
 }
 .nl-posts strong { font-size: 14px; color: var(--cx-text); }
 .nl-tipo {
-  font-size: 11px; font-weight: 700; color: #0f766e; text-transform: uppercase; letter-spacing: 0.04em;
+  font-size: 11px; font-weight: 700; color: var(--brand-primary); text-transform: uppercase; letter-spacing: 0.04em;
 }
 .nl-aud { font-size: 12px; color: var(--cx-muted); }
 .nl-stats {
@@ -5046,8 +5361,8 @@ onMounted(async () => {
   transition: border-color 0.15s, background 0.15s;
 }
 .nl-stat.clickable:hover {
-  border-color: #0f766e;
-  background: color-mix(in srgb, #0f766e 8%, var(--cx-surface));
+  border-color: var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary) 8%, var(--cx-surface));
 }
 .nl-stat-cta {
   display: block;
@@ -5055,13 +5370,13 @@ onMounted(async () => {
   font-size: 11px;
   font-style: normal;
   font-weight: 700;
-  color: #0f766e;
+  color: var(--brand-primary);
 }
 .nl-dest-section {
   padding: 12px;
-  border: 1px solid color-mix(in srgb, #0f766e 28%, var(--cx-border));
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 28%, var(--cx-border));
   border-radius: 14px;
-  background: color-mix(in srgb, #0f766e 6%, var(--cx-surface));
+  background: color-mix(in srgb, var(--brand-primary) 6%, var(--cx-surface));
 }
 .nl-dest-head {
   display: flex;
@@ -5100,16 +5415,16 @@ onMounted(async () => {
 .nl-rec-preview li span { color: var(--cx-muted); word-break: break-all; }
 .nl-rec-more {
   justify-content: center;
-  color: #0f766e !important;
+  color: var(--brand-primary) !important;
   font-weight: 600;
   cursor: pointer;
 }
-.nl-stat strong { display: block; font-size: 1.45rem; color: #0f766e; line-height: 1.1; }
+.nl-stat strong { display: block; font-size: 1.45rem; color: var(--brand-primary); line-height: 1.1; }
 .nl-stat span { font-size: 12px; color: var(--cx-muted); }
 .nl-excluded-hint {
   margin: -6px 0 0;
   font-size: 12px;
-  color: #92400e;
+  color: var(--warn);
   font-weight: 600;
 }
 .nl-recipients-overlay { z-index: 120 !important; }
@@ -5138,13 +5453,13 @@ onMounted(async () => {
 }
 .nl-rec-row.off { opacity: 0.55; background: color-mix(in srgb, var(--cx-page) 80%, var(--cx-surface)); }
 .nl-rec-row.noemail { border-style: dashed; }
-.nl-rec-row.external { border-color: color-mix(in srgb, #0f766e 35%, var(--cx-border)); }
-.nl-rec-row input { margin-top: 3px; accent-color: #0f766e; }
+.nl-rec-row.external { border-color: color-mix(in srgb, var(--brand-primary) 35%, var(--cx-border)); }
+.nl-rec-row input { margin-top: 3px; accent-color: var(--brand-primary); }
 .nl-rec-main { display: grid; gap: 2px; min-width: 0; }
 .nl-rec-main strong { font-size: 14px; display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .nl-ext-tag {
   font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
-  color: #0f766e; background: color-mix(in srgb, #0f766e 12%, transparent);
+  color: var(--brand-primary); background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
   border-radius: 6px; padding: 2px 6px;
 }
 .nl-add-email {
@@ -5163,7 +5478,7 @@ onMounted(async () => {
   padding: 12px 14px;
   border-radius: 12px;
   background: #fffbeb;
-  color: #92400e;
+  color: var(--warn);
   font-size: 13px;
   line-height: 1.45;
 }
@@ -5177,9 +5492,9 @@ onMounted(async () => {
 .nl-sample blockquote {
   margin: 0;
   padding: 14px 16px;
-  border-left: 3px solid #0f766e;
+  border-left: 3px solid var(--brand-primary);
   border-radius: 0 12px 12px 0;
-  background: color-mix(in srgb, #0f766e 8%, var(--cx-surface));
+  background: color-mix(in srgb, var(--brand-primary) 8%, var(--cx-surface));
   font-size: 14px;
   line-height: 1.55;
   color: var(--cx-text);
@@ -5190,11 +5505,11 @@ onMounted(async () => {
   padding: 12px 14px;
   border-radius: 12px;
   background: color-mix(in srgb, #059669 12%, transparent);
-  color: #065f46;
+  color: var(--ok);
   font-size: 13px;
   font-weight: 600;
 }
-.nl-loading { margin: 0; font-size: 13px; color: #0f766e; font-weight: 600; }
+.nl-loading { margin: 0; font-size: 13px; color: var(--brand-primary); font-weight: 600; }
 .nl-foot { display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center; }
 .nl-foot-right { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }
 .ai-explain {
@@ -5227,19 +5542,19 @@ onMounted(async () => {
   border-color: color-mix(in srgb, #059669 40%, var(--cx-border));
   background: color-mix(in srgb, #059669 8%, var(--cx-surface));
 }
-.ai-explain-card.keep strong { color: #065f46; }
+.ai-explain-card.keep strong { color: var(--ok); }
 .ai-explain-card.change {
-  border-color: color-mix(in srgb, #0f766e 40%, var(--cx-border));
-  background: color-mix(in srgb, #0f766e 8%, var(--cx-surface));
+  border-color: color-mix(in srgb, var(--brand-primary) 40%, var(--cx-border));
+  background: color-mix(in srgb, var(--brand-primary) 8%, var(--cx-surface));
 }
-.ai-explain-card.change strong { color: #0f766e; }
+.ai-explain-card.change strong { color: var(--brand-primary); }
 .ai-explain-note { margin: 0 0 14px; max-width: none; }
 @media (max-width: 720px) {
   .ai-explain { grid-template-columns: 1fr; }
 }
 .ai-box {
-  border: 1px solid color-mix(in srgb, #0f766e 35%, var(--cx-border));
-  background: color-mix(in srgb, #0f766e 8%, var(--cx-surface));
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 35%, var(--cx-border));
+  background: color-mix(in srgb, var(--brand-primary) 8%, var(--cx-surface));
   border-radius: 14px;
   padding: 12px;
   margin-bottom: 16px;
@@ -5251,7 +5566,7 @@ onMounted(async () => {
 .ai-turns { font-size: 11px; font-weight: 600; color: var(--cx-muted); }
 .ai-box-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
 .ai-check { display: inline-flex; gap: 8px; align-items: center; font-size: 13px; color: var(--cx-muted); }
-.ai-notes { margin: 0; font-size: 12px; color: #0f766e; white-space: pre-wrap; }
+.ai-notes { margin: 0; font-size: 12px; color: var(--brand-primary); white-space: pre-wrap; }
 .provider-row { display: flex; flex-wrap: wrap; gap: 8px; }
 .provider-chip {
   border: 1px solid var(--cx-border);
@@ -5263,8 +5578,8 @@ onMounted(async () => {
   font-weight: 700;
 }
 .provider-chip.on {
-  background: #0f766e;
-  border-color: #0f766e;
+  background: var(--brand-primary);
+  border-color: var(--brand-primary);
   color: #fff;
 }
 .provider-chip.disabled,
@@ -5336,11 +5651,11 @@ onMounted(async () => {
   pointer-events: auto;
 }
 .view-btn:hover {
-  background: color-mix(in srgb, #0f766e 10%, var(--cx-surface));
-  color: #0f766e;
+  background: color-mix(in srgb, var(--brand-primary) 10%, var(--cx-surface));
+  color: var(--brand-primary);
 }
-.view-btn.on { background: #0f766e; color: #fff; }
-.view-btn.on:hover { background: #0f766e; color: #fff; }
+.view-btn.on { background: var(--brand-primary); color: #fff; }
+.view-btn.on:hover { background: var(--brand-primary); color: #fff; }
 @media (max-width: 720px) {
   .view-toggle {
     order: -1;
@@ -5391,13 +5706,13 @@ onMounted(async () => {
 }
 .cal-day.muted { opacity: 0.45; }
 .cal-day.today {
-  border-color: #0f766e;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, #0f766e 40%, transparent);
+  border-color: var(--brand-primary);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brand-primary) 40%, transparent);
 }
 .cal-day-num {
   font-size: 11px; font-weight: 700; color: var(--cx-muted); line-height: 1;
 }
-.cal-day.today .cal-day-num { color: #0f766e; }
+.cal-day.today .cal-day-num { color: var(--brand-primary); }
 .cal-day-posts { display: grid; gap: 4px; flex: 1; align-content: start; }
 .cal-chip {
   display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 5px; align-items: center;
@@ -5405,10 +5720,10 @@ onMounted(async () => {
   background: var(--cx-surface); color: var(--cx-text);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--cx-border) 80%, transparent);
 }
-.cal-chip:hover { box-shadow: 0 0 0 1px #0f766e; }
+.cal-chip:hover { box-shadow: 0 0 0 1px var(--brand-primary); }
 .cal-chip.selected {
-  background: color-mix(in srgb, #0f766e 10%, var(--cx-surface));
-  box-shadow: 0 0 0 1px #0f766e;
+  background: color-mix(in srgb, var(--brand-primary) 10%, var(--cx-surface));
+  box-shadow: 0 0 0 1px var(--brand-primary);
 }
 .cal-chip-img {
   width: 28px; height: 28px; border-radius: 6px; overflow: hidden;
@@ -5417,14 +5732,14 @@ onMounted(async () => {
 .cal-chip-img.lg { width: 48px; height: 48px; border-radius: 10px; }
 .cal-chip-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .cal-chip-fallback {
-  font-size: 11px; font-weight: 800; color: #0f766e;
+  font-size: 11px; font-weight: 800; color: var(--brand-primary);
 }
 .cal-chip-title {
   font-size: 11px; font-weight: 600; line-height: 1.25;
   overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
 }
 .cal-more {
-  border: 0; background: transparent; color: #0f766e; font-size: 11px; font-weight: 700;
+  border: 0; background: transparent; color: var(--brand-primary); font-size: 11px; font-weight: 700;
   padding: 2px 4px; text-align: left; cursor: pointer;
 }
 .cal-empty-hint { margin: 12px 0 0; text-align: center; color: var(--cx-muted); font-size: 13px; }
@@ -5435,7 +5750,7 @@ onMounted(async () => {
   width: 100%; border: 1px solid var(--cx-border); border-radius: 12px; padding: 8px;
   background: var(--cx-surface); color: var(--cx-text); text-align: left; cursor: pointer;
 }
-.cal-day-item:hover { border-color: #0f766e; }
+.cal-day-item:hover { border-color: var(--brand-primary); }
 .cal-day-item-text { display: grid; gap: 2px; }
 .cal-day-item-text strong { font-size: 13px; line-height: 1.3; }
 .cal-day-item-text .muted { font-size: 12px; color: var(--cx-muted); }
@@ -5483,7 +5798,9 @@ onMounted(async () => {
   background: var(--cx-border);
   margin: 0 4px;
 }
+.chip-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .chip { border: 1px solid var(--cx-border); background: var(--cx-surface); color: var(--cx-text); border-radius: 999px; padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.chip.on { border-color: var(--brand-primary); background: color-mix(in srgb, var(--brand-primary) 14%, var(--panel)); color: var(--brand-primary); }
 .chip-sm {
   padding: 4px 9px;
   font-size: 11px;
@@ -5491,7 +5808,7 @@ onMounted(async () => {
   white-space: nowrap;
   line-height: 1.2;
 }
-.chip.on { background: #0f766e; border-color: #0f766e; color: #fff; }
+.chip.on { background: var(--brand-primary); border-color: var(--brand-primary); color: #fff; }
 @media (max-width: 900px) {
   .filters-left,
   .filters-right {
@@ -5541,9 +5858,9 @@ onMounted(async () => {
   cursor: pointer;
 }
 .grid-row:last-child { border-bottom: 0; }
-.grid-row:hover { background: color-mix(in srgb, #0f766e 6%, transparent); }
+.grid-row:hover { background: color-mix(in srgb, var(--brand-primary) 6%, transparent); }
 .grid-row.selected {
-  background: color-mix(in srgb, #0f766e 10%, transparent);
+  background: color-mix(in srgb, var(--brand-primary) 10%, transparent);
 }
 .g-th,
 .g-td,
@@ -5617,10 +5934,10 @@ onMounted(async () => {
   text-align: right;
 }
 .priority-inline-btn:hover {
-  background: color-mix(in srgb, var(--cx-accent, #0f766e) 12%, transparent);
+  background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
 }
 .priority-inline-btn:focus-visible {
-  outline: 2px solid var(--cx-accent, #0f766e);
+  outline: 2px solid var(--brand-primary);
   outline-offset: 1px;
 }
 .priority-inline-input {
@@ -5634,12 +5951,12 @@ onMounted(async () => {
   font-weight: 700;
   padding: 2px 6px;
   border-radius: 6px;
-  border: 1px solid var(--cx-border, #cbd5e1);
-  background: var(--cx-surface, #fff);
+  border: 1px solid var(--cx-border, var(--line-2));
+  background: var(--cx-surface);
   color: inherit;
 }
 .priority-inline-input:focus {
-  outline: 2px solid var(--cx-accent, #0f766e);
+  outline: 2px solid var(--brand-primary);
   outline-offset: 0;
   border-color: transparent;
 }
@@ -5651,9 +5968,9 @@ onMounted(async () => {
 }
 .grid .col-title-text { font-weight: 700; }
 .grid .sortable { cursor: pointer; user-select: none; }
-.grid .sortable:hover { color: #0f766e; }
+.grid .sortable:hover { color: var(--brand-primary); }
 .sort-ind { margin-left: 4px; opacity: 0.35; font-size: 10px; }
-.sort-ind.active { opacity: 1; color: #0f766e; }
+.sort-ind.active { opacity: 1; color: var(--brand-primary); }
 .title-cell-inner {
   min-width: 0;
   display: flex;
@@ -5675,8 +5992,8 @@ onMounted(async () => {
 }
 .pin-tag {
   display: inline-block; margin-top: 0; font-size: 10px; font-weight: 700;
-  text-transform: uppercase; color: #0f766e;
-  background: color-mix(in srgb, #0f766e 12%, transparent);
+  text-transform: uppercase; color: var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
   border-radius: 6px; padding: 2px 6px;
 }
 .num { font-variant-numeric: tabular-nums; }
@@ -5696,10 +6013,10 @@ onMounted(async () => {
   flex: 0 0 auto;
 }
 .link-btn {
-  border: 0; background: transparent; color: #0f766e; font-size: 12px; font-weight: 600;
+  border: 0; background: transparent; color: var(--brand-primary); font-size: 12px; font-weight: 600;
   padding: 2px 6px; cursor: pointer;
 }
-.link-btn.danger { color: #b91c1c; }
+.link-btn.danger { color: var(--bad); }
 .row {
   position: relative;
   display: grid;
@@ -5747,8 +6064,8 @@ onMounted(async () => {
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
-  color: #0f766e;
-  background: color-mix(in srgb, #0f766e 12%, transparent);
+  color: var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
 }
 .thumb-badge {
   position: absolute;
@@ -5768,7 +6085,7 @@ onMounted(async () => {
   gap: 6px;
 }
 .meta { display: flex; flex-wrap: wrap; gap: 8px; font-size: 12px; color: var(--cx-muted); align-items: center; }
-.tipo { color: #0f766e; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+.tipo { color: var(--brand-primary); font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
 .status-badge {
   font-size: 10px;
   font-weight: 700;
@@ -5798,7 +6115,7 @@ onMounted(async () => {
   box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 25%, transparent);
 }
 .status-badge-btn:focus-visible {
-  outline: 2px solid var(--cx-accent, #0f766e);
+  outline: 2px solid var(--brand-primary);
   outline-offset: 2px;
 }
 .meta-badge {
@@ -5811,18 +6128,18 @@ onMounted(async () => {
   border-radius: 999px;
   padding: 3px 9px;
   line-height: 1.2;
-  background: color-mix(in srgb, #64748b 14%, transparent);
-  color: #475569;
+  background: color-mix(in srgb, var(--ink-soft) 14%, transparent);
+  color: var(--ink-soft);
 }
-.meta-badge[data-tipo='noticia'] { background: color-mix(in srgb, #0f766e 16%, transparent); color: #0f766e; }
+.meta-badge[data-tipo='noticia'] { background: color-mix(in srgb, var(--brand-primary) 16%, transparent); color: var(--brand-primary); }
 .meta-badge[data-tipo='aviso'] { background: color-mix(in srgb, #ea580c 16%, transparent); color: #c2410c; }
 .meta-badge[data-tipo='beneficio'] { background: color-mix(in srgb, #7c3aed 14%, transparent); color: #6d28d9; }
 .meta-badge[data-tipo='evento'] { background: color-mix(in srgb, #2563eb 14%, transparent); color: #1d4ed8; }
 .meta-badge[data-tipo='celebracion'] { background: color-mix(in srgb, #db2777 14%, transparent); color: #be185d; }
-.meta-badge[data-tipo='general'] { background: color-mix(in srgb, #64748b 14%, transparent); color: #475569; }
-.meta-badge[data-layout='vertical'] { background: color-mix(in srgb, #0f766e 14%, transparent); color: #0f766e; }
+.meta-badge[data-tipo='general'] { background: color-mix(in srgb, var(--ink-soft) 14%, transparent); color: var(--ink-soft); }
+.meta-badge[data-layout='vertical'] { background: color-mix(in srgb, var(--brand-primary) 14%, transparent); color: var(--brand-primary); }
 .meta-badge[data-layout='horizontal'] { background: color-mix(in srgb, #0369a1 14%, transparent); color: #0369a1; }
-.meta-badge[data-layout='banner'] { background: color-mix(in srgb, #b45309 14%, transparent); color: #b45309; }
+.meta-badge[data-layout='banner'] { background: color-mix(in srgb, var(--warn) 14%, transparent); color: var(--warn); }
 .meta-badge-btn {
   border: 0;
   cursor: pointer;
@@ -5834,7 +6151,7 @@ onMounted(async () => {
   box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 25%, transparent);
 }
 .meta-badge-btn:focus-visible {
-  outline: 2px solid var(--cx-accent, #0f766e);
+  outline: 2px solid var(--brand-primary);
   outline-offset: 2px;
 }
 .status-change-grid {
@@ -5852,7 +6169,7 @@ onMounted(async () => {
   padding: 10px 12px;
   border-radius: 12px;
   border: 1px solid var(--cx-border, #e5e7eb);
-  background: var(--cx-surface, #fff);
+  background: var(--cx-surface);
   cursor: pointer;
   color: inherit;
 }
@@ -5862,8 +6179,8 @@ onMounted(async () => {
   line-height: 1.3;
 }
 .status-option.on {
-  border-color: color-mix(in srgb, var(--cx-accent, #0f766e) 55%, transparent);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--cx-accent, #0f766e) 35%, transparent);
+  border-color: color-mix(in srgb, var(--brand-primary) 55%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--brand-primary) 35%, transparent);
 }
 .status-reason {
   margin-top: 12px;
@@ -5875,8 +6192,8 @@ onMounted(async () => {
   margin-top: 8px;
 }
 .status-badge[data-status='published'] {
-  background: color-mix(in srgb, #0f766e 16%, transparent);
-  color: #0f766e;
+  background: color-mix(in srgb, var(--brand-primary) 16%, transparent);
+  color: var(--brand-primary);
 }
 .status-badge[data-status='scheduled'] {
   background: color-mix(in srgb, #0369a1 16%, transparent);
@@ -5888,22 +6205,22 @@ onMounted(async () => {
 }
 .status-badge[data-status='pending_review'] {
   background: color-mix(in srgb, #d97706 18%, transparent);
-  color: #b45309;
+  color: var(--warn);
 }
 .status-badge[data-status='rejected'] {
-  background: color-mix(in srgb, #dc2626 14%, transparent);
-  color: #b91c1c;
+  background: color-mix(in srgb, var(--bad) 14%, transparent);
+  color: var(--bad);
 }
 .status-badge[data-status='archived'] {
-  background: color-mix(in srgb, #64748b 18%, transparent);
-  color: #475569;
+  background: color-mix(in srgb, var(--ink-soft) 18%, transparent);
+  color: var(--ink-soft);
 }
 .schedule-box {
   margin-top: 12px;
   padding: 14px;
-  border: 1px solid color-mix(in srgb, #0f766e 28%, var(--cx-border, #e2e8f0));
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 28%, var(--cx-border));
   border-radius: 14px;
-  background: color-mix(in srgb, #0f766e 6%, var(--cx-surface, #fff));
+  background: color-mix(in srgb, var(--brand-primary) 6%, var(--cx-surface));
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -5924,35 +6241,35 @@ onMounted(async () => {
 .schedule-summary {
   margin: 0;
   font-size: 14px;
-  color: #0f766e;
+  color: var(--brand-primary);
 }
 .schedule-conflicts {
   margin: 0;
   padding: 10px 12px;
   border-radius: 10px;
-  border: 1px solid color-mix(in srgb, #ca8a04 35%, var(--cx-border, #e2e8f0));
-  background: color-mix(in srgb, #facc15 12%, var(--cx-surface, #fff));
+  border: 1px solid color-mix(in srgb, #ca8a04 35%, var(--cx-border));
+  background: color-mix(in srgb, #facc15 12%, var(--cx-surface));
   font-size: 13px;
 }
 .schedule-conflicts.danger {
-  border-color: color-mix(in srgb, #dc2626 40%, var(--cx-border, #e2e8f0));
-  background: color-mix(in srgb, #f87171 14%, var(--cx-surface, #fff));
+  border-color: color-mix(in srgb, var(--bad) 40%, var(--cx-border));
+  background: color-mix(in srgb, #f87171 14%, var(--cx-surface));
 }
 .schedule-conflicts.ok {
-  border-color: color-mix(in srgb, #0f766e 30%, var(--cx-border, #e2e8f0));
-  background: color-mix(in srgb, #14b8a6 8%, var(--cx-surface, #fff));
-  color: #0f766e;
+  border-color: color-mix(in srgb, var(--brand-primary) 30%, var(--cx-border));
+  background: color-mix(in srgb, var(--brand-primary) 8%, var(--cx-surface));
+  color: var(--brand-primary);
   padding: 8px 10px;
 }
 .schedule-conflicts.muted {
   border-style: dashed;
-  color: var(--cx-muted, #64748b);
+  color: var(--cx-muted, var(--ink-soft));
   background: transparent;
 }
 .schedule-conflicts-title {
   margin: 0 0 8px;
   font-weight: 700;
-  color: var(--cx-text, #0f172a);
+  color: var(--cx-text, var(--ink));
 }
 .schedule-conflicts-list {
   margin: 0;
@@ -5979,12 +6296,12 @@ onMounted(async () => {
   color: #a16207;
 }
 .schedule-conflicts-list .sev[data-sev='near'] {
-  background: color-mix(in srgb, #dc2626 16%, transparent);
-  color: #b91c1c;
+  background: color-mix(in srgb, var(--bad) 16%, transparent);
+  color: var(--bad);
 }
 .schedule-conflicts-list .when,
 .schedule-conflicts-list .delta {
-  color: var(--cx-muted, #64748b);
+  color: var(--cx-muted, var(--ink-soft));
   font-size: 12px;
 }
 .schedule-modes {
@@ -5993,8 +6310,8 @@ onMounted(async () => {
 .publish-when-bar {
   flex-shrink: 0;
   padding: 12px 16px;
-  border-top: 1px solid var(--cx-border, #e2e8f0);
-  background: color-mix(in srgb, #0f766e 5%, var(--cx-surface, #fff));
+  border-top: 1px solid var(--cx-border);
+  background: color-mix(in srgb, var(--brand-primary) 5%, var(--cx-surface));
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -6007,26 +6324,26 @@ onMounted(async () => {
 }
 .publish-when-title {
   font-size: 13px;
-  color: var(--cx-text, #0f172a);
+  color: var(--cx-text, var(--ink));
 }
 .publish-when-toggle {
   display: inline-flex;
-  border: 1px solid color-mix(in srgb, #0f766e 35%, var(--cx-border, #e2e8f0));
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 35%, var(--cx-border));
   border-radius: 999px;
   overflow: hidden;
-  background: var(--cx-surface, #fff);
+  background: var(--cx-surface);
 }
 .publish-when-btn {
   border: 0;
   background: transparent;
-  color: var(--cx-muted, #64748b);
+  color: var(--cx-muted, var(--ink-soft));
   font-size: 13px;
   font-weight: 700;
   padding: 8px 16px;
   cursor: pointer;
 }
 .publish-when-btn.on {
-  background: #0f766e;
+  background: var(--brand-primary);
   color: #fff;
 }
 .publish-when-schedule {
@@ -6045,31 +6362,31 @@ onMounted(async () => {
 }
 .ugc-from-member.row,
 .ugc-from-member.grid-row {
-  background: color-mix(in srgb, #7dd3fc 28%, var(--cx-surface, #fff));
+  background: color-mix(in srgb, #7dd3fc 28%, var(--cx-surface));
   border-color: color-mix(in srgb, #38bdf8 35%, transparent);
 }
 .ugc-from-member.row:hover,
 .ugc-from-member.grid-row:hover {
-  background: color-mix(in srgb, #7dd3fc 38%, var(--cx-surface, #fff));
+  background: color-mix(in srgb, #7dd3fc 38%, var(--cx-surface));
 }
 .ugc-from-member.row.selected,
 .ugc-from-member.grid-row.selected {
-  background: color-mix(in srgb, #38bdf8 32%, var(--cx-surface, #fff));
+  background: color-mix(in srgb, #38bdf8 32%, var(--cx-surface));
   box-shadow: inset 3px 0 0 #0284c7;
 }
 /* Miembro sin aprobar → amarillo */
 .ugc-from-member.ugc-pending.row,
 .ugc-from-member.ugc-pending.grid-row {
-  background: color-mix(in srgb, #fde047 42%, var(--cx-surface, #fff));
+  background: color-mix(in srgb, #fde047 42%, var(--cx-surface));
   border-color: color-mix(in srgb, #eab308 45%, transparent);
 }
 .ugc-from-member.ugc-pending.row:hover,
 .ugc-from-member.ugc-pending.grid-row:hover {
-  background: color-mix(in srgb, #fde047 55%, var(--cx-surface, #fff));
+  background: color-mix(in srgb, #fde047 55%, var(--cx-surface));
 }
 .ugc-from-member.ugc-pending.row.selected,
 .ugc-from-member.ugc-pending.grid-row.selected {
-  background: color-mix(in srgb, #facc15 48%, var(--cx-surface, #fff));
+  background: color-mix(in srgb, #facc15 48%, var(--cx-surface));
   box-shadow: inset 3px 0 0 #ca8a04;
 }
 .ugc-from-member.ugc-pending .ugc-person {
@@ -6079,21 +6396,21 @@ onMounted(async () => {
 /* Riesgo alto IA → card roja (prioridad sobre pendiente amarillo) */
 .ugc-from-member.ugc-risk-high.row,
 .ugc-from-member.ugc-risk-high.grid-row {
-  background: color-mix(in srgb, #fca5a5 48%, var(--cx-surface, #fff));
-  border-color: color-mix(in srgb, #dc2626 50%, transparent);
+  background: color-mix(in srgb, #fca5a5 48%, var(--cx-surface));
+  border-color: color-mix(in srgb, var(--bad) 50%, transparent);
 }
 .ugc-from-member.ugc-risk-high.row:hover,
 .ugc-from-member.ugc-risk-high.grid-row:hover {
-  background: color-mix(in srgb, #f87171 42%, var(--cx-surface, #fff));
+  background: color-mix(in srgb, #f87171 42%, var(--cx-surface));
 }
 .ugc-from-member.ugc-risk-high.row.selected,
 .ugc-from-member.ugc-risk-high.grid-row.selected {
-  background: color-mix(in srgb, #f87171 50%, var(--cx-surface, #fff));
-  box-shadow: inset 3px 0 0 #b91c1c;
+  background: color-mix(in srgb, #f87171 50%, var(--cx-surface));
+  box-shadow: inset 3px 0 0 var(--bad);
 }
 .ugc-from-member.ugc-risk-high .ugc-person {
-  background: #dc2626;
-  box-shadow: 0 1px 4px color-mix(in srgb, #dc2626 40%, transparent);
+  background: var(--bad);
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--bad) 40%, transparent);
 }
 .ugc-person {
   position: absolute;
@@ -6130,23 +6447,23 @@ onMounted(async () => {
 }
 .risk-tag[data-risk='medium'] {
   background: color-mix(in srgb, #d97706 18%, transparent);
-  color: #b45309;
+  color: var(--warn);
 }
 .risk-tag[data-risk='high'] {
-  background: color-mix(in srgb, #dc2626 16%, transparent);
-  color: #b91c1c;
+  background: color-mix(in srgb, var(--bad) 16%, transparent);
+  color: var(--bad);
 }
 .risk-tag.pending {
-  background: color-mix(in srgb, #64748b 16%, transparent);
-  color: #475569;
+  background: color-mix(in srgb, var(--ink-soft) 16%, transparent);
+  color: var(--ink-soft);
   text-transform: none;
 }
 .ai-alert {
   margin: 0 0 12px;
   padding: 10px 14px;
   border-radius: 12px;
-  background: color-mix(in srgb, #dc2626 10%, transparent);
-  color: #991b1b;
+  background: color-mix(in srgb, var(--bad) 10%, transparent);
+  color: var(--bad);
   font-size: 13px;
   display: flex;
   flex-wrap: wrap;
@@ -6181,8 +6498,8 @@ onMounted(async () => {
   overflow: hidden;
 }
 .mod-ai[data-risk='high'] {
-  border-color: color-mix(in srgb, #dc2626 40%, transparent);
-  background: color-mix(in srgb, #dc2626 8%, transparent);
+  border-color: color-mix(in srgb, var(--bad) 40%, transparent);
+  background: color-mix(in srgb, var(--bad) 8%, transparent);
 }
 .mod-ai[data-risk='medium'] {
   border-color: color-mix(in srgb, #d97706 40%, transparent);
@@ -6225,15 +6542,15 @@ onMounted(async () => {
 .mod-ai-err {
   margin: 6px 0 0;
   font-size: 11px;
-  color: #b45309;
+  color: var(--warn);
 }
 .reject-note {
   margin: 6px 0 0;
   font-size: 12px;
-  color: #b91c1c;
+  color: var(--bad);
 }
 .icon-btn.ok {
-  color: #0f766e;
+  color: var(--brand-primary);
 }
 .row h2 {
   margin: 0;
@@ -6263,8 +6580,8 @@ onMounted(async () => {
   width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--cx-border);
   background: var(--cx-input); color: var(--cx-text); display: grid; place-items: center;
 }
-.icon-btn:hover { border-color: #0f766e; color: #0f766e; }
-.icon-btn.danger:hover { border-color: #dc2626; color: #dc2626; }
+.icon-btn:hover { border-color: var(--brand-primary); color: var(--brand-primary); }
+.icon-btn.danger:hover { border-color: var(--bad); color: var(--bad); }
 .icon-btn:disabled { opacity: 0.55; cursor: wait; }
 .icon-btn .spin { animation: cx-spin 0.8s linear infinite; }
 @keyframes cx-spin { to { transform: rotate(360deg); } }
@@ -6311,7 +6628,7 @@ onMounted(async () => {
   width: auto;
   min-width: 4.5rem;
 }
-.err { color: #b91c1c; background: #fef2f2; border-radius: 12px; padding: 10px 12px; font-size: 13px; margin: 0 0 12px; }
+.err { color: var(--bad); background: var(--bad-bg); border-radius: 12px; padding: 10px 12px; font-size: 13px; margin: 0 0 12px; }
 
 .sheet {
   position: fixed; inset: 0; z-index: 70; background: rgba(15, 23, 42, 0.5);
@@ -6412,11 +6729,11 @@ onMounted(async () => {
   cursor: pointer;
 }
 .editor-nav-item:hover {
-  background: color-mix(in srgb, #0f766e 8%, var(--cx-surface));
+  background: color-mix(in srgb, var(--brand-primary) 8%, var(--cx-surface));
 }
 .editor-nav-item.on {
-  border-color: #0f766e;
-  background: color-mix(in srgb, #0f766e 12%, var(--cx-surface));
+  border-color: var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary) 12%, var(--cx-surface));
 }
 .editor-nav-item strong {
   display: block;
@@ -6506,7 +6823,7 @@ onMounted(async () => {
   max-height: 420px;
   display: grid;
   grid-template-rows: auto 1fr;
-  background: #0f172a;
+  background: var(--ink);
 }
 .media-admin-preview-video :deep(.pmedia) {
   min-height: 0;
@@ -6517,8 +6834,8 @@ onMounted(async () => {
   padding: 8px 10px;
   font-size: 12px;
   font-weight: 700;
-  color: #e2e8f0;
-  background: #0f172a;
+  color: var(--line);
+  background: var(--ink);
 }
 .audio-admin-preview {
   display: grid;
@@ -6526,7 +6843,7 @@ onMounted(async () => {
   padding: 12px;
   border-radius: 12px;
   border: 1px solid var(--cx-border);
-  background: color-mix(in srgb, #0f766e 8%, var(--cx-surface));
+  background: color-mix(in srgb, var(--brand-primary) 8%, var(--cx-surface));
 }
 .audio-admin-preview .media-preview-label {
   padding: 0;
@@ -6645,8 +6962,8 @@ onMounted(async () => {
   font-weight: 700;
   padding: 3px 8px;
   border-radius: 999px;
-  background: color-mix(in srgb, #0f766e 14%, var(--cx-surface));
-  color: #0f766e;
+  background: color-mix(in srgb, var(--brand-primary) 14%, var(--cx-surface));
+  color: var(--brand-primary);
 }
 .tipo-consequence-lead {
   margin: 0;
@@ -6664,8 +6981,8 @@ onMounted(async () => {
   font-size: 12px;
   margin-bottom: 6px;
 }
-.tipo-consequence-label.change { color: #0f766e; }
-.tipo-consequence-label.keep { color: #065f46; }
+.tipo-consequence-label.change { color: var(--brand-primary); }
+.tipo-consequence-label.keep { color: var(--ok); }
 .tipo-consequence-cols ul {
   margin: 0;
   padding-left: 1.1rem;
@@ -6749,8 +7066,8 @@ onMounted(async () => {
   font-weight: 600;
   padding: 4px 8px;
   border-radius: 999px;
-  background: color-mix(in srgb, #0f766e 10%, var(--cx-surface));
-  color: #0f766e;
+  background: color-mix(in srgb, var(--brand-primary) 10%, var(--cx-surface));
+  color: var(--brand-primary);
 }
 .encuesta-questions { display: grid; gap: 8px; }
 .encuesta-q-title { font-size: 13px; }
@@ -6868,13 +7185,13 @@ textarea.input { resize: vertical; min-height: 110px; }
   padding: 18px 14px;
   text-align: center;
   cursor: pointer;
-  background: color-mix(in srgb, #0f766e 6%, var(--cx-surface));
+  background: color-mix(in srgb, var(--brand-primary) 6%, var(--cx-surface));
   display: grid;
   gap: 4px;
 }
 .dropzone.over {
-  border-color: #0f766e;
-  background: color-mix(in srgb, #0f766e 14%, var(--cx-surface));
+  border-color: var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary) 14%, var(--cx-surface));
 }
 .dropzone.busy { opacity: 0.65; pointer-events: none; }
 .dropzone strong { font-size: 13px; }
@@ -6901,7 +7218,7 @@ textarea.input { resize: vertical; min-height: 110px; }
   height: 64px;
   object-fit: cover;
   border-radius: 8px;
-  background: #0f172a;
+  background: var(--ink);
 }
 .carousel-item-meta { min-width: 0; display: grid; gap: 6px; }
 .carousel-item-meta code {
@@ -6918,6 +7235,17 @@ textarea.input { resize: vertical; min-height: 110px; }
   gap: 8px;
   align-items: center;
 }
+.url-with-search {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+@media (max-width: 640px) {
+  .url-with-search {
+    grid-template-columns: 1fr;
+  }
+}
 .sr-only {
   position: absolute;
   width: 1px;
@@ -6930,8 +7258,8 @@ textarea.input { resize: vertical; min-height: 110px; }
   border-radius: 12px; padding: 10px 12px; color: var(--cx-text);
 }
 .type-card.on, .layout-card.on {
-  border-color: #0f766e;
-  background: color-mix(in srgb, #0f766e 12%, var(--cx-surface));
+  border-color: var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary) 12%, var(--cx-surface));
 }
 .type-card strong, .layout-card strong { display: block; font-size: 13px; }
 .type-card small, .layout-card small { display: block; margin-top: 2px; font-size: 11px; color: var(--cx-muted); }
@@ -6982,8 +7310,8 @@ textarea.input { resize: vertical; min-height: 110px; }
   cursor: pointer;
 }
 .audience-user-add:hover:not(:disabled) {
-  border-color: #0f766e;
-  background: color-mix(in srgb, #0f766e 8%, var(--cx-surface));
+  border-color: var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary) 8%, var(--cx-surface));
 }
 .audience-user-add:disabled { opacity: 0.5; cursor: default; }
 .audience-user-add strong { display: block; font-size: 13px; }
@@ -7001,8 +7329,8 @@ textarea.input { resize: vertical; min-height: 110px; }
   border-radius: 999px;
   font-size: 12px;
   font-weight: 600;
-  background: color-mix(in srgb, #0f766e 12%, var(--cx-surface));
-  color: #0f766e;
+  background: color-mix(in srgb, var(--brand-primary) 12%, var(--cx-surface));
+  color: var(--brand-primary);
 }
 .audience-chip-x {
   border: 0;
@@ -7101,7 +7429,7 @@ textarea.input { resize: vertical; min-height: 110px; }
 }
 .btn-danger {
   border: 0;
-  background: #b91c1c;
+  background: var(--bad);
   color: #fff;
   border-radius: 12px;
   padding: 11px 16px;

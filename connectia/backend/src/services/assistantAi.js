@@ -98,28 +98,41 @@ async function chatWithFallback(system, user) {
 const SYSTEM = `Sos el Asistente de Connectia, la app de la comunidad del colaborador.
 Respondé en español rioplatense, claro y breve (máx. 180 palabras salvo listados).
 Usá SOLO los datos del contexto JSON (solicitudes, documentos, KB, módulos). No inventes saldos, montos ni documentos.
-Si el contexto trae "baseAnswer", mejorala o reformulá sin contradecir hechos.
+Si el contexto trae "baseAnswer", mejorala o reformulá sin contradecir hechos ni cambiar el pedido de datos.
+NUNCA inventes botones, ni digas "tocá Confirmar", ni derives a un formulario si baseAnswer pide responder hablando (sí/no, fechas, motivo).
 Si no hay datos, sugerí abrir consulta o ir al módulo.
 Devolvé JSON: { "text": string, "suggestedLinks": [{"label":string,"href":string}] }`
 
+const SYSTEM_ADMIN = `Sos el Asistente de Connectyx Admin (panel de gestión de la comunidad).
+Respondé en español rioplatense, claro y breve (máx. 200 palabras salvo listados).
+Usá SOLO el contexto JSON: productKb (base de producto), kb (artículos del tenant), modules, baseAnswer.
+No inventes pantallas ni rutas. Preferí rutas Admin (/usuarios, /solicitudes, /asistente-kb…).
+Mencioná «Funciones de Administración» cuando ayude a encontrar algo.
+No armes trámites personales (vacaciones/reservas); orientá a la app del miembro si lo piden.
+Si el contexto trae "baseAnswer", mejorala sin contradecir hechos.
+Devolvé JSON: { "text": string, "suggestedLinks": [{"label":string,"href":string}] }`
+
 /**
- * @param {{ userText: string, intent: string, baseAnswer: string, context: object }}
+ * @param {{ userText: string, intent: string, baseAnswer: string, context: object, channel?: string }}
  */
-export async function polishAssistantAnswer({ userText, intent, baseAnswer, context }) {
+export async function polishAssistantAnswer({ userText, intent, baseAnswer, context, channel = 'u' }) {
   if (!assistantAiConfigured()) {
     return { text: baseAnswer, suggestedLinks: [], usedAi: false }
   }
+  const isAdmin = String(channel || '').toLowerCase() === 'a'
   try {
     const raw = await chatWithFallback(
-      SYSTEM,
+      isAdmin ? SYSTEM_ADMIN : SYSTEM,
       JSON.stringify({
         userText,
         intent,
         baseAnswer,
+        channel: isAdmin ? 'a' : 'u',
         context: {
           requests: context.requests?.slice?.(0, 8) || context.requests,
           documents: context.documents?.slice?.(0, 8) || context.documents,
-          kb: (context.kb || []).map((a) => ({ titulo: a.titulo, excerpt: a.excerpt })),
+          kb: (context.kb || []).map((a) => ({ titulo: a.titulo, excerpt: a.excerpt || a.cuerpo })),
+          productKb: context.productKb || null,
           posts: context.posts?.slice?.(0, 4),
           modules: context.modules,
           notes: context.notes,

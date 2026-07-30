@@ -43,7 +43,7 @@ const absenceRequestSchema = new mongoose.Schema(
     decisionComentario: { type: String, default: '' },
     adjuntos: { type: [adjuntoSchema], default: [] },
     historial: { type: [historialSchema], default: [] },
-    /** Integración ECR diferible (12.04). */
+    /** Integración ECR (12.04): none | pending | synced | error | deferred. */
     ecrSync: {
       status: {
         type: String,

@@ -28,9 +28,9 @@ defineProps({
 <style scoped>
 .screen-help {
   margin: 10px 0 0;
-  border: 1px solid var(--cx-border, #e2e8f0);
+  border: 1px solid var(--cx-border);
   border-radius: 12px;
-  background: color-mix(in srgb, var(--cx-surface, #fff) 88%, var(--cx-page, #f8fafc));
+  background: color-mix(in srgb, var(--cx-surface) 88%, var(--cx-page, var(--panel-2)));
   max-width: 62ch;
 }
 
@@ -44,7 +44,7 @@ defineProps({
   padding: 9px 12px;
   font-size: 13px;
   font-weight: 600;
-  color: var(--cx-muted, #64748b);
+  color: var(--cx-muted, var(--ink-soft));
   user-select: none;
 }
 
@@ -62,8 +62,8 @@ defineProps({
 }
 
 .screen-help[open] summary {
-  color: var(--cx-text, #0f172a);
-  border-bottom: 1px solid var(--cx-border, #e2e8f0);
+  color: var(--cx-text, var(--ink));
+  border-bottom: 1px solid var(--cx-border);
 }
 
 .screen-help-body {
@@ -76,11 +76,11 @@ defineProps({
   margin: 0;
   font-size: 13px;
   line-height: 1.45;
-  color: var(--cx-muted, #64748b);
+  color: var(--cx-muted, var(--ink-soft));
 }
 
 .screen-help-body strong {
-  color: var(--cx-text, #0f172a);
+  color: var(--cx-text, var(--ink));
   font-weight: 700;
 }
 </style>

@@ -3,6 +3,8 @@
  * Testeable sin Mongo ni red.
  */
 
+import { extractBookingEntities } from './assistantBookingDraft.js'
+
 export const ASSISTANT_INTENTS = [
   'ayuda_kb',
   'mis_solicitudes',
@@ -14,8 +16,13 @@ export const ASSISTANT_INTENTS = [
   'recibo_sueldo',
   'saldo_vacaciones',
   'solicitar_vacaciones',
+  'saldo_y_solicitar_vacaciones',
   'solicitar_ausentismo',
   'abrir_consulta',
+  'reservar_sala',
+  'reservar_cochera',
+  'reservar_puesto',
+  'como_marcar',
   'confirmar',
   'cancelar',
   'desconocido',
@@ -33,7 +40,10 @@ const MODULE_HINTS = [
   { keys: ['aprobacion', 'aprobar', 'workflow'], route: '/aprobaciones', label: 'Aprobaciones' },
   { keys: ['vacacion', 'licencia', 'permiso'], route: '/licencias', label: 'Vacaciones y permisos' },
   { keys: ['ausencia', 'ausentismo'], route: '/ausencias', label: 'Ausencias' },
+  { keys: ['sala', 'cochera', 'estacionamiento', 'espacio', 'reserva'], route: '/espacios', label: 'Espacios' },
+  { keys: ['puesto', 'hot desk', 'hotdesk', 'oficina', 'coworking'], route: '/oficina', label: 'Oficina' },
   { keys: ['asistente', 'bot', 'ayuda'], route: '/asistente', label: 'Asistente' },
+  { keys: ['marcar', 'asistencia', 'fichaje', 'turno'], route: '/avisos', label: 'Avisos' },
 ]
 
 function norm(text) {
@@ -44,11 +54,28 @@ function norm(text) {
     .trim()
 }
 
+function extractDateEntities(t, entities) {
+  const range = t.match(/(\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?)/g)
+  if (range?.length) {
+    entities.desde = range[0]
+    if (range[1]) entities.hasta = range[1]
+  }
+}
+
+function attachBooking(text, entities) {
+  const b = extractBookingEntities(text)
+  for (const [k, v] of Object.entries(b)) {
+    if (v !== '' && v != null) entities[k] = String(v)
+  }
+}
+
 /**
  * @param {string} text
+ * @param {{ moduleHints?: typeof MODULE_HINTS }} [opts]
  * @returns {{ intent: string, entities: Record<string, string>, confidence: number }}
  */
-export function detectAssistantIntent(text) {
+export function detectAssistantIntent(text, opts = {}) {
+  const hints = Array.isArray(opts.moduleHints) && opts.moduleHints.length ? opts.moduleHints : MODULE_HINTS
   const t = norm(text)
   const entities = {}
 
@@ -76,22 +103,26 @@ export function detectAssistantIntent(text) {
     return { intent: 'recibo_sueldo', entities, confidence: 0.85 }
   }
 
-  if (
+  // E) combinado: saldo + pedido en el mismo mensaje
+  const asksSaldo =
     /(cuantas|cuántas|cuanto|cuánto|saldo|tengo).*(vacacion|licencia)/.test(t) ||
-    /(vacacion|licencia).*(tengo|saldo|disponib)/.test(t)
-  ) {
+    /(vacacion|licencia).*(tengo|saldo|disponib)/.test(t) ||
+    /saber\s+(cuantas|cuántas|el\s+saldo)/.test(t)
+  const asksPedido =
+    /(quiero|solicitar|pedir|tomarme|sacar).*(vacacion|licencia)/.test(t) ||
+    /(vacacion|licencia).*(del|desde|el)\s+\d/.test(t) ||
+    /tomarme\b/.test(t)
+  if (asksSaldo && asksPedido) {
+    extractDateEntities(t, entities)
+    return { intent: 'saldo_y_solicitar_vacaciones', entities, confidence: 0.9 }
+  }
+
+  if (asksSaldo) {
     return { intent: 'saldo_vacaciones', entities, confidence: 0.88 }
   }
 
-  if (
-    /(quiero|solicitar|pedir|tomarme|sacar).*(vacacion|licencia)/.test(t) ||
-    /(vacacion|licencia).*(del|desde|el)\s+\d/.test(t)
-  ) {
-    const range = t.match(/(\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?)/g)
-    if (range?.length) {
-      entities.desde = range[0]
-      if (range[1]) entities.hasta = range[1]
-    }
+  if (asksPedido) {
+    extractDateEntities(t, entities)
     return { intent: 'solicitar_vacaciones', entities, confidence: 0.82 }
   }
 
@@ -100,12 +131,44 @@ export function detectAssistantIntent(text) {
     /(ausencia|ausentismo).*(del|desde|el)\s+\d/.test(t) ||
     /me\s+ausent(e|é|are|aré)/.test(t)
   ) {
-    const range = t.match(/(\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?)/g)
-    if (range?.length) {
-      entities.desde = range[0]
-      if (range[1]) entities.hasta = range[1]
-    }
+    extractDateEntities(t, entities)
     return { intent: 'solicitar_ausentismo', entities, confidence: 0.82 }
+  }
+
+  if (
+    /(reservar|reserva|quiero).*(sala|espacio|reunion|reunión)/.test(t) ||
+    /(sala|espacio).*(libre|disponible|reserv)/.test(t)
+  ) {
+    attachBooking(text, entities)
+    return { intent: 'reservar_sala', entities, confidence: 0.86 }
+  }
+
+  if (
+    /(reservar|reserva|quiero|necesito|pedir).*(cochera|estacionamiento|garage|parking)/.test(t) ||
+    /(cochera|estacionamiento).*(libre|disponible|reserv|manana|mañana)/.test(t)
+  ) {
+    attachBooking(text, entities)
+    return { intent: 'reservar_cochera', entities, confidence: 0.86 }
+  }
+
+  if (
+    /(reservar|reserva|quiero).*(puesto|hot\s*desk|escritorio)/.test(t) ||
+    /voy\s+a\s+la\s+oficina/.test(t) ||
+    /(puesto|hot\s*desk|coworking).*(libre|disponible|reserv)/.test(t)
+  ) {
+    attachBooking(text, entities)
+    return { intent: 'reservar_puesto', entities, confidence: 0.86 }
+  }
+
+  if (
+    /como\s+marco\b/.test(t) ||
+    /como\s+marcar\b/.test(t) ||
+    /como\s+(hago\s+para\s+)?marcar\b/.test(t) ||
+    /como\s+ficho\b/.test(t) ||
+    /donde\s+marco\s+(asistencia|entrada|salida)/.test(t)
+  ) {
+    entities.q = text.trim()
+    return { intent: 'como_marcar', entities, confidence: 0.88 }
   }
 
   if (
@@ -136,7 +199,7 @@ export function detectAssistantIntent(text) {
   }
 
   if (/(donde|dónde)\s+(esta|está|queda|encuentro|abro)/.test(t) || /como\s+(entro|voy)\s+a\b/.test(t)) {
-    for (const mod of MODULE_HINTS) {
+    for (const mod of hints) {
       if (mod.keys.some((k) => t.includes(norm(k)))) {
         entities.modulo = mod.label
         entities.route = mod.route
@@ -146,9 +209,16 @@ export function detectAssistantIntent(text) {
     return { intent: 'donde_modulo', entities, confidence: 0.55 }
   }
 
+  // 29.CONV: “quiero hacer un trámite” / “nueva solicitud” (artículo opcional entre verbo y sustantivo)
   if (
-    /(abrir|crear|iniciar|nueva|cargar|armar|hacer|generar)\s+(consulta|solicitud|ticket|tramite|trámite)/.test(t) ||
-    /(consulta|solicitud|ticket).*(nueva|cargar|crear|abrir)/.test(t) ||
+    /(abrir|crear|iniciar|cargar|armar|hacer|generar)\s+(un[oa]?\s+)?(consulta|solicitud|ticket|tramite|trámite)/.test(
+      t,
+    ) ||
+    /(consulta|solicitud|ticket|tramite|trámite).*(nueva|cargar|crear|abrir)/.test(t) ||
+    /^(quiero\s+)?(hacer|cargar|crear|armar|iniciar|abrir)?\s*(un[oa]?\s+)?(tramite|trámite|solicitud|consulta)\s*$/.test(
+      t,
+    ) ||
+    /^(nueva\s+)?(solicitud|consulta|tramite|trámite)\s*$/.test(t) ||
     /quiero\s+(hablar|consultar)\s+con\s+(rrhh|recursos|soporte)/.test(t) ||
     /quiero\s+(pedir|solicitar|reportar|reclamar)\b/.test(t) ||
     /necesito\s+(ayuda|soporte)\b/.test(t)
@@ -170,9 +240,10 @@ export function detectAssistantIntent(text) {
   return { intent: 'ayuda_kb', entities: { q: text.trim() }, confidence: 0.45 }
 }
 
-export function matchModuleHint(text) {
+export function matchModuleHint(text, moduleHints = MODULE_HINTS) {
+  const hints = Array.isArray(moduleHints) && moduleHints.length ? moduleHints : MODULE_HINTS
   const t = norm(text)
-  for (const mod of MODULE_HINTS) {
+  for (const mod of hints) {
     if (mod.keys.some((k) => t.includes(norm(k)))) return mod
   }
   return null

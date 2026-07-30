@@ -37,7 +37,7 @@ export function resolveSplashConfig(branding = {}, tenantNombre = '') {
     enabledPreLogin: s.enabledPreLogin !== false,
     enabledPostLogin: s.enabledPostLogin !== false,
     durationSec,
-    title: s.title || branding.splashTitle || tenantNombre || 'Connectia',
+    title: s.title || branding.splashTitle || tenantNombre || 'Connectyx',
     subtitle: s.subtitle || branding.splashSubtitle || 'Tu comunidad',
     logoUrl: resolveMediaUrl(s.logoUrl || branding.logoUrl || ''),
     bgColor: s.bgColor || '',

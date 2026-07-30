@@ -2,24 +2,29 @@
   <div class="page">
     <header class="page-head">
       <div>
-        <h1 tabindex="-1">Onboarding y egreso</h1>
-        <p>Plantillas, incorporaciones y offboarding · encuestas vía §15</p>
+        <h1 tabindex="-1">Ingreso y egreso</h1>
+        <p>Armá la checklist y asignásela a cada persona. Flujo: 1) plantilla → 2) iniciar proceso.</p>
         <ScreenHelp
-          purpose="Ciclo de vida ingreso/egreso con hitos y progreso en servidor."
-          can-do="Publicar plantillas, iniciar procesos, completar hitos, revocar accesos en egreso. Hitos tipo encuesta usan Admin → Encuestas."
+          purpose="Checklist de llegada (ingreso) o de salida (egreso) con pasos y progreso."
+          can-do="Crear plantillas, publicarlas, iniciar un proceso para un miembro, marcar pasos y, en egreso, revocar accesos. Las encuestas se eligen del catálogo de Encuestas."
         />
+        <ol class="howto">
+          <li><strong>Plantillas:</strong> definí los pasos (tarea, material o encuesta).</li>
+          <li><strong>Procesos:</strong> elegí plantilla + persona y dale a Iniciar.</li>
+          <li>La persona ve los pasos en la app → <em>Tu ingreso</em>.</li>
+        </ol>
       </div>
       <div class="head-actions">
         <button type="button" class="btn-ghost" :class="{ on: tab === 'templates' }" @click="tab = 'templates'">
-          Plantillas
+          1. Plantillas
         </button>
         <button type="button" class="btn-ghost" :class="{ on: tab === 'instances' }" @click="tab = 'instances'">
-          Procesos
+          2. Procesos
         </button>
         <button v-if="tab === 'templates'" type="button" class="btn-primary" @click="openNewTemplate">
           Nueva plantilla
         </button>
-        <button v-else type="button" class="btn-primary" @click="openStart">Iniciar proceso</button>
+        <button v-else type="button" class="btn-primary" @click="openStart">Iniciar para una persona</button>
       </div>
     </header>
     <p v-if="error" class="err">{{ error }}</p>
@@ -42,10 +47,10 @@
               <strong>{{ t.nombre }}</strong>
               <p class="sub">{{ t.descripcion }}</p>
             </td>
-            <td>{{ t.kind }}</td>
+            <td>{{ kindLabel(t.kind) }}</td>
             <td>v{{ t.version }}</td>
             <td>{{ t.milestones?.length || 0 }}</td>
-            <td><span class="pill" :data-st="t.status">{{ t.status }}</span></td>
+            <td><span class="pill" :data-st="t.status">{{ statusLabel(t.status) }}</span></td>
             <td class="actions">
               <button type="button" class="btn-ghost" @click="editTemplate(t)">Editar</button>
               <button
@@ -87,9 +92,9 @@
           <tr v-for="i in instances" :key="i.id">
             <td>{{ i.userName }}</td>
             <td>{{ i.templateName }} <span class="sub">v{{ i.templateVersion }}</span></td>
-            <td>{{ i.kind }}</td>
+            <td>{{ kindLabel(i.kind) }}</td>
             <td>{{ i.progressPercent }}%</td>
-            <td><span class="pill" :data-st="i.status">{{ i.status }}</span></td>
+            <td><span class="pill" :data-st="i.status">{{ statusLabel(i.status) }}</span></td>
             <td class="actions">
               <button type="button" class="btn-ghost" @click="openInstance(i)">Ver</button>
             </td>
@@ -108,27 +113,30 @@
         <label
           >Tipo
           <select v-model="draft.kind" class="input">
-            <option value="onboarding">Onboarding</option>
-            <option value="offboarding">Offboarding</option>
+            <option value="onboarding">Ingreso (bienvenida)</option>
+            <option value="offboarding">Egreso</option>
           </select>
         </label>
-        <label>SLA (días) <input v-model.number="draft.slaDias" type="number" class="input" min="0" /></label>
+        <label>Plazo sugerido (días) <input v-model.number="draft.slaDias" type="number" class="input" min="0" /></label>
 
-        <h3>Hitos</h3>
-        <p class="hint">Tipo encuesta: elegí una encuesta de §15 (mismo motor dinámico).</p>
+        <h3>Pasos de la checklist</h3>
+        <p class="hint">Si el paso es una encuesta, elegí una encuesta ya creada en Admin → Encuestas.</p>
         <div v-for="(m, idx) in draft.milestones" :key="m.key + idx" class="milestone">
           <div class="q-row">
-            <label>Key <input v-model="m.key" class="input" required /></label>
-            <label>Título <input v-model="m.titulo" class="input" required /></label>
+            <label>Título del paso <input v-model="m.titulo" class="input" required /></label>
+            <label class="muted-field"
+              >Código interno
+              <input v-model="m.key" class="input" required title="Se genera solo; RRHH puede ignorarlo" />
+            </label>
           </div>
           <div class="q-row">
             <label
-              >Tipo
+              >Tipo de paso
               <select v-model="m.tipo" class="input">
-                <option value="task">Tarea</option>
-                <option value="content">Contenido</option>
-                <option value="survey">Encuesta (§15)</option>
-                <option value="checklist">Checklist</option>
+                <option value="task">Tarea (marcar hecho)</option>
+                <option value="content">Material / enlace</option>
+                <option value="survey">Encuesta</option>
+                <option value="checklist">Lista</option>
               </select>
             </label>
             <label>Orden <input v-model.number="m.orden" type="number" class="input" /></label>
@@ -138,12 +146,12 @@
             <select v-model="m.surveyId" class="input" required>
               <option value="">— elegir —</option>
               <option v-for="s in surveyOptions" :key="s.id" :value="s.id">
-                {{ s.titulo }} ({{ s.purpose }} · {{ s.status }})
+                {{ s.titulo }} ({{ purposeLabel(s.purpose) }} · {{ statusLabel(s.status) }})
               </option>
             </select>
           </label>
           <label v-if="m.tipo === 'content'"
-            >Contenido / URL
+            >Enlace al material
             <input v-model="m.contentUrl" class="input" placeholder="https://…" />
           </label>
           <label
@@ -152,10 +160,10 @@
           </label>
           <label class="check"><input v-model="m.obligatorio" type="checkbox" /> Obligatorio</label>
           <button type="button" class="btn-ghost danger" @click="draft.milestones.splice(idx, 1)">
-            Quitar hito
+            Quitar paso
           </button>
         </div>
-        <button type="button" class="btn-ghost" @click="addMilestone">+ Hito</button>
+        <button type="button" class="btn-ghost" @click="addMilestone">+ Agregar paso</button>
 
         <p v-if="formError" class="err">{{ formError }}</p>
         <div class="footer">
@@ -168,9 +176,10 @@
     <!-- Iniciar proceso -->
     <div v-if="startDraft" class="sheet" @click.self="startDraft = null">
       <form class="panel editor" @submit.prevent="startInstance">
-        <h2>Iniciar proceso</h2>
+        <h2>Iniciar checklist para una persona</h2>
+        <p class="hint">Elegí una plantilla publicada y el miembro que debe verla en la app.</p>
         <label
-          >Plantilla publicada
+          >Plantilla
           <select v-model="startDraft.templateId" class="input" required>
             <option value="">—</option>
             <option
@@ -178,12 +187,12 @@
               :key="t.id"
               :value="t.id"
             >
-              {{ t.nombre }} ({{ t.kind }})
+              {{ t.nombre }} ({{ kindLabel(t.kind) }})
             </option>
           </select>
         </label>
         <label
-          >Usuario
+          >Persona
           <select v-model="startDraft.userId" class="input" required>
             <option value="">—</option>
             <option v-for="u in users" :key="u.id" :value="u.id">
@@ -203,12 +212,14 @@
     <div v-if="detail" class="sheet" @click.self="detail = null">
       <div class="panel editor wide">
         <h2>{{ detail.userName }} · {{ detail.templateName }}</h2>
-        <p class="hint">{{ detail.kind }} · {{ detail.status }} · {{ detail.progressPercent }}%</p>
+        <p class="hint">
+          {{ kindLabel(detail.kind) }} · {{ statusLabel(detail.status) }} · {{ detail.progressPercent }}%
+        </p>
         <ul class="mlist">
           <li v-for="m in detail.milestones" :key="m.key">
             <strong>{{ m.titulo }}</strong>
-            <span class="pill" :data-st="m.status">{{ m.status }}</span>
-            <span class="sub">{{ m.tipo }}</span>
+            <span class="pill" :data-st="m.status">{{ milestoneStatusLabel(m.status) }}</span>
+            <span class="sub">{{ milestoneTypeLabel(m.tipo) }}</span>
             <button
               v-if="['pending', 'in_progress'].includes(detail.status) && m.status === 'pending'"
               type="button"
@@ -225,7 +236,7 @@
               rel="noopener"
               @click.prevent="openSurveyAdmin(m.surveyId)"
             >
-              Ver encuesta §15
+              Ver encuesta
             </a>
           </li>
         </ul>
@@ -273,6 +284,54 @@ const draft = ref(null)
 const startDraft = ref(null)
 const detail = ref(null)
 const saving = ref(false)
+
+function kindLabel(k) {
+  return k === 'offboarding' ? 'Egreso' : 'Ingreso'
+}
+function statusLabel(s) {
+  return (
+    {
+      draft: 'Borrador',
+      published: 'Publicada',
+      archived: 'Archivada',
+      pending: 'Pendiente',
+      in_progress: 'En curso',
+      completed: 'Completado',
+      cancelled: 'Cancelado',
+      revoked: 'Accesos revocados',
+    }[s] || s
+  )
+}
+function purposeLabel(p) {
+  return (
+    {
+      general: 'General',
+      onboarding: 'Ingreso',
+      offboarding: 'Egreso',
+    }[p] || p || 'General'
+  )
+}
+function milestoneTypeLabel(t) {
+  return (
+    {
+      task: 'Tarea',
+      content: 'Material',
+      survey: 'Encuesta',
+      checklist: 'Lista',
+    }[t] || t
+  )
+}
+function milestoneStatusLabel(s) {
+  return (
+    {
+      pending: 'Pendiente',
+      in_progress: 'En curso',
+      done: 'Hecho',
+      locked: 'Bloqueado',
+      skipped: 'Omitido',
+    }[s] || s
+  )
+}
 
 async function loadTemplates() {
   const { data } = await api.get('/admin/onboarding/templates')
@@ -486,7 +545,23 @@ onMounted(async () => {
 }
 .page-head p {
   margin: 0;
-  color: #64748b;
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+}
+.howto {
+  margin: 0.75rem 0 0;
+  padding: 0.65rem 0.85rem 0.65rem 1.5rem;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 0.88rem;
+  color: var(--ink);
+}
+.howto li {
+  margin: 0.2rem 0;
+}
+.muted-field {
+  opacity: 0.85;
   font-size: 0.9rem;
 }
 .head-actions {
@@ -496,7 +571,7 @@ onMounted(async () => {
   align-items: center;
 }
 .btn-ghost.on {
-  background: #e2e8f0;
+  background: var(--line);
 }
 .table {
   width: 100%;
@@ -507,11 +582,11 @@ onMounted(async () => {
 .table td {
   text-align: left;
   padding: 0.55rem 0.4rem;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--line);
   vertical-align: top;
 }
 .sub {
-  color: #64748b;
+  color: var(--ink-soft);
   font-size: 0.8rem;
   margin: 0.15rem 0 0;
 }
@@ -521,16 +596,16 @@ onMounted(async () => {
   flex-wrap: wrap;
 }
 .err {
-  color: #b91c1c;
+  color: var(--bad);
 }
 .muted {
-  color: #64748b;
+  color: var(--ink-soft);
 }
 .pill {
   font-size: 0.72rem;
   padding: 0.12rem 0.4rem;
   border-radius: 999px;
-  background: #e2e8f0;
+  background: var(--line);
   text-transform: lowercase;
 }
 .pill[data-st='published'],
@@ -541,24 +616,24 @@ onMounted(async () => {
 }
 .pill[data-st='in_progress'],
 .pill[data-st='pending'] {
-  background: #fef9c3;
+  background: var(--warn-bg);
   color: #854d0e;
 }
 .pill[data-st='locked'] {
-  background: #f1f5f9;
-  color: #475569;
+  background: var(--panel-2);
+  color: var(--ink-soft);
 }
 .pill[data-st='revoked'],
 .pill[data-st='cancelled'],
 .pill[data-st='archived'],
 .pill[data-st='closed'] {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--bad-bg);
+  color: var(--bad);
 }
 .sheet {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.45);
+  background: color-mix(in srgb, var(--ink) 45%, transparent);
   display: grid;
   place-items: center;
   z-index: 40;
@@ -566,7 +641,7 @@ onMounted(async () => {
   overflow: auto;
 }
 .panel {
-  background: #fff;
+  background: var(--panel);
   border-radius: 12px;
   padding: 1.25rem;
   width: min(440px, 100%);
@@ -584,7 +659,7 @@ onMounted(async () => {
   font-size: 0.85rem;
 }
 .input {
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--line-2);
   border-radius: 8px;
   padding: 0.45rem 0.6rem;
 }
@@ -594,14 +669,14 @@ onMounted(async () => {
   gap: 0.5rem;
 }
 .milestone {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--line);
   border-radius: 10px;
   padding: 0.75rem;
   display: grid;
   gap: 0.5rem;
 }
 .hint {
-  color: #64748b;
+  color: var(--ink-soft);
   font-size: 0.82rem;
   margin: 0;
 }
@@ -629,24 +704,24 @@ onMounted(async () => {
   gap: 0.4rem;
   align-items: center;
   padding: 0.5rem;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--line);
   border-radius: 8px;
 }
 .btn-primary,
 .btn-ghost {
   border-radius: 8px;
   padding: 0.45rem 0.85rem;
-  border: 1px solid #cbd5e1;
-  background: #fff;
+  border: 1px solid var(--line-2);
+  background: var(--panel);
   cursor: pointer;
   font-size: 0.85rem;
 }
 .btn-primary {
-  background: #0f172a;
+  background: var(--ink);
   color: #fff;
-  border-color: #0f172a;
+  border-color: var(--ink);
 }
 .btn-ghost.danger {
-  color: #b91c1c;
+  color: var(--bad);
 }
 </style>

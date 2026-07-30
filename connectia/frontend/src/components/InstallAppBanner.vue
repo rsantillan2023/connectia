@@ -1,8 +1,8 @@
 <template>
-  <div v-if="shouldShow" class="install-banner" role="dialog" aria-label="Instalar Connectia">
+  <div v-if="shouldShow" class="install-banner" role="dialog" aria-label="Instalar Connectyx">
     <img class="install-banner__icon" src="/icons/icon-192.png" width="40" height="40" alt="" />
     <div class="install-banner__text">
-      <p class="install-banner__title">Instalá Connectia</p>
+      <p class="install-banner__title">Instalá Connectyx</p>
       <p class="install-banner__hint">{{ hint }}</p>
     </div>
     <div class="install-banner__actions">

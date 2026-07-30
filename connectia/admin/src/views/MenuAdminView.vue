@@ -73,7 +73,7 @@
           <div class="preview-drawer">
             <div class="preview-drawer-head">
               <div>
-                <p class="preview-brand">Connectia</p>
+                <p class="preview-brand">Connectyx</p>
                 <p class="preview-tenant">Miembro</p>
               </div>
               <span class="preview-close" aria-hidden="true">×</span>
@@ -119,7 +119,7 @@
         <div v-else class="preview-frame preview-admin">
           <aside class="preview-sidebar">
             <div class="preview-sidebar-head">
-              <p class="preview-sidebar-title">Connectia Admin</p>
+              <p class="preview-sidebar-title">Connectyx Admin</p>
               <p class="preview-sidebar-sub">Comunidad</p>
             </div>
             <nav class="preview-sidebar-nav">
@@ -240,7 +240,7 @@
         <label class="field">
           <span>Dónde abre</span>
           <select v-model="preset" @change="applyPreset">
-            <option v-for="p in presetsForChannel" :key="p.route" :value="p.route">{{ p.label }}</option>
+            <option v-for="p in presetsForChannel" :key="p.key" :value="p.key">{{ p.label }}</option>
             <option value="__custom">Otra pantalla (avanzado)</option>
           </select>
         </label>
@@ -279,6 +279,46 @@
         <label class="toggle block">
           <input v-model="draft.activo" type="checkbox" />
           <span>Mostrar en el menú</span>
+        </label>
+
+        <label v-if="draft.channel !== 'a'" class="toggle block">
+          <input v-model="draft.showInTabbar" type="checkbox" />
+          <span>Mostrar en la botonera inferior (app)</span>
+        </label>
+
+        <label v-if="draft.showInTabbar" class="field">
+          <span>Orden en botonera</span>
+          <input v-model.number="draft.tabOrder" type="number" min="1" max="999" />
+        </label>
+
+        <label v-if="draft.channel !== 'u'" class="toggle block">
+          <input v-model="draft.showInAdminSidebar" type="checkbox" />
+          <span>También en el sidebar (admin)</span>
+        </label>
+
+        <label v-if="draft.channel !== 'u'" class="toggle block">
+          <input v-model="draft.showInAdminHeader" type="checkbox" />
+          <span>También en el menú superior (admin)</span>
+        </label>
+
+        <label class="field">
+          <span>Al tocar</span>
+          <select v-model="draft.actionType">
+            <option value="navigate">Abrir pantalla</option>
+            <option value="compose_post">Crear publicación (UGC)</option>
+          </select>
+        </label>
+
+        <label v-if="draft.actionType === 'compose_post'" class="field">
+          <span>Tipo de publicación sugerido</span>
+          <select v-model="composeTipo">
+            <option value="">General / sin forzar</option>
+            <option value="noticia">Noticia</option>
+            <option value="aviso">Aviso</option>
+            <option value="beneficio">Beneficio</option>
+            <option value="evento">Evento</option>
+            <option value="general">General</option>
+          </select>
         </label>
 
         <details class="advanced">
@@ -342,24 +382,36 @@ const MURO_LABELS = {
 const ADMIN_MENU_GROUPS = [
   {
     id: 'solicitudes',
-    label: 'Solicitudes',
+    label: 'Procesos',
     match: (item) => {
       const r = String(item.route || '')
       const k = String(item.key || '')
       return (
         r.includes('solicitud') ||
         r === '/workflows' ||
+        r === '/reservas' ||
+        r === '/asistencia' ||
+        r === '/pedidos' ||
+        r === '/relevamientos' ||
         [
           'admin.requests',
           'admin.reqsend',
           'admin.reqtypes',
           'admin.reqstates',
           'admin.workflows',
+          'admin.reservas',
+          'admin.asistencia',
+          'admin.pedidos',
+          'admin.relevamientos',
           'solicitudes',
           'enviar',
           'tipos',
           'estados',
           'workflows',
+          'reservas',
+          'asistencia',
+          'pedidos',
+          'relevamientos',
         ].includes(k)
       )
     },
@@ -371,15 +423,13 @@ const ADMIN_MENU_GROUPS = [
       const r = String(item.route || '')
       const k = String(item.key || '')
       return (
-        ['/licencias', '/tipos-licencia', '/feriados', '/ausentismos'].includes(r) ||
+        ['/licencias', '/tipos-licencia', '/ausentismos'].includes(r) ||
         [
           'admin.licencias',
           'admin.tipos-licencia',
-          'admin.feriados',
           'admin.ausentismos',
           'licencias',
           'tipos-licencia',
-          'feriados',
           'ausentismos',
         ].includes(k)
       )
@@ -394,7 +444,8 @@ const ADMIN_MENU_GROUPS = [
       return (
         r === '/usuarios' ||
         r === '/organizacion' ||
-        ['admin.users', 'admin.org', 'usuarios', 'org'].includes(k)
+        r === '/documentos' ||
+        ['admin.users', 'admin.org', 'admin.docs', 'usuarios', 'org', 'documentos'].includes(k)
       )
     },
   },
@@ -404,7 +455,41 @@ const ADMIN_MENU_GROUPS = [
     match: (item) => {
       const r = String(item.route || '')
       const k = String(item.key || '')
-      return r === '/legajos' || ['admin.legajos', 'legajos'].includes(k)
+      return (
+        ['/catalogos-rrhh', '/onboarding', '/talento', '/cultura', '/politicas'].includes(r) ||
+        [
+          'admin.hrcatalog',
+          'admin.onboarding',
+          'admin.talento',
+          'admin.cultura',
+          'admin.politicas',
+          'hrcatalog',
+          'onboarding',
+          'talento',
+          'cultura',
+          'politicas',
+        ].includes(k)
+      )
+    },
+  },
+  {
+    id: 'negocio',
+    label: 'Configuración de Negocio',
+    match: (item) => {
+      const r = String(item.route || '')
+      const k = String(item.key || '')
+      return (
+        ['/legajos', '/feriados', '/categorias-publicaciones'].includes(r) ||
+        [
+          'admin.legajos',
+          'legajos',
+          'admin.feriados',
+          'feriados',
+          'admin.postcats',
+          'postcats',
+          'categorias-publicaciones',
+        ].includes(k)
+      )
     },
   },
   {
@@ -414,18 +499,37 @@ const ADMIN_MENU_GROUPS = [
       const r = String(item.route || '')
       const k = String(item.key || '')
       return (
-        ['/publicaciones', '/encuestas', '/notificaciones', '/saludos', '/eventos'].includes(r) ||
+        ['/publicaciones', '/saludos', '/eventos', '/beneficios', '/directorio'].includes(r) ||
         [
           'admin.pubs',
-          'admin.surveys',
-          'admin.notifications',
           'admin.saludos',
           'admin.eventos',
+          'admin.beneficios',
+          'admin.directorio',
           'pubs',
-          'encuestas',
-          'notificaciones',
           'saludos',
           'eventos',
+          'beneficios',
+          'directorio',
+        ].includes(k)
+      )
+    },
+  },
+  {
+    id: 'comunicaciones',
+    label: 'Comunicaciones',
+    match: (item) => {
+      const r = String(item.route || '')
+      const k = String(item.key || '')
+      return (
+        ['/comunicaciones', '/notificaciones', '/newsletters'].includes(r) ||
+        [
+          'admin.comunicaciones',
+          'admin.notifications',
+          'admin.newsletters',
+          'comunicaciones',
+          'notificaciones',
+          'newsletters',
         ].includes(k)
       )
     },
@@ -437,14 +541,12 @@ const ADMIN_MENU_GROUPS = [
       const r = String(item.route || '')
       const k = String(item.key || '')
       return (
-        ['/emociones', '/newsletters', '/moderacion-comentarios', '/chat-moderacion'].includes(r) ||
+        ['/emociones', '/moderacion-comentarios', '/chat-moderacion'].includes(r) ||
         [
           'admin.engagement',
-          'admin.newsletters',
           'admin.comentarios',
           'admin.chatmod',
           'engagement',
-          'newsletters',
           'moderacion-comentarios',
           'chatmod',
         ].includes(k)
@@ -458,19 +560,17 @@ const ADMIN_MENU_GROUPS = [
       const r = String(item.route || '')
       const k = String(item.key || '')
       return (
-        ['/documentos', '/directorio', '/accesos', '/ayuda', '/politicas'].includes(r) ||
+        ['/ayuda', '/modo-tv', '/live', '/encuestas'].includes(r) ||
         [
-          'admin.docs',
-          'admin.directorio',
-          'admin.hub',
           'admin.ayuda',
-          'admin.politicas',
-          'documentos',
-          'directorio',
-          'accesos',
-          'hub',
+          'admin.tv',
+          'admin.live',
+          'admin.surveys',
           'ayuda',
-          'politicas',
+          'modo-tv',
+          'tv',
+          'live',
+          'encuestas',
         ].includes(k)
       )
     },
@@ -482,18 +582,21 @@ const ADMIN_MENU_GROUPS = [
       const r = String(item.route || '')
       const k = String(item.key || '')
       return (
-        ['/comunidad', '/menu', '/parametros', '/asistente-kb'].includes(r) ||
+        ['/comunidad', '/menu', '/parametros', '/asistente-kb', '/accesos'].includes(r) ||
         [
           'admin.tenants',
           'admin.menu',
           'admin.params',
           'admin.kb',
           'admin.ia',
+          'admin.hub',
           'comunidad',
           'menu',
           'parametros',
           'asistente-kb',
           'kb',
+          'accesos',
+          'hub',
         ].includes(k)
       )
     },
@@ -631,7 +734,9 @@ function buildAdminPreviewTree(items) {
 const PRESETS_U = [
   { label: 'Publicaciones', route: '/muro', key: 'muro', icon: 'home' },
   { label: 'Mis publicaciones', route: '/muro/mias', key: 'mis-publicaciones', icon: 'inbox' },
+  { label: 'Conocimiento', route: '/conocimiento', key: 'conocimiento', icon: 'file' },
   { label: 'Mis guardados', route: '/guardados', key: 'guardados', icon: 'bookmark' },
+  { label: 'Publicar aviso', route: '/muro', key: 'compose-aviso', icon: 'megaphone' },
   { label: 'Mis solicitudes', route: '/solicitudes', key: 'solicitudes', icon: 'inbox' },
   { label: 'Encuestas', route: '/encuestas', key: 'encuestas', icon: 'clipboard' },
   { label: 'Agenda', route: '/agenda', key: 'agenda', icon: 'calendar' },
@@ -645,7 +750,7 @@ const PRESETS_U = [
 const PRESETS_A = [
   { label: 'Dashboard', route: '/', key: 'admin.home', icon: 'home' },
   { label: 'Usuarios', route: '/usuarios', key: 'admin.users', icon: 'grid' },
-  { label: 'Legajos RRHH', route: '/legajos', key: 'admin.legajos', icon: 'file' },
+  { label: 'Listado de legajos', route: '/legajos', key: 'admin.legajos', icon: 'file' },
   { label: 'Catálogos RRHH', route: '/catalogos-rrhh', key: 'admin.hrcatalog', icon: 'tag' },
   { label: 'Onboarding y egreso', route: '/onboarding', key: 'admin.onboarding', icon: 'sparkles' },
   { label: 'Datos útiles', route: '/directorio', key: 'admin.directorio', icon: 'grid' },
@@ -660,8 +765,10 @@ const PRESETS_A = [
   { label: 'Tipos de licencia', route: '/tipos-licencia', key: 'admin.tipos-licencia', icon: 'tag' },
   { label: 'Ausentismos', route: '/ausentismos', key: 'admin.ausentismos', icon: 'list' },
   { label: 'Publicaciones', route: '/publicaciones', key: 'admin.pubs', icon: 'megaphone' },
+  { label: 'Stories', route: '/stories', key: 'admin.stories', icon: 'sparkles' },
   { label: 'Emociones', route: '/emociones', key: 'admin.engagement', icon: 'heart' },
   { label: 'Encuestas', route: '/encuestas', key: 'admin.surveys', icon: 'clipboard' },
+  { label: 'Relevamientos de campo', route: '/relevamientos', key: 'admin.relevamientos', icon: 'map' },
   { label: 'Documentos', route: '/documentos', key: 'admin.docs', icon: 'file' },
   { label: 'Enlaces', route: '/accesos', key: 'admin.hub', icon: 'grid' },
 ]
@@ -685,7 +792,7 @@ const icons = [
 const allItems = ref([])
 const filter = ref('u')
 const draft = ref(null)
-const preset = ref('/muro')
+const preset = ref('muro')
 const whoSees = ref('all')
 const error = ref('')
 const formError = ref('')
@@ -693,6 +800,16 @@ const okMsg = ref('')
 const saving = ref(false)
 const labelTouchedKey = ref(false)
 const openPreviewGroups = reactive({ muro: true })
+
+const composeTipo = computed({
+  get() {
+    return String(draft.value?.actionParams?.tipo || '')
+  },
+  set(v) {
+    if (!draft.value) return
+    draft.value.actionParams = { ...(draft.value.actionParams || {}), tipo: v || undefined }
+  },
+})
 
 const presetsForChannel = computed(() => (filter.value === 'a' ? PRESETS_A : PRESETS_U))
 
@@ -791,9 +908,15 @@ function openNew() {
     order: (sorted.value.at(-1)?.order || 0) + 10,
     channel: filter.value,
     activo: true,
+    showInTabbar: false,
+    tabOrder: 100,
+    showInAdminSidebar: false,
+    showInAdminHeader: false,
+    actionType: 'navigate',
+    actionParams: {},
     audience: { roles: [], capabilities: [] },
   }
-  preset.value = first.route
+  preset.value = first.key
   whoSees.value = 'all'
   labelTouchedKey.value = false
   formError.value = ''
@@ -802,10 +925,16 @@ function openNew() {
 function edit(item) {
   draft.value = {
     ...item,
+    showInTabbar: Boolean(item.showInTabbar),
+    tabOrder: Number(item.tabOrder) || 100,
+    showInAdminSidebar: Boolean(item.showInAdminSidebar),
+    showInAdminHeader: Boolean(item.showInAdminHeader),
+    actionType: item.actionType === 'compose_post' ? 'compose_post' : 'navigate',
+    actionParams: item.actionParams && typeof item.actionParams === 'object' ? { ...item.actionParams } : {},
     audience: { roles: [...(item.audience?.roles || [])], capabilities: [...(item.audience?.capabilities || [])] },
   }
-  const known = presetsForChannel.value.some((p) => p.route === item.route)
-  preset.value = known ? item.route : '__custom'
+  const known = presetsForChannel.value.find((p) => p.key === item.key || p.route === item.route)
+  preset.value = known ? known.key : '__custom'
   const roles = item.audience?.roles || []
   if (roles.includes('admin') && !roles.includes('member')) whoSees.value = 'admin'
   else if (roles.includes('member') && !roles.includes('admin')) whoSees.value = 'member'
@@ -822,7 +951,7 @@ function onLabelInput() {
 
 function applyPreset() {
   if (preset.value === '__custom') return
-  const p = presetsForChannel.value.find((x) => x.route === preset.value)
+  const p = presetsForChannel.value.find((x) => x.key === preset.value)
   if (!p || !draft.value) return
   draft.value.route = p.route
   draft.value.icon = p.icon
@@ -831,6 +960,16 @@ function applyPreset() {
     if (!draft.value.label || PRESETS_U.concat(PRESETS_A).some((x) => x.label === draft.value.label)) {
       draft.value.label = p.label
     }
+  }
+  if (String(p.key || '').startsWith('compose-')) {
+    draft.value.actionType = 'compose_post'
+    const tipo = String(p.key).replace(/^compose-/, '')
+    draft.value.actionParams = { tipo: tipo || 'aviso' }
+  } else if (draft.value.actionType === 'compose_post' && !String(draft.value.key || '').startsWith('compose-')) {
+    /* keep */
+  } else {
+    draft.value.actionType = 'navigate'
+    draft.value.actionParams = {}
   }
 }
 
@@ -852,6 +991,15 @@ async function save() {
       order: draft.value.order,
       channel: draft.value.channel || filter.value,
       activo: draft.value.activo !== false,
+      showInTabbar: Boolean(draft.value.showInTabbar),
+      tabOrder: Number(draft.value.tabOrder) || 100,
+      showInAdminSidebar: Boolean(draft.value.showInAdminSidebar),
+      showInAdminHeader: Boolean(draft.value.showInAdminHeader),
+      actionType: draft.value.actionType === 'compose_post' ? 'compose_post' : 'navigate',
+      actionParams:
+        draft.value.actionType === 'compose_post'
+          ? { tipo: composeTipo.value || undefined }
+          : {},
       audience: { roles: rolesFromWho(), capabilities: [] },
     }
     if (draft.value.id) {
@@ -940,7 +1088,7 @@ onMounted(load)
 
 .btn-primary {
   border: 0;
-  background: #0f766e;
+  background: var(--brand-primary);
   color: #fff;
   border-radius: 12px;
   padding: 11px 16px;
@@ -1008,9 +1156,9 @@ onMounted(load)
 }
 
 .channel-list button.on {
-  border-color: #0f766e;
-  background: color-mix(in srgb, #0f766e 12%, var(--cx-surface));
-  color: #0f766e;
+  border-color: var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary) 12%, var(--cx-surface));
+  color: var(--brand-primary);
 }
 
 .channel-ico {
@@ -1023,7 +1171,7 @@ onMounted(load)
 }
 
 .channel-list button.on .channel-ico {
-  background: color-mix(in srgb, #0f766e 18%, transparent);
+  background: color-mix(in srgb, var(--brand-primary) 18%, transparent);
 }
 
 .channel-copy {
@@ -1047,7 +1195,7 @@ onMounted(load)
 }
 
 .channel-list button.on .channel-copy small {
-  color: #0f766e;
+  color: var(--brand-primary);
   opacity: 0.85;
 }
 
@@ -1074,7 +1222,7 @@ onMounted(load)
 
 .preview-app {
   background:
-    linear-gradient(160deg, #e2e8f0 0%, #cbd5e1 100%);
+    linear-gradient(160deg, var(--line) 0%, var(--line-2) 100%);
   padding: 12px;
   justify-content: flex-start;
 }
@@ -1178,7 +1326,7 @@ onMounted(load)
 }
 
 .preview-group-btn:hover {
-  background: color-mix(in srgb, #0f766e 8%, transparent);
+  background: color-mix(in srgb, var(--brand-primary) 8%, transparent);
 }
 
 .preview-group-left {
@@ -1200,7 +1348,7 @@ onMounted(load)
 }
 
 .preview-chevron--admin {
-  color: #94a3b8;
+  color: var(--ink-faint);
 }
 
 .preview-group-items {
@@ -1209,7 +1357,7 @@ onMounted(load)
   gap: 2px;
   margin-left: 10px;
   padding-left: 10px;
-  border-left: 2px solid color-mix(in srgb, #0f766e 22%, transparent);
+  border-left: 2px solid color-mix(in srgb, var(--brand-primary) 22%, transparent);
 }
 
 .preview-drawer-foot {
@@ -1217,18 +1365,18 @@ onMounted(load)
   border-top: 1px solid var(--cx-border);
   font-size: 13px;
   font-weight: 600;
-  color: #b91c1c;
+  color: var(--bad);
 }
 
 .preview-admin {
-  background: #0f172a;
+  background: var(--ink);
 }
 
 .preview-sidebar {
   width: 100%;
   display: flex;
   flex-direction: column;
-  color: #f1f5f9;
+  color: var(--panel-2);
   min-height: 420px;
 }
 
@@ -1245,7 +1393,7 @@ onMounted(load)
 .preview-sidebar-sub {
   margin: 4px 0 0;
   font-size: 11px;
-  color: #94a3b8;
+  color: var(--ink-faint);
 }
 
 .preview-sidebar-nav {
@@ -1265,13 +1413,13 @@ onMounted(load)
   border-radius: 8px;
   font-size: 13px;
   font-weight: 500;
-  color: #cbd5e1;
+  color: var(--line-2);
 }
 
 .preview-sidebar-link--child {
   padding: 7px 10px;
   font-size: 12px;
-  color: #94a3b8;
+  color: var(--ink-faint);
 }
 
 .preview-sidebar-ico {
@@ -1300,7 +1448,7 @@ onMounted(load)
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: #94a3b8;
+  color: var(--ink-faint);
   font: inherit;
   font-size: 11px;
   font-weight: 700;
@@ -1311,14 +1459,14 @@ onMounted(load)
 }
 
 .preview-admin-group-btn:hover {
-  background: #1e293b;
-  color: #e2e8f0;
+  background: var(--ink);
+  color: var(--line);
 }
 
 .preview-admin-group-items {
   margin-left: 10px;
   padding-left: 8px;
-  border-left: 1px solid #334155;
+  border-left: 1px solid var(--ink);
   display: flex;
   flex-direction: column;
   gap: 1px;
@@ -1327,8 +1475,8 @@ onMounted(load)
 .preview-sidebar-foot {
   padding: 12px 14px;
   font-size: 13px;
-  color: #94a3b8;
-  border-top: 1px solid #1e293b;
+  color: var(--ink-faint);
+  border-top: 1px solid var(--ink);
 }
 
 .preview-empty {
@@ -1339,7 +1487,7 @@ onMounted(load)
 }
 
 .preview-admin .preview-empty {
-  color: #94a3b8;
+  color: var(--ink-faint);
 }
 
 /* Acciones 50% */
@@ -1404,8 +1552,8 @@ onMounted(load)
   border-radius: 12px;
   display: grid;
   place-items: center;
-  background: color-mix(in srgb, #0f766e 14%, var(--cx-surface));
-  color: #0f766e;
+  background: color-mix(in srgb, var(--brand-primary) 14%, var(--cx-surface));
+  color: var(--brand-primary);
   font-size: 17px;
   flex-shrink: 0;
 }
@@ -1423,7 +1571,7 @@ onMounted(load)
 }
 
 .menu-audience {
-  color: #0f766e !important;
+  color: var(--brand-primary) !important;
   font-weight: 600;
 }
 
@@ -1452,19 +1600,19 @@ onMounted(load)
 }
 
 .icon-btn:hover {
-  border-color: #0f766e;
-  color: #0f766e;
+  border-color: var(--brand-primary);
+  color: var(--brand-primary);
 }
 
 .icon-btn.on {
-  border-color: #0f766e;
-  background: color-mix(in srgb, #0f766e 14%, var(--cx-surface));
-  color: #0f766e;
+  border-color: var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary) 14%, var(--cx-surface));
+  color: var(--brand-primary);
 }
 
 .icon-btn.danger:hover {
-  border-color: #dc2626;
-  color: #dc2626;
+  border-color: var(--bad);
+  color: var(--bad);
 }
 
 .icon-btn:disabled {
@@ -1492,8 +1640,8 @@ onMounted(load)
 }
 
 .menu-error {
-  color: #b91c1c;
-  background: #fef2f2;
+  color: var(--bad);
+  background: var(--bad-bg);
   border-radius: 12px;
   padding: 10px 12px;
   font-size: 13px;
@@ -1501,8 +1649,8 @@ onMounted(load)
 }
 
 .menu-ok {
-  color: #0f766e;
-  background: color-mix(in srgb, #0f766e 12%, transparent);
+  color: var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
   border-radius: 12px;
   padding: 10px 12px;
   font-size: 13px;
@@ -1513,7 +1661,7 @@ onMounted(load)
   position: fixed;
   inset: 0;
   z-index: 60;
-  background: rgba(15, 23, 42, 0.45);
+  background: color-mix(in srgb, var(--ink) 45%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1580,9 +1728,9 @@ onMounted(load)
 }
 
 .icon-pick.on {
-  border-color: #0f766e;
-  background: color-mix(in srgb, #0f766e 14%, var(--cx-surface));
-  color: #0f766e;
+  border-color: var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary) 14%, var(--cx-surface));
+  color: var(--brand-primary);
 }
 
 .icon-pick span {

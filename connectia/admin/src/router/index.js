@@ -33,6 +33,11 @@ const router = createRouter({
           meta: { tenantOnly: true, capability: 'admin.publicaciones' },
         },
         {
+          path: 'stories',
+          component: () => import('../views/StoriesAdminView.vue'),
+          meta: { tenantOnly: true, capability: 'admin.publicaciones' },
+        },
+        {
           path: 'newsletters',
           name: 'newsletters',
           component: () => import('../views/NewslettersView.vue'),
@@ -79,9 +84,49 @@ const router = createRouter({
           meta: { tenantOnly: true, capability: 'admin.beneficios' },
         },
         {
+          path: 'reservas',
+          component: () => import('../views/ReservasAdminView.vue'),
+          meta: { tenantOnly: true, capability: 'admin.reservas' },
+        },
+        {
+          path: 'asistencia',
+          component: () => import('../views/AsistenciaAdminView.vue'),
+          meta: { tenantOnly: true, capability: 'admin.asistencia' },
+        },
+        {
+          path: 'talento',
+          component: () => import('../views/TalentoAdminView.vue'),
+          meta: { tenantOnly: true, capability: 'admin.talento' },
+        },
+        {
+          path: 'comunicaciones',
+          component: () => import('../views/ComunicacionesView.vue'),
+          meta: { tenantOnly: true, capability: 'admin.comunicaciones' },
+        },
+        {
+          path: 'cultura',
+          component: () => import('../views/CulturaAdminView.vue'),
+          meta: { tenantOnly: true, capability: 'admin.cultura' },
+        },
+        {
+          path: 'supervision',
+          component: () => import('../views/SupervisionAdminView.vue'),
+          meta: { tenantOnly: true, capability: 'admin.supervision' },
+        },
+        {
+          path: 'equipos',
+          component: () => import('../views/TeamScopesAdminView.vue'),
+          meta: { tenantOnly: true, capability: 'admin.equipos' },
+        },
+        {
           path: 'organizacion',
           component: () => import('../views/OrganizacionView.vue'),
           meta: { tenantOnly: true, capability: 'admin.organizacion' },
+        },
+        {
+          path: 'reportes',
+          component: () => import('../views/ReportesAdminView.vue'),
+          meta: { tenantOnly: true, capability: 'admin.reportes' },
         },
         {
           path: 'roles',
@@ -142,6 +187,31 @@ const router = createRouter({
           path: 'encuestas',
           component: () => import('../views/EncuestasAdminView.vue'),
           meta: { tenantOnly: true, capability: 'admin.encuestas' },
+        },
+        {
+          path: 'relevamientos',
+          component: () => import('../views/RelevamientosAdminView.vue'),
+          meta: { tenantOnly: true, capability: 'admin.relevamientos' },
+        },
+        {
+          path: 'pedidos',
+          component: () => import('../views/PedidosAdminView.vue'),
+          meta: { tenantOnly: true, capability: 'admin.pedidos' },
+        },
+        {
+          path: 'servicios',
+          component: () => import('../views/ServiciosAdminView.vue'),
+          meta: { tenantOnly: true, capability: 'admin.servicios' },
+        },
+        {
+          path: 'modo-tv',
+          component: () => import('../views/ModoTvAdminView.vue'),
+          meta: { tenantOnly: true, capability: 'admin.tv' },
+        },
+        {
+          path: 'live',
+          component: () => import('../views/LiveAdminView.vue'),
+          meta: { tenantOnly: true, capability: 'admin.live' },
         },
         {
           path: 'notificaciones',

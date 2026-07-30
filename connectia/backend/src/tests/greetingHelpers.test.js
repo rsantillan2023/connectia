@@ -282,4 +282,39 @@ describe('greetingHelpers', () => {
     assert.equal(merged.cuerpo, 'Saludos')
     assert.equal(merged.imageUrl, '/uploads/cake.jpg')
   })
+
+  it('userMatchesEvent con customDates (Map y objeto)', () => {
+    const promo = new Date(Date.UTC(2024, 2, 15, 12, 0, 0))
+    const typeCfg = {
+      key: 'promocion',
+      dateSource: 'customDate',
+      customDateKey: 'promocion',
+      minYears: 1,
+    }
+    const eventYmd = { year: 2026, month: 3, day: 15 }
+    assert.equal(
+      userMatchesEvent({
+        eventYmd,
+        user: { customDates: new Map([['promocion', promo]]) },
+        typeConfig: typeCfg,
+      }),
+      true,
+    )
+    assert.equal(
+      userMatchesEvent({
+        eventYmd,
+        user: { customDates: { promocion: promo } },
+        typeConfig: typeCfg,
+      }),
+      true,
+    )
+    assert.equal(
+      userMatchesEvent({
+        eventYmd: { year: 2026, month: 3, day: 16 },
+        user: { customDates: { promocion: promo } },
+        typeConfig: typeCfg,
+      }),
+      false,
+    )
+  })
 })

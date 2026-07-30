@@ -872,80 +872,80 @@ onMounted(load)
 <style scoped>
 .page-head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; margin-bottom: 16px; }
 .page-head h1 { margin: 0; font-size: 1.5rem; }
-.page-head p { margin: 4px 0 0; color: #64748b; }
+.page-head p { margin: 4px 0 0; color: var(--ink-soft); }
 .head-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; }
-.table th, .table td { text-align: left; padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 0.9rem; vertical-align: middle; }
+.table { width: 100%; border-collapse: collapse; background: var(--panel); border-radius: 12px; overflow: hidden; }
+.table th, .table td { text-align: left; padding: 12px; border-bottom: 1px solid var(--line); font-size: 0.9rem; vertical-align: middle; }
 .actions { display: flex; gap: 8px; }
-.sheet { position: fixed; inset: 0; background: rgba(15,23,42,.45); display: grid; place-items: center; z-index: 40; padding: 12px; }
+.sheet { position: fixed; inset: 0; background: color-mix(in srgb, var(--ink) 45%, transparent); display: grid; place-items: center; z-index: 40; padding: 12px; }
 .panel {
   width: min(620px, 100%); max-height: 92vh; overflow: auto;
-  background: #fff; border-radius: 16px; padding: 20px; display: grid; gap: 10px;
+  background: var(--panel); border-radius: 16px; padding: 20px; display: grid; gap: 10px;
 }
 .panel-wide { width: min(760px, 100%); }
 .drop-test, .drop-sync-result { display: grid; gap: 8px; margin-top: 4px; }
 .drop-pre {
-  margin: 0; padding: 10px; border-radius: 10px; background: #0f172a; color: #e2e8f0;
+  margin: 0; padding: 10px; border-radius: 10px; background: var(--ink); color: var(--line);
   font-size: 0.75rem; overflow: auto; max-height: 220px;
 }
-.input { width: 100%; box-sizing: border-box; border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 10px; font: inherit; margin-top: 4px; }
+.input { width: 100%; box-sizing: border-box; border: 1px solid var(--line-2); border-radius: 8px; padding: 8px 10px; font: inherit; margin-top: 4px; }
 label { display: flex; flex-direction: column; font-size: 0.85rem; font-weight: 600; }
 .check { flex-direction: row; align-items: center; gap: 8px; font-weight: 500; }
 .footer { display: flex; justify-content: flex-end; gap: 8px; }
-.btn-primary, .btn-ghost { border-radius: 10px; padding: 8px 12px; font-weight: 600; cursor: pointer; border: 1px solid #cbd5e1; background: #fff; }
-.btn-primary { background: var(--primary, #0F766E); color: #fff; border-color: transparent; }
-.btn-ghost.danger { color: #b91c1c; }
-.err { color: #b91c1c; }
-.hint { color: #64748b; font-size: 0.85rem; margin: 0; }
-.pill.soft { display: inline-block; margin-left: 6px; font-size: 0.7rem; padding: 2px 6px; border-radius: 999px; background: #e2e8f0; }
+.btn-primary, .btn-ghost { border-radius: 10px; padding: 8px 12px; font-weight: 600; cursor: pointer; border: 1px solid var(--line-2); background: var(--panel); }
+.btn-primary { background: var(--primary, var(--brand-primary)); color: #fff; border-color: transparent; }
+.btn-ghost.danger { color: var(--bad); }
+.err { color: var(--bad); }
+.hint { color: var(--ink-soft); font-size: 0.85rem; margin: 0; }
+.pill.soft { display: inline-block; margin-left: 6px; font-size: 0.7rem; padding: 2px 6px; border-radius: 999px; background: var(--line); }
 .type-pill {
   display: inline-block; font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.03em; padding: 3px 8px; border-radius: 6px; background: #ecfdf5; color: #0f766e;
+  letter-spacing: 0.03em; padding: 3px 8px; border-radius: 6px; background: var(--ok-bg); color: var(--brand-primary);
 }
-.type-pill[data-type='pdf'] { background: #fef2f2; color: #b91c1c; }
+.type-pill[data-type='pdf'] { background: var(--bad-bg); color: var(--bad); }
 .type-pill[data-type='image'] { background: #eff6ff; color: #1d4ed8; }
 .type-pill[data-type='word'] { background: #eff6ff; color: #1e40af; }
-.type-pill[data-type='excel'] { background: #ecfdf5; color: #047857; }
-.type-pill[data-type='powerpoint'] { background: #fff7ed; color: #c2410c; }
-.report { margin-top: 20px; padding: 14px; border: 1px solid #e2e8f0; border-radius: 12px; background: #fff; }
+.type-pill[data-type='excel'] { background: var(--ok-bg); color: var(--ok); }
+.type-pill[data-type='powerpoint'] { background: var(--warn-bg); color: #c2410c; }
+.report { margin-top: 20px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); }
 .report ul { margin: 8px 0; padding-left: 18px; }
 .upload-box {
-  border: 1px dashed #94a3b8; border-radius: 12px; padding: 12px; background: #f8fafc;
+  border: 1px dashed var(--ink-faint); border-radius: 12px; padding: 12px; background: var(--panel-2);
 }
 .file-label { font-size: 0.85rem; }
 .file-input { margin-top: 8px; width: 100%; }
 .audience {
-  border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 12px; margin: 0;
+  border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin: 0;
   display: grid; gap: 10px;
 }
-.audience legend { padding: 0 6px; font-size: 0.8rem; font-weight: 700; color: #64748b; }
+.audience legend { padding: 0 6px; font-size: 0.8rem; font-weight: 700; color: var(--ink-soft); }
 .audience-modes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .aud-mode {
-  text-align: left; border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px;
-  background: #fff; cursor: pointer; display: grid; gap: 2px;
+  text-align: left; border: 1px solid var(--line); border-radius: 10px; padding: 10px;
+  background: var(--panel); cursor: pointer; display: grid; gap: 2px;
 }
-.aud-mode strong { font-size: 0.82rem; color: #0f172a; }
-.aud-mode small { font-size: 0.72rem; color: #64748b; }
-.aud-mode.on { border-color: #0f766e; background: color-mix(in srgb, #0f766e 8%, #fff); }
+.aud-mode strong { font-size: 0.82rem; color: var(--ink); }
+.aud-mode small { font-size: 0.72rem; color: var(--ink-soft); }
+.aud-mode.on { border-color: var(--brand-primary); background: color-mix(in srgb, var(--brand-primary) 8%, var(--panel)); }
 .aud-lists { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.aud-title { margin: 0 0 4px; font-size: 0.75rem; text-transform: uppercase; color: #94a3b8; }
+.aud-title { margin: 0 0 4px; font-size: 0.75rem; text-transform: uppercase; color: var(--ink-faint); }
 .audience-users {
-  display: grid; gap: 8px; padding: 10px; border: 1px solid #e2e8f0; border-radius: 10px; background: #f8fafc;
+  display: grid; gap: 8px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel-2);
 }
 .audience-user-results { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 180px; overflow-y: auto; }
 .audience-user-add {
-  width: 100%; text-align: left; border: 1px solid #e2e8f0; background: #fff; border-radius: 10px;
+  width: 100%; text-align: left; border: 1px solid var(--line); background: var(--panel); border-radius: 10px;
   padding: 8px 10px; cursor: pointer;
 }
-.audience-user-add:hover:not(:disabled) { border-color: #0f766e; background: color-mix(in srgb, #0f766e 8%, #fff); }
+.audience-user-add:hover:not(:disabled) { border-color: var(--brand-primary); background: color-mix(in srgb, var(--brand-primary) 8%, var(--panel)); }
 .audience-user-add:disabled { opacity: 0.5; cursor: default; }
 .audience-user-add strong { display: block; font-size: 13px; }
-.audience-user-add small { display: block; margin-top: 2px; font-size: 11px; color: #64748b; }
+.audience-user-add small { display: block; margin-top: 2px; font-size: 11px; color: var(--ink-soft); }
 .audience-user-chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .audience-chip {
   display: inline-flex; align-items: center; gap: 6px; padding: 5px 8px 5px 10px;
   border-radius: 999px; font-size: 12px; font-weight: 600;
-  background: color-mix(in srgb, #0f766e 12%, #fff); color: #0f766e;
+  background: color-mix(in srgb, var(--brand-primary) 12%, var(--panel)); color: var(--brand-primary);
 }
 .audience-chip-x {
   border: 0; background: transparent; color: inherit; font-size: 16px; line-height: 1; cursor: pointer; padding: 0 2px;

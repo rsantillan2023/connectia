@@ -1,7 +1,7 @@
 <template>
   <div class="u-root">
     <div class="u-phone">
-      <!-- Top bar: logo · Hola Nombre · Connectia · lupa · avisos (hamburguesa solo en footer) -->
+      <!-- Top bar: logo · Hola Nombre · Connectyx · lupa · avisos (hamburguesa solo en footer) -->
       <header class="u-topbar">
         <div class="u-topbar-start">
           <button
@@ -27,8 +27,12 @@
         </div>
 
         <div class="u-topbar-end">
-          <span class="u-connectia-mark" title="Connectia" aria-label="Connectia">
-            <span class="u-connectia-word">Connectia</span>
+          <span class="u-product-mark" :title="PRODUCT_NAME" :aria-label="PRODUCT_NAME">
+            <img
+              class="u-product-logo u-product-logo--topbar"
+              :src="PRODUCT_LOGO_SVG"
+              :alt="PRODUCT_NAME"
+            />
           </span>
           <button
             type="button"
@@ -65,54 +69,60 @@
 
       <InstallAppBanner />
       <PendingSurveysBanner />
+      <div v-if="showPointsHero" class="u-points-wrap">
+        <PointsHero @open="goPointsEarn" />
+      </div>
 
       <!-- Contenido: un solo scroll vertical (en chat detalle el hilo maneja el scroll) -->
       <main ref="mainEl" class="u-main" :class="{ 'u-main--immersive': immersiveMain }">
         <RouterView :search-query="searchQ" />
       </main>
 
-      <!-- Footer: Home · Chat · Asistente · Menú -->
-      <nav v-if="!hideTabbar" class="u-tabbar" aria-label="Navegación principal">
-        <RouterLink
-          to="/muro"
-          class="u-tab"
-          :class="{ 'is-active': isActive('/muro') }"
-          @click="onTabClick('/muro', $event)"
-        >
-          <span class="u-tab-ico" aria-hidden="true">
-            <AppIcon name="home" :size="22" />
-          </span>
-          <span class="u-tab-label">Home</span>
-        </RouterLink>
-        <RouterLink
-          to="/chat"
-          class="u-tab u-tab--primary"
-          :class="{ 'is-active': isActive('/chat') }"
-          @click="onTabClick('/chat', $event)"
-        >
-          <span class="u-tab-ico u-tab-ico--primary" aria-hidden="true">
-            <AppIcon name="chat" :size="22" />
-            <span v-if="hasChatUnread" class="u-tab-badge">{{ chatBadgeLabel }}</span>
-          </span>
-          <span class="u-tab-label">Chat</span>
-        </RouterLink>
-        <RouterLink
-          to="/asistente"
-          class="u-tab"
-          :class="{ 'is-active': isActive('/asistente') }"
-          @click="onTabClick('/asistente', $event)"
-        >
-          <span class="u-tab-ico" aria-hidden="true">
-            <AppIcon name="sparkles" :size="22" />
-          </span>
-          <span class="u-tab-label">Asistente</span>
-        </RouterLink>
-        <button type="button" class="u-tab" @click="drawerOpen = true">
-          <span class="u-tab-ico" aria-hidden="true">
-            <AppIcon name="menu" :size="22" />
-          </span>
-          <span class="u-tab-label">Menú</span>
-        </button>
+      <!-- Footer: botonera dinámica (menú) o default Home · Chat · Asistente · Menú -->
+      <nav
+        v-if="!hideTabbar"
+        class="u-tabbar"
+        :style="{ gridTemplateColumns: `repeat(${tabbarItems.length}, 1fr)` }"
+        aria-label="Navegación principal"
+      >
+        <template v-for="tab in tabbarItems" :key="tab.key">
+          <button
+            v-if="tab.isMenu"
+            type="button"
+            class="u-tab"
+            @click="drawerOpen = true"
+          >
+            <span class="u-tab-ico" aria-hidden="true">
+              <AppIcon name="menu" :size="22" />
+            </span>
+            <span class="u-tab-label">{{ tab.label }}</span>
+          </button>
+          <button
+            v-else-if="tab.actionType === 'compose_post'"
+            type="button"
+            class="u-tab"
+            :class="{ 'u-tab--primary': tab.primary }"
+            @click="onComposeTab(tab)"
+          >
+            <span class="u-tab-ico" :class="{ 'u-tab-ico--primary': tab.primary }" aria-hidden="true">
+              <AppIcon :name="tab.icon || 'plus'" :size="22" />
+            </span>
+            <span class="u-tab-label">{{ tab.label }}</span>
+          </button>
+          <RouterLink
+            v-else
+            :to="tab.route"
+            class="u-tab"
+            :class="{ 'is-active': isActive(tab.route), 'u-tab--primary': tab.primary }"
+            @click="onTabClick(tab.route, $event)"
+          >
+            <span class="u-tab-ico" :class="{ 'u-tab-ico--primary': tab.primary }" aria-hidden="true">
+              <AppIcon :name="tab.icon || 'home'" :size="22" />
+              <span v-if="tab.route === '/chat' && hasChatUnread" class="u-tab-badge">{{ chatBadgeLabel }}</span>
+            </span>
+            <span class="u-tab-label">{{ tab.label }}</span>
+          </RouterLink>
+        </template>
       </nav>
 
       <!-- Crear: flotante solo en el muro -->
@@ -134,6 +144,7 @@
       <PostComposerSheet
         v-if="composerOpen"
         :require-approval="ugcRequireApproval"
+        :initial-tipo="composerInitialTipo"
         @close="closeComposer"
         @created="onComposerCreated"
       />
@@ -146,7 +157,11 @@
         <aside class="u-drawer" role="dialog" aria-modal="true" aria-label="Menú">
           <div class="u-drawer-head">
             <button type="button" class="u-drawer-brand u-drawer-brand-btn" @click="goPerfil">
-              <p class="u-brand">Connectia</p>
+              <img
+                class="u-product-logo u-product-logo--drawer"
+                :src="PRODUCT_LOGO_LIGHT"
+                :alt="PRODUCT_NAME"
+              />
               <div class="u-drawer-brand-row">
                 <img
                   v-if="brandLogoUrl"
@@ -169,7 +184,7 @@
                 v-if="entry.type === 'link'"
                 :to="entry.route"
                 class="u-drawer-link"
-                @click="drawerOpen = false"
+                @click="onMenuItemClick(entry, $event)"
               >
                 <AppIcon :name="iconFor(entry.key, entry.icon)" :size="20" />
                 <span>{{ entry.label }}</span>
@@ -193,7 +208,7 @@
                     :key="item.key"
                     :to="item.route"
                     class="u-drawer-link u-drawer-link--child"
-                    @click="drawerOpen = false"
+                    @click="onMenuItemClick(item, $event)"
                   >
                     <AppIcon :name="iconFor(item.key, item.icon)" :size="18" />
                     <span>{{ item.label }}</span>
@@ -237,6 +252,7 @@ import ThemeToggle from '../components/ThemeToggle.vue'
 import AppIcon from '../components/AppIcon.vue'
 import InstallAppBanner from '../components/InstallAppBanner.vue'
 import PendingSurveysBanner from '../components/PendingSurveysBanner.vue'
+import PointsHero from '../components/PointsHero.vue'
 import PostComposerSheet from '../components/PostComposerSheet.vue'
 import ConfirmSheet from '../components/ConfirmSheet.vue'
 import { useUgcComposer } from '../composables/useUgcComposer'
@@ -244,10 +260,12 @@ import { useNotifBadge } from '../composables/useNotifBadge'
 import { useChatBadge } from '../composables/useChatBadge'
 import { iconFor } from '../utils/navIcons'
 import { resolveMediaUrl } from '../utils/media'
+import { PRODUCT_LOGO_LIGHT, PRODUCT_LOGO_SVG, PRODUCT_NAME } from '../constants/brand'
 
 const DEFAULT_MENU = [
   { key: 'muro', label: 'Publicaciones', route: '/muro', icon: 'home' },
   { key: 'mis-publicaciones', label: 'Mis publicaciones', route: '/muro/mias', icon: 'inbox' },
+  { key: 'conocimiento', label: 'Conocimiento', route: '/conocimiento', icon: 'file' },
   { key: 'guardados', label: 'Mis guardados', route: '/guardados', icon: 'bookmark' },
   { key: 'solicitudes', label: 'Mis solicitudes', route: '/solicitudes', icon: 'inbox' },
   { key: 'aprobaciones', label: 'Aprobaciones', route: '/aprobaciones', icon: 'check' },
@@ -279,18 +297,21 @@ const MURO_GROUP = {
     return (
       r === '/muro' ||
       r === '/muro/mias' ||
+      r === '/conocimiento' ||
       r === '/guardados' ||
       k === 'muro' ||
       k.includes('mis-publicaciones') ||
+      k.includes('conocimiento') ||
       k.includes('guardados')
     )
   },
-  order: ['/muro', '/muro/mias', '/guardados'],
+  order: ['/muro', '/muro/mias', '/conocimiento', '/guardados'],
 }
 
 const MURO_LABELS = {
   '/muro': 'Publicaciones',
   '/muro/mias': 'Mis publicaciones',
+  '/conocimiento': 'Conocimiento',
   '/guardados': 'Mis guardados',
 }
 
@@ -445,6 +466,56 @@ const {
   onCreated: onComposerCreated,
 } = useUgcComposer()
 
+const composerInitialTipo = ref('')
+
+const DEFAULT_TABBAR = [
+  { key: 'tab-muro', label: 'Home', route: '/muro', icon: 'home', actionType: 'navigate' },
+  { key: 'tab-chat', label: 'Chat', route: '/chat', icon: 'chat', actionType: 'navigate', primary: true },
+  { key: 'tab-asistente', label: 'Asistente', route: '/asistente', icon: 'sparkles', actionType: 'navigate' },
+]
+
+const tabbarItems = computed(() => {
+  const configured = (menu.value || [])
+    .filter((i) => i.showInTabbar)
+    .sort((a, b) => (Number(a.tabOrder) || 100) - (Number(b.tabOrder) || 100))
+    .slice(0, 4)
+    .map((i) => ({
+      key: i.key || i.route,
+      label: i.label,
+      route: i.route || '/muro',
+      icon: iconFor(i.key, i.icon),
+      actionType: i.actionType === 'compose_post' ? 'compose_post' : 'navigate',
+      actionParams: i.actionParams || {},
+      primary: i.route === '/chat' || i.key === 'chat',
+    }))
+  const tabs = configured.length ? configured : DEFAULT_TABBAR.map((t) => ({ ...t }))
+  const hasMenu = tabs.some((t) => t.isMenu || t.key === 'tab-menu' || t.label === 'Menú')
+  if (!hasMenu) {
+    tabs.push({ key: 'tab-menu', label: 'Menú', isMenu: true, icon: 'menu' })
+  }
+  return tabs.slice(0, 5)
+})
+
+function onComposeTab(tab) {
+  const tipo = String(tab?.actionParams?.tipo || '').trim()
+  composerInitialTipo.value = tipo
+  if (!ugcEnabled.value) {
+    router.push('/muro')
+    return
+  }
+  openComposer()
+}
+
+function onMenuItemClick(item, ev) {
+  if (item?.actionType === 'compose_post') {
+    ev?.preventDefault?.()
+    drawerOpen.value = false
+    onComposeTab(item)
+    return
+  }
+  drawerOpen.value = false
+}
+
 const { hasUnread, badgeLabel, refreshBadge } = useNotifBadge()
 const {
   hasUnread: hasChatUnread,
@@ -490,9 +561,20 @@ function ensureMuroMenuItems(items) {
       icon: 'inbox',
     })
   }
-  if (!has('/guardados')) {
+  if (!has('/conocimiento')) {
     const miasIdx = next.findIndex((i) => i.route === '/muro/mias')
     const at = miasIdx >= 0 ? miasIdx + 1 : insertAt
+    next.splice(at, 0, {
+      key: 'conocimiento',
+      label: 'Conocimiento',
+      route: '/conocimiento',
+      icon: 'file',
+    })
+  }
+  if (!has('/guardados')) {
+    const concIdx = next.findIndex((i) => i.route === '/conocimiento')
+    const miasIdx = next.findIndex((i) => i.route === '/muro/mias')
+    const at = concIdx >= 0 ? concIdx + 1 : miasIdx >= 0 ? miasIdx + 1 : insertAt
     next.splice(at, 0, {
       key: 'guardados',
       label: 'Mis guardados',
@@ -608,6 +690,70 @@ function ensureBeneficiosMenuItems(items) {
   const item = { key: 'beneficios', label: 'Beneficios', route: '/beneficios', icon: 'gift' }
   const at = dirIdx >= 0 ? dirIdx + 1 : hubIdx >= 0 ? hubIdx : next.length
   next.splice(at, 0, item)
+  return next
+}
+
+/** Garantiza Espacios + Oficina (ola 21) en el drawer U. */
+function ensureEspaciosMenuItems(items) {
+  const next = [...items]
+  const hasEspacios = next.some(
+    (i) =>
+      i.route === '/espacios' ||
+      String(i.key || '').includes('espacio') ||
+      String(i.label || '')
+        .toLowerCase()
+        .includes('espacio'),
+  )
+  const hasOficina = next.some(
+    (i) =>
+      i.route === '/oficina' ||
+      String(i.key || '') === 'oficina' ||
+      String(i.label || '')
+        .toLowerCase()
+        .includes('oficina'),
+  )
+  const benIdx = next.findIndex(
+    (i) => i.route === '/beneficios' || String(i.key || '').includes('beneficio'),
+  )
+  const hubIdx = next.findIndex(
+    (i) => i.route === '/accesos' || String(i.key).includes('hub') || String(i.key).includes('acceso'),
+  )
+  let at = benIdx >= 0 ? benIdx : hubIdx >= 0 ? hubIdx : next.length
+  if (!hasEspacios) {
+    next.splice(at, 0, { key: 'espacios', label: 'Espacios', route: '/espacios', icon: 'building' })
+    at += 1
+  }
+  if (!hasOficina) {
+    next.splice(at, 0, { key: 'oficina', label: 'Oficina', route: '/oficina', icon: 'grid' })
+  }
+  return next
+}
+
+/** Garantiza Mi asistencia (ola 18) en el drawer U. */
+function ensureAsistenciaMenuItems(items) {
+  const next = [...items]
+  const has = next.some(
+    (i) =>
+      i.route === '/mi-asistencia' ||
+      String(i.key || '') === 'asistencia' ||
+      String(i.label || '')
+        .toLowerCase()
+        .includes('asistencia') ||
+      String(i.label || '')
+        .toLowerCase()
+        .includes('fichaje'),
+  )
+  if (has) return next
+  const licIdx = next.findIndex(
+    (i) => i.route === '/licencias' || String(i.key || '').includes('licencia'),
+  )
+  const at = licIdx >= 0 ? licIdx + 1 : next.length
+  next.splice(at, 0, {
+    key: 'asistencia',
+    label: 'Mi asistencia',
+    route: '/mi-asistencia',
+    icon: 'pin',
+  })
   return next
 }
 
@@ -830,6 +976,19 @@ function goPerfil() {
   router.push('/perfil')
 }
 
+const showPointsHero = computed(() => {
+  if (route.path.startsWith('/home-alt')) return false
+  if (route.path.startsWith('/beneficios')) return false
+  if (route.path.startsWith('/chat')) return false
+  if (immersiveMain.value) return false
+  const caps = auth.tenant?.capabilities || []
+  return caps.includes('beneficios.billetera') || caps.includes('beneficios')
+})
+
+function goPointsEarn() {
+  router.push({ path: '/beneficios', query: { tab: 'earn' } })
+}
+
 function toggleSearch() {
   showSearch.value = !showSearch.value
   if (showSearch.value) {
@@ -866,9 +1025,13 @@ onMounted(async () => {
     const items = Array.isArray(data?.items) ? data.items : []
     let next = items.length > 0 ? items : [...DEFAULT_MENU]
     next = ensureAgendaMenuItems(
-      ensureBeneficiosMenuItems(
-        ensureOnboardingMenuItems(
-          ensureLicenciasMenuItems(ensureHelpMenuItems(ensureMuroMenuItems(next))),
+      ensureAsistenciaMenuItems(
+        ensureEspaciosMenuItems(
+          ensureBeneficiosMenuItems(
+            ensureOnboardingMenuItems(
+              ensureLicenciasMenuItems(ensureHelpMenuItems(ensureMuroMenuItems(next))),
+            ),
+          ),
         ),
       ),
     )
@@ -926,9 +1089,13 @@ onMounted(async () => {
     menu.value = next
   } catch {
     menu.value = ensureAgendaMenuItems(
-      ensureBeneficiosMenuItems(
-        ensureOnboardingMenuItems(
-          ensureLicenciasMenuItems(ensureHelpMenuItems(ensureMuroMenuItems([...DEFAULT_MENU]))),
+      ensureAsistenciaMenuItems(
+        ensureEspaciosMenuItems(
+          ensureBeneficiosMenuItems(
+            ensureOnboardingMenuItems(
+              ensureLicenciasMenuItems(ensureHelpMenuItems(ensureMuroMenuItems([...DEFAULT_MENU]))),
+            ),
+          ),
         ),
       ),
     )
@@ -1081,22 +1248,28 @@ async function confirmLogout() {
   flex-shrink: 0;
 }
 
-.u-connectia-mark {
+.u-product-mark {
   display: inline-flex;
   align-items: center;
   margin-right: 2px;
-  max-width: 88px;
+  max-width: 112px;
 }
-.u-connectia-word {
-  font-family: var(--font-display);
-  font-size: 0.82rem;
-  font-weight: 700;
-  line-height: 1;
-  color: #fff;
-  letter-spacing: -0.02em;
-  white-space: nowrap;
-  opacity: 0.95;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+.u-product-logo {
+  display: block;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+.u-product-logo--topbar {
+  max-height: 18px;
+  max-width: 112px;
+  /* SVG: SOOFT blanco + CONNECTYX violeta sobre topbar de marca */
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.2));
+}
+.u-product-logo--drawer {
+  max-height: 28px;
+  max-width: min(200px, 70%);
+  margin-bottom: 8px;
 }
 
 .u-brand-logo {
@@ -1230,7 +1403,7 @@ async function confirmLogout() {
 }
 
 @media (max-width: 360px) {
-  .u-connectia-mark {
+  .u-product-mark {
     display: none;
   }
   .u-hello {
@@ -1238,6 +1411,9 @@ async function confirmLogout() {
   }
 }
 
+.u-points-wrap {
+  padding: 8px 12px 0;
+}
 .u-search {
   flex-shrink: 0;
   padding: 0 14px 12px;
@@ -1284,7 +1460,6 @@ async function confirmLogout() {
 .u-tabbar {
   flex-shrink: 0;
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr;
   align-items: end;
   gap: 0;
   height: calc(64px + env(safe-area-inset-bottom));

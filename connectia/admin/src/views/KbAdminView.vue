@@ -186,7 +186,7 @@ onMounted(load)
 .page-head p {
   margin: 0;
   max-width: 40rem;
-  color: #64748b;
+  color: var(--ink-soft);
   font-size: 0.92rem;
 }
 .head-actions {
@@ -204,30 +204,30 @@ onMounted(load)
   font-size: 0.88rem;
 }
 .btn-primary {
-  background: #0f766e;
+  background: var(--brand-primary);
   color: #fff;
 }
 .btn-ghost {
-  background: #f1f5f9;
-  color: #334155;
+  background: var(--panel-2);
+  color: var(--ink);
 }
 .btn-danger {
-  background: #fef2f2;
-  color: #b91c1c;
+  background: var(--bad-bg);
+  color: var(--bad);
 }
 .err {
-  color: #b91c1c;
+  color: var(--bad);
 }
 .empty {
-  color: #64748b;
+  color: var(--ink-soft);
 }
 .list {
   display: grid;
   gap: 0.75rem;
 }
 .card {
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: var(--panel);
+  border: 1px solid var(--line);
   border-radius: 0.75rem;
   padding: 1rem 1.1rem;
 }
@@ -243,15 +243,15 @@ onMounted(load)
 }
 .badge {
   font-size: 0.72rem;
-  background: #ecfdf5;
-  color: #0f766e;
+  background: var(--ok-bg);
+  color: var(--brand-primary);
   padding: 0.2rem 0.5rem;
   border-radius: 999px;
   white-space: nowrap;
 }
 .excerpt {
   margin: 0.5rem 0 0.75rem;
-  color: #475569;
+  color: var(--ink-soft);
   font-size: 0.9rem;
 }
 .card-actions {
@@ -261,7 +261,7 @@ onMounted(load)
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.45);
+  background: color-mix(in srgb, var(--ink) 45%, transparent);
   display: grid;
   place-items: center;
   z-index: 50;
@@ -269,7 +269,7 @@ onMounted(load)
 }
 .modal {
   width: min(560px, 100%);
-  background: #fff;
+  background: var(--panel);
   border-radius: 0.85rem;
   padding: 1.25rem;
   display: grid;
@@ -283,14 +283,14 @@ onMounted(load)
   gap: 0.3rem;
   font-size: 0.85rem;
   font-weight: 600;
-  color: #334155;
+  color: var(--ink);
 }
 .modal input,
 .modal select,
 .modal textarea {
   font: inherit;
   font-weight: 400;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--line);
   border-radius: 0.5rem;
   padding: 0.5rem 0.65rem;
 }

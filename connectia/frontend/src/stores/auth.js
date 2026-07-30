@@ -52,14 +52,8 @@ export const useAuthStore = defineStore('auth', () => {
     queueMicrotask(() => useThemeStore().initFromTenant(tenant.value))
   }
 
-  async function preLogin(empCodigo) {
-    const { data } = await api.post('/auth/pre-login', { empCodigo })
-    return data
-  }
-
-  async function login({ empCodigo, usuario, password, mode = 'password', rememberMe = true }) {
+  function applySession(data, rememberMe = true) {
     remember.value = rememberMe
-    const { data } = await api.post('/auth/login', { empCodigo, usuario, password, mode })
     accessToken.value = data.accessToken
     refreshToken.value = data.refreshToken
     user.value = data.user
@@ -73,6 +67,45 @@ export const useAuthStore = defineStore('auth', () => {
     return data
   }
 
+  async function preLogin(empCodigo) {
+    const { data } = await api.post('/auth/pre-login', { empCodigo })
+    return data
+  }
+
+  async function resolveTenants(identifier) {
+    const { data } = await api.post('/auth/resolve-tenants', { identifier })
+    return data
+  }
+
+  async function login({ empCodigo, usuario, password, mode = 'password', rememberMe = true }) {
+    remember.value = rememberMe
+    const { data } = await api.post('/auth/login', { empCodigo, usuario, password, mode })
+    if (data.requires2fa) return data
+    return applySession(data, rememberMe)
+  }
+
+  async function verify2fa({ challengeToken, code, rememberMe = true }) {
+    const { data } = await api.post('/auth/2fa/verify', { challengeToken, code })
+    return applySession(data, rememberMe)
+  }
+
+  async function resend2fa(challengeToken) {
+    const { data } = await api.post('/auth/2fa/resend', { challengeToken })
+    return data
+  }
+
+  async function tokenLogin(token, rememberMe = true) {
+    const { data } = await api.post('/auth/token-login', { token })
+    if (data.requires2fa) return data
+    return applySession(data, rememberMe)
+  }
+
+  async function legacyLogin({ empCodigo, token, rememberMe = true }) {
+    const { data } = await api.post('/auth/legacy-login', { empCodigo, token })
+    if (data.requires2fa) return data
+    return applySession(data, rememberMe)
+  }
+
   async function refresh() {
     const { data } = await api.post(
       '/auth/refresh',
@@ -82,6 +115,7 @@ export const useAuthStore = defineStore('auth', () => {
     accessToken.value = data.accessToken
     refreshToken.value = data.refreshToken
     if (data.user) user.value = { ...user.value, ...data.user }
+    if (data.tenant) tenant.value = data.tenant
     persist()
     return data
   }
@@ -161,7 +195,13 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     needsTerms,
     preLogin,
+    resolveTenants,
     login,
+    verify2fa,
+    resend2fa,
+    tokenLogin,
+    legacyLogin,
+    applySession,
     refresh,
     logout,
     acceptTerms,

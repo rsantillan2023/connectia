@@ -17,6 +17,29 @@ export const DEFAULT_CAPS = [
   'menu.dynamic',
   'beneficios',
   'beneficios.billetera',
+  'espacios',
+  'espacios.salas',
+  'espacios.cocheras',
+  'espacios.coworking',
+  'supervision.comercial',
+  'supervision.equipo',
+  'supervision.equipo.muro',
+  'supervision.equipo.eventos',
+  'supervision.equipo.notif',
+  'supervision.equipo.encuestas',
+  'supervision.equipo.docs',
+  'supervision.equipo.chat',
+  'talento',
+  'talento.okr',
+  'talento.desempeno',
+  'talento.carrera',
+  'talento.lms',
+  'talento.vacantes',
+  'cultura',
+  'cultura.reconocimientos',
+  'cultura.marketplace',
+  'cultura.referidos',
+  'cultura.pulso',
 ]
 
 export const GENERIC_MENU = [
@@ -35,14 +58,21 @@ export const GENERIC_MENU = [
   { key: 'avisos', label: 'Avisos', route: '/avisos', icon: 'bell', order: 55, channel: 'u' },
   { key: 'directorio', label: 'Directorio', route: '/directorio', icon: 'grid', order: 58, channel: 'u' },
   { key: 'mi-legajo', label: 'Mi legajo', route: '/mi-legajo', icon: 'file', order: 58.5, channel: 'u' },
-  { key: 'bienvenida', label: 'Bienvenida', route: '/bienvenida', icon: 'sparkles', order: 58.7, channel: 'u' },
+  { key: 'bienvenida', label: 'Tu ingreso', route: '/bienvenida', icon: 'sparkles', order: 58.7, channel: 'u' },
   { key: 'beneficios', label: 'Beneficios', route: '/beneficios', icon: 'gift', order: 59, channel: 'u' },
+  { key: 'mi-desarrollo', label: 'Mi desarrollo', route: '/mi-desarrollo', icon: 'sparkles', order: 57, channel: 'u' },
+  { key: 'cultura', label: 'Cultura', route: '/cultura', icon: 'heart', order: 57.5, channel: 'u' },
+  { key: 'espacios', label: 'Espacios', route: '/espacios', icon: 'building', order: 53, channel: 'u' },
+  { key: 'oficina', label: 'Oficina', route: '/oficina', icon: 'grid', order: 54, channel: 'u' },
+  { key: 'supervision', label: 'Supervisión', route: '/supervision', icon: 'clipboard', order: 52, channel: 'u' },
+  { key: 'supervision.mis-tareas', label: 'Mis tareas', route: '/supervision/mis-tareas', icon: 'list', order: 52.1, channel: 'u' },
+  { key: 'mi-equipo', label: 'Mi equipo', route: '/mi-equipo', icon: 'users', order: 51, channel: 'u' },
   { key: 'chat', label: 'Chat', route: '/chat', icon: 'chat', order: 60, channel: 'u' },
   { key: 'admin.home', label: 'Dashboard', route: '/', icon: 'home', order: 10, channel: 'a' },
   { key: 'admin.users', label: 'Usuarios', route: '/usuarios', icon: 'users', order: 15, channel: 'a' },
-  { key: 'admin.legajos', label: 'Legajos RRHH', route: '/legajos', icon: 'file', order: 15.5, channel: 'a' },
-  { key: 'admin.hrcatalog', label: 'Catálogos RRHH', route: '/catalogos-rrhh', icon: 'tag', order: 15.6, channel: 'a' },
-  { key: 'admin.onboarding', label: 'Onboarding y egreso', route: '/onboarding', icon: 'sparkles', order: 15.7, channel: 'a' },
+  { key: 'admin.legajos', label: 'Fichas de empleado', route: '/legajos', icon: 'file', order: 15.5, channel: 'a' },
+  { key: 'admin.hrcatalog', label: 'Listas del legajo', route: '/catalogos-rrhh', icon: 'tag', order: 15.6, channel: 'a' },
+  { key: 'admin.onboarding', label: 'Ingreso y egreso', route: '/onboarding', icon: 'sparkles', order: 15.7, channel: 'a' },
   { key: 'admin.org', label: 'Organización', route: '/organizacion', icon: 'building', order: 16, channel: 'a' },
   { key: 'admin.requests', label: 'Bandeja', route: '/solicitudes', icon: 'inbox', order: 18, channel: 'a' },
   { key: 'admin.reqsend', label: 'Pedir datos a un grupo', route: '/enviar-solicitud', icon: 'send', order: 18.5, channel: 'a' },
@@ -62,6 +92,11 @@ export const GENERIC_MENU = [
   { key: 'admin.docs', label: 'Documentos', route: '/documentos', icon: 'file', order: 46, channel: 'a' },
   { key: 'admin.directorio', label: 'Datos útiles', route: '/directorio', icon: 'grid', order: 46.2, channel: 'a' },
   { key: 'admin.beneficios', label: 'Beneficios y billetera', route: '/beneficios', icon: 'gift', order: 46.3, channel: 'a' },
+  { key: 'admin.supervision', label: 'Supervisión comercial', route: '/supervision', icon: 'clipboard', order: 46.5, channel: 'a' },
+  { key: 'admin.equipos', label: 'Equipos (supervisor)', route: '/equipos', icon: 'users', order: 46.6, channel: 'a' },
+  { key: 'admin.reservas', label: 'Reserva de espacios', route: '/reservas', icon: 'building', order: 46.4, channel: 'a' },
+  { key: 'admin.talento', label: 'Talento', route: '/talento', icon: 'sparkles', order: 46.55, channel: 'a' },
+  { key: 'admin.cultura', label: 'Cultura empresarial', route: '/cultura', icon: 'heart', order: 46.56, channel: 'a' },
   { key: 'admin.ayuda', label: 'Ayuda', route: '/ayuda', icon: 'help', order: 46.5, channel: 'a' },
   { key: 'admin.politicas', label: 'Políticas y cumplimiento', route: '/politicas', icon: 'shield', order: 46.7, channel: 'a' },
   { key: 'admin.hub', label: 'Enlaces', route: '/accesos', icon: 'grid', order: 47, channel: 'a' },
@@ -111,8 +146,8 @@ export function heuristicCompanyProfile(empCodigo, nombre) {
     knownCompany: false,
     industry: 'general',
     description: `Comunidad interna de ${brand}.`,
-    primary: '#0F766E',
-    secondary: '#115E59',
+    primary: '#8554C9',
+    secondary: '#6B3FA0',
     logoUrl: '',
     loginBgUrl: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=1600&q=80',
     splashSubtitle: 'Tu comunidad Connectia',
@@ -299,8 +334,8 @@ export function buildTenantOnboardingSummary(opts = {}) {
   const adminUrl = String(opts.adminUrl || process.env.ADMIN_URL || 'http://localhost:5174').replace(/\/$/, '')
   const branding = opts.branding || {}
   const logoUrl = branding.logoUrl || profile.logoUrl || context.logoUrlHint || ''
-  const primary = branding.primary || profile.primary || '#0F766E'
-  const secondary = branding.secondary || profile.secondary || '#115E59'
+  const primary = branding.primary || profile.primary || '#8554C9'
+  const secondary = branding.secondary || profile.secondary || '#6B3FA0'
   const areas = Array.isArray(profile.areas)
     ? profile.areas.map((a) => a.nombre || a.key).filter(Boolean)
     : []

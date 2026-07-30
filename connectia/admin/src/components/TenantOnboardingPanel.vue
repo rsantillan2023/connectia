@@ -138,9 +138,9 @@ const brand = computed(
 const logoSrc = computed(() =>
   resolveMediaUrl(props.onboarding?.logoUrl || props.tenant?.branding?.logoUrl || ''),
 )
-const primary = computed(() => props.onboarding?.primary || props.tenant?.branding?.primary || '#0F766E')
+const primary = computed(() => props.onboarding?.primary || props.tenant?.branding?.primary || 'var(--brand-primary)')
 const secondary = computed(
-  () => props.onboarding?.secondary || props.tenant?.branding?.secondary || '#115E59',
+  () => props.onboarding?.secondary || props.tenant?.branding?.secondary || 'var(--brand-secondary)',
 )
 const credentials = computed(() => props.onboarding?.credentials || {})
 

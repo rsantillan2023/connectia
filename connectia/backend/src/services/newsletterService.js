@@ -77,7 +77,7 @@ function nl2br(s) {
 }
 
 function brandColors(tenant) {
-  const primary = String(tenant?.branding?.primary || '#0f766e').trim() || '#0f766e'
+  const primary = String(tenant?.branding?.primary || '#8554c9').trim() || '#8554c9'
   const secondary = String(tenant?.branding?.secondary || '#115e59').trim() || '#115e59'
   return { primary, secondary }
 }

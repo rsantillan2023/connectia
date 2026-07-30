@@ -555,7 +555,7 @@ onMounted(async () => {
 <style scoped>
 .page {
   padding: 1.25rem 1.5rem 2.5rem;
-  max-width: 1200px;
+  max-width: none;
 }
 .page-head {
   display: flex;
@@ -587,17 +587,17 @@ onMounted(async () => {
   padding: 0.45rem 0.85rem;
   font: inherit;
   cursor: pointer;
-  border: 1px solid #c5ced6;
-  background: #fff;
+  border: 1px solid var(--line-2);
+  background: var(--panel);
 }
 .btn-primary {
-  background: #1a3a4a;
+  background: var(--ink);
   color: #fff;
-  border-color: #1a3a4a;
+  border-color: var(--ink);
 }
 .btn-ghost.on {
-  border-color: #1a3a4a;
-  color: #1a3a4a;
+  border-color: var(--ink);
+  color: var(--ink);
 }
 .btn-ghost.sm {
   padding: 0.3rem 0.6rem;
@@ -613,7 +613,7 @@ onMounted(async () => {
   margin-bottom: 0.75rem;
 }
 .stat {
-  background: #f2f5f7;
+  background: var(--panel-2);
   padding: 0.4rem 0.75rem;
   border-radius: 8px;
   font-size: 0.9rem;
@@ -634,7 +634,7 @@ onMounted(async () => {
 .field textarea {
   font: inherit;
   padding: 0.4rem 0.55rem;
-  border: 1px solid #c5ced6;
+  border: 1px solid var(--line-2);
   border-radius: 8px;
 }
 .filters input[type='search'] {
@@ -672,7 +672,7 @@ onMounted(async () => {
   list-style: none;
   margin: 0;
   padding: 0;
-  border: 1px solid #dde3e8;
+  border: 1px solid var(--line);
   border-radius: 10px;
   max-height: 70vh;
   overflow: auto;
@@ -684,7 +684,7 @@ onMounted(async () => {
 }
 .row:hover,
 .row.selected {
-  background: #f7fafb;
+  background: var(--panel-2);
 }
 .row-main {
   display: flex;
@@ -700,10 +700,10 @@ onMounted(async () => {
   width: 52px;
   height: 52px;
   border-radius: 10px;
-  border: 1px solid #dde3e8;
+  border: 1px solid var(--line);
   overflow: hidden;
   padding: 0;
-  background: #eef2f5;
+  background: var(--panel-2);
   cursor: pointer;
 }
 .preview-thumb img {
@@ -726,7 +726,7 @@ onMounted(async () => {
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: #1a3a4a;
+  color: var(--ink);
   cursor: pointer;
   display: grid;
   place-items: center;
@@ -778,14 +778,14 @@ onMounted(async () => {
   color: #5a6570;
 }
 .sug {
-  color: #1a3a4a;
+  color: var(--ink);
   font-weight: 500;
 }
 .detail {
-  border: 1px solid #dde3e8;
+  border: 1px solid var(--line);
   border-radius: 10px;
   padding: 1rem;
-  background: #fff;
+  background: var(--panel);
 }
 .detail h2 {
   margin: 0 0 0.5rem;
@@ -802,7 +802,7 @@ onMounted(async () => {
   margin: 0.75rem 0;
   padding: 0.75rem;
   border-radius: 8px;
-  background: #eef5f8;
+  background: var(--panel-2);
 }
 .ai-panel h3 {
   margin: 0 0 0.4rem;
@@ -817,7 +817,7 @@ onMounted(async () => {
   color: #3a4a55;
 }
 .panel {
-  border: 1px solid #dde3e8;
+  border: 1px solid var(--line);
   border-radius: 10px;
   padding: 1rem;
   max-width: 560px;
@@ -847,7 +847,7 @@ onMounted(async () => {
   position: fixed;
   inset: 0;
   z-index: 80;
-  background: rgba(15, 23, 42, 0.45);
+  background: color-mix(in srgb, var(--ink) 45%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -857,7 +857,7 @@ onMounted(async () => {
   width: min(980px, 100%);
   max-height: min(92vh, 900px);
   overflow: auto;
-  background: #fff;
+  background: var(--panel);
   border-radius: 14px;
   box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
 }
@@ -890,10 +890,10 @@ onMounted(async () => {
   gap: 0.85rem;
 }
 .comment-on-post {
-  border: 1px solid #dde3e8;
+  border: 1px solid var(--line);
   border-radius: 12px;
   padding: 0.85rem;
-  background: #f7fafb;
+  background: var(--panel-2);
 }
 .comment-on-post-label {
   margin: 0 0 0.35rem;
@@ -913,9 +913,9 @@ onMounted(async () => {
   font-size: 0.95rem;
 }
 .viewer-actions {
-  border: 1px solid #dde3e8;
+  border: 1px solid var(--line);
   border-radius: 12px;
   padding: 0.9rem;
-  background: #fff;
+  background: var(--panel);
 }
 </style>

@@ -8,17 +8,20 @@ function systemDark() {
 }
 
 export const useThemeStore = defineStore('theme', () => {
+  /** Política tenant (light|dark|system). En admin no bloquea el toggle. */
   const policy = ref('system')
-  const preference = ref(localStorage.getItem(PREF_KEY) || 'system')
-  const resolved = ref('light')
+  /** Preferencia usuario — default oscuro (prototipo Hiryx pantallas). */
+  const preference = ref(localStorage.getItem(PREF_KEY) || 'dark')
+  const resolved = ref('dark')
 
-  const canToggle = computed(() => policy.value === 'system')
+  /** En admin siempre se puede cambiar claro/oscuro (pantallas). */
+  const canToggle = computed(() => true)
   const label = computed(() => (resolved.value === 'dark' ? 'Oscuro' : 'Claro'))
 
   function resolve() {
+    if (preference.value === 'light' || preference.value === 'dark') return preference.value
     if (policy.value === 'light') return 'light'
     if (policy.value === 'dark') return 'dark'
-    if (preference.value === 'light' || preference.value === 'dark') return preference.value
     return systemDark() ? 'dark' : 'light'
   }
 
@@ -42,21 +45,25 @@ export const useThemeStore = defineStore('theme', () => {
   }
 
   function toggle() {
-    if (!canToggle.value) return
     setPreference(resolved.value === 'dark' ? 'light' : 'dark')
   }
 
   function initFromTenant(tenant) {
-    setPolicy(tenant?.themeMode || 'system')
-    const b = tenant?.branding || {}
-    if (b.primary) document.documentElement.style.setProperty('--brand-primary', b.primary)
-    if (b.secondary) document.documentElement.style.setProperty('--brand-secondary', b.secondary)
+    // No forzar tema del tenant en admin: pantallas usan prototipo (oscuro default + toggle).
+    if (tenant?.themeMode && ['light', 'dark', 'system'].includes(tenant.themeMode)) {
+      policy.value = tenant.themeMode
+    } else {
+      policy.value = 'system'
+    }
+    document.documentElement.style.setProperty('--brand-primary', '#6b5bf0')
+    document.documentElement.style.setProperty('--brand-secondary', '#4a37c8')
+    apply()
   }
 
   if (typeof window !== 'undefined') {
     apply()
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-      if (policy.value === 'system' && preference.value === 'system') apply()
+      if (preference.value === 'system') apply()
     })
   }
 

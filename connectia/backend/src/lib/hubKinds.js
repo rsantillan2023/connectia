@@ -112,9 +112,11 @@ export function openModeForKind(kind) {
   return 'external'
 }
 
-/** Contexto de plantillas {{usuario}}, {{email}}, etc. */
-export function buildTemplateContext(user, tenant) {
+/** Contexto de plantillas {{usuario}}, {{email}}, {{puntos}}, etc. */
+export function buildTemplateContext(user, tenant, extras = {}) {
   const nombre = [user?.nombre, user?.apellido].filter(Boolean).join(' ').trim()
+  const puntos = extras.puntos != null ? Number(extras.puntos) : extras.balance != null ? Number(extras.balance) : 0
+  const pts = Number.isFinite(puntos) ? Math.max(0, Math.floor(puntos)) : 0
   return {
     usuario: user?.usuario || '',
     legajo: user?.idExterno || user?.usuario || '',
@@ -124,11 +126,17 @@ export function buildTemplateContext(user, tenant) {
     userId: user?._id ? String(user._id) : user?.id ? String(user.id) : '',
     empCodigo: tenant?.empCodigo || '',
     tenant: tenant?.nombre || tenant?.empCodigo || '',
+    puntos: String(pts),
+    puntos_saludo: pts === 1 ? 'Tenés 1 punto' : `Tenés ${pts} puntos`,
+    _puntosNum: pts,
     _user: user,
     _tenant: tenant,
   }
 }
 
+/**
+ * Aplica {{var}} y condicionals {{si_puntos_gt:N:texto}} / {{si_puntos_gte:N:texto}} / {{si_puntos_lt:N:texto}}.
+ */
 export function applyTemplates(input, ctx = {}) {
   if (input == null) return ''
   if (typeof input === 'object' && !Array.isArray(input)) {
@@ -138,11 +146,21 @@ export function applyTemplates(input, ctx = {}) {
   }
   if (Array.isArray(input)) return input.map((v) => applyTemplates(v, ctx))
   let s = String(input)
+  const pts = Number(ctx._puntosNum) || Number(ctx.puntos) || 0
+  s = s.replace(/\{\{\s*si_puntos_(gt|gte|lt|lte)\s*:\s*(\d+)\s*:\s*([^}]+)\}\}/gi, (_, op, nRaw, text) => {
+    const n = Number(nRaw)
+    let ok = false
+    if (op === 'gt') ok = pts > n
+    else if (op === 'gte') ok = pts >= n
+    else if (op === 'lt') ok = pts < n
+    else if (op === 'lte') ok = pts <= n
+    return ok ? String(text).trim() : ''
+  })
   s = s.replace(/\{\{\s*([\w.]+)\s*\}\}/g, (_, key) => {
     const v = ctx[key]
     return v == null ? '' : String(v)
   })
-  return s
+  return s.replace(/\s{2,}/g, ' ').trim()
 }
 
 export function digitsOnly(phone) {

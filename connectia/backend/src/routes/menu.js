@@ -4,7 +4,15 @@ import { MenuItem } from '../models/MenuItem.js'
 import { capabilityForMenuKey } from '../constants/adminCapabilities.js'
 import { ensureOla15MenuItems } from '../lib/ensureOla15Menu.js'
 import { ensureOla17MenuItems } from '../lib/ensureOla17Menu.js'
+import { ensureOla18MenuItems } from '../lib/ensureOla18Menu.js'
 import { ensureOla19MenuItems } from '../lib/ensureOla19Menu.js'
+import { ensureOla21MenuItems } from '../lib/ensureOla21Menu.js'
+import { ensureOla22MenuItems } from '../lib/ensureOla22Menu.js'
+import { ensureOla27MenuItems } from '../lib/ensureOla27Menu.js'
+import { ensureOla26MenuItems } from '../lib/ensureOla26Menu.js'
+import { ensureOla25MenuItems } from '../lib/ensureOla25Menu.js'
+import { ensureOla28MenuItems } from '../lib/ensureOla28Menu.js'
+import { ensureAdminChromePins } from '../lib/ensureAdminChromePins.js'
 
 const router = Router()
 
@@ -13,7 +21,15 @@ router.get('/', requireAuth, async (req, res, next) => {
     const channel = req.query.channel === 'a' ? 'a' : 'u'
     await ensureOla15MenuItems(req.tenant._id)
     await ensureOla17MenuItems(req.tenant._id)
+    await ensureOla18MenuItems(req.tenant._id)
     await ensureOla19MenuItems(req.tenant._id)
+    await ensureOla21MenuItems(req.tenant._id)
+    await ensureOla22MenuItems(req.tenant._id)
+    await ensureOla27MenuItems(req.tenant._id)
+    await ensureOla26MenuItems(req.tenant._id)
+    await ensureOla25MenuItems(req.tenant._id)
+    await ensureOla28MenuItems(req.tenant._id)
+    if (channel === 'a') await ensureAdminChromePins(req.tenant._id)
     const items = await MenuItem.find({
       tenantId: req.tenant._id,
       activo: true,
@@ -47,11 +63,18 @@ router.get('/', requireAuth, async (req, res, next) => {
       menuVersion: req.tenant.menuVersion || 1,
       branding: req.tenant.branding,
       items: filtered.map((i) => ({
+        id: String(i._id),
         key: i.key,
         label: i.label,
         route: i.route,
         icon: i.icon,
         order: i.order,
+        showInTabbar: Boolean(i.showInTabbar),
+        tabOrder: Number(i.tabOrder) || 100,
+        showInAdminSidebar: Boolean(i.showInAdminSidebar),
+        showInAdminHeader: Boolean(i.showInAdminHeader),
+        actionType: i.actionType === 'compose_post' ? 'compose_post' : 'navigate',
+        actionParams: i.actionParams && typeof i.actionParams === 'object' ? i.actionParams : {},
       })),
     })
   } catch (e) {

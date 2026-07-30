@@ -7,6 +7,8 @@ export const POINTS_EVENTS = [
   'comment_created',
   'post_saved',
   'post_shared',
+  'recognition_received',
+  'external_credit',
 ]
 
 export const POINTS_EVENT_LABELS = {
@@ -15,6 +17,8 @@ export const POINTS_EVENT_LABELS = {
   comment_created: 'Comentar',
   post_saved: 'Guardar una publicación',
   post_shared: 'Compartir por chat',
+  recognition_received: 'Recibir un reconocimiento',
+  external_credit: 'Crédito desde sistema externo',
 }
 
 /**

@@ -2,30 +2,45 @@
   <div class="page">
     <header class="page-head">
       <div>
-        <h1 tabindex="-1">Catálogos RRHH</h1>
-        <p>Países, provincias, géneros, parentescos, bancos y más (§14.10)</p>
+        <h1 tabindex="-1">Listas para el legajo</h1>
+        <p>
+          Opciones de los desplegables (género, provincias, bancos…). Sin estas listas, la ficha de empleado
+          no tiene valores para elegir.
+        </p>
         <ScreenHelp
-          purpose="Listas maestras para el legajo digital."
-          can-do="Cargar defaults AR, alta/edición por tipo, baja lógica."
+          purpose="Listas maestras que alimentan el legajo."
+          can-do="Cargar un set inicial para Argentina, o alta/edición de cada ítem. Desactivar sin borrar."
         />
       </div>
       <div class="head-actions">
         <button type="button" class="btn-ghost" :disabled="seeding" @click="seedDefaults">
-          {{ seeding ? 'Cargando…' : 'Cargar defaults AR' }}
+          {{ seeding ? 'Cargando…' : 'Cargar listas iniciales (AR)' }}
         </button>
         <button type="button" class="btn-primary" @click="openNew">Nuevo ítem</button>
       </div>
     </header>
     <p v-if="error" class="err">{{ error }}</p>
 
-    <div class="filters">
-      <label
-        >Tipo
-        <select v-model="tipo" class="input" @change="load">
-          <option value="">Todos</option>
-          <option v-for="t in tipos" :key="t" :value="t">{{ t }}</option>
-        </select>
-      </label>
+    <div class="filters filters--sticky" role="toolbar" aria-label="Filtro rápido por tipo">
+      <button
+        type="button"
+        class="chip"
+        :class="{ active: !tipo }"
+        @click="setTipo('')"
+      >
+        Todos
+      </button>
+      <button
+        v-for="t in tipos"
+        :key="t"
+        type="button"
+        class="chip"
+        :class="{ active: tipo === t }"
+        :title="t"
+        @click="setTipo(t)"
+      >
+        {{ labelTipo(t) }}
+      </button>
     </div>
 
     <table class="table">
@@ -103,6 +118,31 @@ const formError = ref('')
 const draft = ref(null)
 const saving = ref(false)
 const seeding = ref(false)
+
+const TIPO_LABELS = {
+  pais: 'País',
+  provincia: 'Provincia',
+  genero: 'Género',
+  parentesco: 'Parentesco',
+  estado_civil: 'Estado civil',
+  tipo_contrato: 'Tipo contrato',
+  modalidad: 'Modalidad',
+  banco: 'Banco',
+  obra_social: 'Obra social',
+  clasificacion_legajo: 'Clasificación',
+  subestado_laboral: 'Subestado laboral',
+  nivel_skill: 'Nivel skill',
+  tipo_domicilio: 'Tipo domicilio',
+}
+
+function labelTipo(t) {
+  return TIPO_LABELS[t] || String(t || '').replace(/_/g, ' ')
+}
+
+function setTipo(next) {
+  tipo.value = next
+  load()
+}
 
 async function loadMeta() {
   const { data } = await api.get('/admin/hr-catalogs/meta')
@@ -208,7 +248,7 @@ onMounted(async () => {
 }
 .page-head p {
   margin: 0;
-  color: var(--muted, #64748b);
+  color: var(--muted, var(--ink-soft));
   font-size: 0.9rem;
 }
 .head-actions {
@@ -219,6 +259,41 @@ onMounted(async () => {
 .filters {
   margin-bottom: 1rem;
 }
+.filters--sticky {
+  position: sticky;
+  top: 0;
+  z-index: 12;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.55rem 0 0.65rem;
+  margin: 0 0 0.75rem;
+  background: color-mix(in srgb, var(--canvas, var(--panel-2)) 92%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+.chip {
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--line-2, var(--line));
+  background: var(--panel);
+  color: var(--ink-soft, var(--ink));
+  font-size: 0.78rem;
+  font-weight: 560;
+  cursor: pointer;
+  line-height: 1.25;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.chip:hover {
+  border-color: var(--brand-line, var(--brand));
+  color: var(--brand-ink, var(--ink));
+}
+.chip.active {
+  background: var(--brand, #6b5bf0);
+  border-color: var(--brand, #6b5bf0);
+  color: #fff;
+}
 .table {
   width: 100%;
   border-collapse: collapse;
@@ -228,43 +303,43 @@ onMounted(async () => {
 .table td {
   text-align: left;
   padding: 0.55rem 0.4rem;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--line);
 }
 .actions {
   display: flex;
   gap: 0.35rem;
 }
 .muted {
-  color: #64748b;
+  color: var(--ink-soft);
 }
 .err {
-  color: #b91c1c;
+  color: var(--bad);
 }
 .pill {
   font-size: 0.75rem;
   padding: 0.15rem 0.45rem;
   border-radius: 999px;
-  background: #e2e8f0;
+  background: var(--line);
 }
 .pill[data-st='published'] {
   background: #dcfce7;
   color: #166534;
 }
 .pill[data-st='closed'] {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--bad-bg);
+  color: var(--bad);
 }
 .sheet {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.45);
+  background: color-mix(in srgb, var(--ink) 45%, transparent);
   display: grid;
   place-items: center;
   z-index: 40;
   padding: 1rem;
 }
 .panel {
-  background: #fff;
+  background: var(--panel);
   border-radius: 12px;
   padding: 1.25rem;
   width: min(480px, 100%);
@@ -277,7 +352,7 @@ onMounted(async () => {
   font-size: 0.85rem;
 }
 .input {
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--line-2);
   border-radius: 8px;
   padding: 0.45rem 0.6rem;
 }
@@ -296,16 +371,16 @@ onMounted(async () => {
 .btn-ghost {
   border-radius: 8px;
   padding: 0.45rem 0.85rem;
-  border: 1px solid #cbd5e1;
-  background: #fff;
+  border: 1px solid var(--line-2);
+  background: var(--panel);
   cursor: pointer;
 }
 .btn-primary {
-  background: #0f172a;
+  background: var(--ink);
   color: #fff;
-  border-color: #0f172a;
+  border-color: var(--ink);
 }
 .btn-ghost.danger {
-  color: #b91c1c;
+  color: var(--bad);
 }
 </style>

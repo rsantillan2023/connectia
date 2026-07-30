@@ -17,8 +17,8 @@ export function toPublicMediaUrl(url) {
 export function serializeBranding(branding) {
   if (!branding || typeof branding !== 'object') {
     return {
-      primary: '#0F766E',
-      secondary: '#134E4A',
+      primary: '#8554C9',
+      secondary: '#6B3FA0',
       logoUrl: '',
       loginBgUrl: '',
       splash: {},

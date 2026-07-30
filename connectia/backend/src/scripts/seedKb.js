@@ -8,7 +8,7 @@ const DEMO_ARTICLES = [
     orden: 10,
     cuerpo:
       'Para abrir un trámite andá a Mis solicitudes → Nueva. Elegí el tipo, completá los campos y enviá. ' +
-      'Podés seguir el estado (Abierta, En proceso, Resuelta) desde el listado. ' +
+      'Podés seguir el estado (Abierta, En curso, Resuelta) desde el listado. ' +
       'También podés pedirle al Asistente: “abrí una consulta” y confirmar.',
   },
   {
@@ -23,11 +23,12 @@ const DEMO_ARTICLES = [
   {
     titulo: 'Cómo marcar o ver avisos',
     categoria: 'faq',
-    tags: ['avisos', 'notificaciones', 'push'],
+    tags: ['avisos', 'notificaciones', 'push', 'marcar', 'asistencia'],
     orden: 30,
     cuerpo:
       'Los avisos llegan por push (si diste permiso) y quedan en Avisos (/avisos). ' +
-      'Podés marcarlos como leídos o descartarlos. La campana del topbar muestra no leídos.',
+      'Podés marcarlos como leídos o descartarlos. La campana del topbar muestra no leídos. ' +
+      'La marcación de asistencia/fichaje de turnos llega en una ola posterior; mientras tanto usá Avisos y consultá a RRHH si necesitás registrar presencia.',
   },
   {
     titulo: 'Política de uso del Asistente',
@@ -36,17 +37,68 @@ const DEMO_ARTICLES = [
     orden: 40,
     cuerpo:
       'El Asistente solo usa datos de tu comunidad y de tu usuario. No ve información de otros tenants. ' +
-      'Las acciones (crear solicitudes) requieren tu confirmación explícita. ' +
+      'Las acciones (crear solicitudes, licencias o reservas) requieren tu confirmación explícita. ' +
       'Las respuestas de “cómo hacer” citan la base de conocimientos cuando hay fuente.',
   },
   {
     titulo: 'Vacaciones y licencias',
     categoria: 'guia',
-    tags: ['vacaciones', 'licencias', 'rrhh'],
+    tags: ['vacaciones', 'licencias', 'rrhh', 'saldo'],
     orden: 50,
     cuerpo:
-      'Podés pedir vacaciones desde el Asistente (“quiero vacaciones del … al …”) o abriendo una consulta a RRHH. ' +
-      'El saldo automático se habilitará con el módulo de licencias; mientras tanto RRHH valida cada pedido.',
+      'Preguntá al Asistente “¿cuántas vacaciones tengo?” para ver el saldo real. ' +
+      'Para pedir: “quiero vacaciones del 10/08 al 20/08” — te muestra un borrador y solo se crea al confirmar. ' +
+      'También podés combinar: “quiero saber cuántas vacaciones tengo y tomarme del X al Y”. ' +
+      'En la app: Vacaciones y permisos (/licencias).',
+  },
+  {
+    titulo: 'Recibo de sueldo',
+    categoria: 'faq',
+    tags: ['recibo', 'sueldo', 'haberes', 'rrhh'],
+    orden: 55,
+    cuerpo:
+      'El módulo de descarga de recibos aún no está en Connectia. ' +
+      'Si pedís “quiero mi recibo de sueldo”, el Asistente te ofrece abrir una consulta a RRHH (con tu confirmación) ' +
+      'indicando el período. No inventa montos ni genera PDFs.',
+  },
+  {
+    titulo: 'Reservar sala, cochera u oficina',
+    categoria: 'guia',
+    tags: ['reserva', 'sala', 'cochera', 'oficina', 'espacios'],
+    orden: 60,
+    cuerpo:
+      'Decile al Asistente “quiero reservar una sala mañana a las 10”, “necesito una cochera el jueves patente AB123CD” ' +
+      'o “voy a la oficina el viernes”. Armá el borrador, confirmá, y se crea la reserva con las mismas reglas que Espacios/Oficina. ' +
+      'También podés ir a /espacios o /oficina.',
+  },
+  {
+    titulo: 'Cómo gestionar usuarios en Admin',
+    categoria: 'guia',
+    tags: ['admin', 'usuarios', 'miembros', 'alta'],
+    orden: 70,
+    cuerpo:
+      'En Admin → Usuarios (/usuarios) podés listar, filtrar y editar miembros de la comunidad. ' +
+      'También está en «Funciones de Administración». El asistente de Admin responde “dónde están los usuarios” y apunta a esa pantalla.',
+  },
+  {
+    titulo: 'Cómo administrar la base de conocimientos',
+    categoria: 'guia',
+    tags: ['admin', 'kb', 'conocimiento', 'faq', 'asistente'],
+    orden: 80,
+    cuerpo:
+      'En Admin → Base de conocimientos (/asistente-kb) cargás y publicás artículos (guías, FAQs, políticas). ' +
+      'Esos artículos alimentan al asistente de la app miembro y al chatbot del panel Admin. ' +
+      'Si falta una respuesta frecuente, sumá un artículo publicado.',
+  },
+  {
+    titulo: 'Dónde gestiono solicitudes en Admin',
+    categoria: 'faq',
+    tags: ['admin', 'solicitudes', 'bandeja', 'trámites'],
+    orden: 90,
+    cuerpo:
+      'La bandeja de solicitudes de la comunidad está en Admin → Solicitudes (/solicitudes). ' +
+      'Tipos, estados y workflows se configuran en Tipos de solicitud, Estados y Workflows. ' +
+      'Preguntá al asistente Admin “dónde están las solicitudes” para ir directo.',
   },
 ]
 
@@ -84,5 +136,6 @@ export async function seedKbForTenant(tenant) {
     })
     created += 1
   }
-  return { created, total: DEMO_ARTICLES.length }
+  const total = await KbArticle.countDocuments({ tenantId: tenant._id, status: 'published' })
+  return { created, total }
 }

@@ -16,7 +16,12 @@
             :src="splash.logoUrl"
             alt=""
           />
-          <div v-else-if="splash.showLogo" class="splash-mark" aria-hidden="true">C</div>
+          <img
+            v-else-if="splash.showLogo"
+            class="splash-logo splash-logo--product"
+            :src="PRODUCT_ICON"
+            alt=""
+          />
           <p v-if="splash.showTitle" class="splash-title">{{ splash.title }}</p>
           <p v-if="splash.showSubtitle" class="splash-sub">{{ splash.subtitle }}</p>
         </div>
@@ -28,6 +33,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useSplashStore } from '../stores/splash'
+import { PRODUCT_ICON } from '../constants/brand'
 
 const splash = useSplashStore()
 
@@ -75,6 +81,11 @@ const splashStyle = computed(() => {
   object-fit: contain;
   margin: 0 auto 16px;
   display: block;
+}
+
+.splash-logo--product {
+  max-height: 96px;
+  border-radius: 18px;
 }
 
 .splash-mark {

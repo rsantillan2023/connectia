@@ -24,6 +24,9 @@
       <p v-if="item.decisionComentario" class="aus-muted">
         Decisión: {{ item.decisionByName }} — {{ item.decisionComentario }}
       </p>
+      <p v-if="item.ecrSync && item.ecrSync.status && item.ecrSync.status !== 'none'" class="aus-muted">
+        Sync ECR: {{ ecrSyncLabel(item.ecrSync) }}
+      </p>
       <button
         v-if="item.estado === 'pendiente'"
         type="button"
@@ -51,6 +54,17 @@ const busy = ref(false)
 
 function mediaUrl(url) {
   return resolveMediaUrl(url)
+}
+
+function ecrSyncLabel(sync) {
+  const map = {
+    synced: 'sincronizado',
+    pending: 'pendiente',
+    error: 'error',
+    deferred: 'diferido',
+  }
+  const s = map[sync.status] || sync.status
+  return sync.note ? `${s} · ${sync.note}` : s
 }
 
 async function load() {

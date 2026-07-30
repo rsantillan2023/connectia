@@ -29,6 +29,17 @@ const TYPES = [
       { key: 'urgente', label: 'Bloquea mi trabajo', tipo: 'check', required: false },
     ],
   },
+  {
+    _id: 't3',
+    key: 'turno_carnet',
+    nombre: 'Turno carnet',
+    area: 'RRHH',
+    campos: [
+      { key: 'tipo_carnet', label: 'Tipo de carnet', tipo: 'select', required: true, opciones: ['Credencial de acceso', 'Otro'] },
+      { key: 'fecha_preferida', label: 'Fecha preferida', tipo: 'date', required: true },
+      { key: 'motivo', label: 'Motivo', tipo: 'textarea', required: true },
+    ],
+  },
 ]
 
 describe('assistantRequestDraft', () => {
@@ -40,6 +51,11 @@ describe('assistantRequestDraft', () => {
   it('matchea tipo por nombre/keywords', () => {
     const t = matchRequestType(TYPES, 'no me anda la VPN necesito sistemas')
     assert.equal(t.key, 'sistemas')
+  })
+
+  it('matchea turno carnet (32.03)', () => {
+    assert.equal(matchRequestType(TYPES, 'quiero turno carnet').key, 'turno_carnet')
+    assert.equal(matchRequestType(TYPES, 'necesito renovar la credencial').key, 'turno_carnet')
   })
 
   it('elige tipo por número', () => {

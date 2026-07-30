@@ -14,6 +14,13 @@
 
     <HubQuickStrip compact surface="muro" class="feed-hub" />
 
+    <RouterLink v-if="liveBadge" to="/en-vivo" class="live-banner">
+      <span class="live-dot" aria-hidden="true" />
+      LIVE · {{ liveBadge.title }}
+    </RouterLink>
+
+    <StoriesRail ref="storiesRail" />
+
     <header class="feed-section-head">
       <div class="feed-section-left">
         <h2 class="feed-section-title">Novedades</h2>
@@ -247,6 +254,7 @@ import SharePostSheet from '../components/SharePostSheet.vue'
 import GuardadosFilterSheet from '../components/GuardadosFilterSheet.vue'
 import NovedadesCarousel from '../components/NovedadesCarousel.vue'
 import MuroStripSection from '../components/MuroStripSection.vue'
+import StoriesRail from '../components/StoriesRail.vue'
 import ReactionBar from '../components/ReactionBar.vue'
 import { usePullToRefresh } from '../composables/usePullToRefresh'
 import { useAuthStore } from '../stores/auth'
@@ -280,6 +288,7 @@ const { setUnread: setNotifUnread, unreadCount: notifUnread } = useNotifBadge()
 const { refreshBadge: refreshChatBadge } = useChatBadge()
 
 const items = ref([])
+const liveBadge = ref(null)
 const page = ref(1)
 const total = ref(0)
 const loading = ref(true)
@@ -292,7 +301,8 @@ const hideTarget = ref(null)
 const hiding = ref(false)
 const shareTarget = ref(null)
 const filterOpen = ref(false)
-const filters = reactive({ q: '', tipo: '', origin: '' })
+const filters = reactive({ q: '', tipo: '', origin: '', section: '', knowledge: false })
+const storiesRail = ref(null)
 const viewMode = ref(readViewMode())
 const avisos = ref([])
 const avisosLoading = ref(false)
@@ -441,7 +451,7 @@ const encuestaCards = computed(() => {
 })
 
 const filtersActive = computed(
-  () => Boolean(filters.q?.trim() || filters.tipo || filters.origin),
+  () => Boolean(filters.q?.trim() || filters.tipo || filters.origin || filters.section || filters.knowledge),
 )
 
 const filterSummary = computed(() => {
@@ -449,6 +459,8 @@ const filterSummary = computed(() => {
   if (filters.q?.trim()) parts.push(`“${filters.q.trim()}”`)
   if (filters.tipo) parts.push(TIPO_LABELS[filters.tipo] || filters.tipo)
   if (filters.origin) parts.push(ORIGIN_LABELS[filters.origin] || filters.origin)
+  if (filters.section) parts.push(filters.section)
+  if (filters.knowledge) parts.push('Conocimiento')
   return parts.length ? `Filtro: ${parts.join(' · ')}` : ''
 })
 
@@ -475,11 +487,31 @@ function applyFilters(next) {
   filters.q = String(next?.q || '').trim()
   filters.tipo = next?.tipo || ''
   filters.origin = next?.origin || ''
+  filters.section = String(next?.section || '').trim()
+  filters.knowledge = Boolean(next?.knowledge)
   load(true)
 }
 
 function clearFilters() {
-  applyFilters({ q: '', tipo: '', origin: '' })
+  applyFilters({ q: '', tipo: '', origin: '', section: '', knowledge: false })
+}
+
+/** Deep links externos: /muro?tipo=&origin=&section=&knowledge=1&q= (Ola 3 · 04.15) */
+function syncFiltersFromRoute() {
+  const q = route.query
+  const knowledgeRaw = String(q.knowledge ?? q.isKnowledge ?? '').toLowerCase()
+  filters.tipo = typeof q.tipo === 'string' ? q.tipo.trim().toLowerCase() : filters.tipo
+  filters.origin = typeof q.origin === 'string' ? q.origin.trim().toLowerCase() : filters.origin
+  filters.section = typeof q.section === 'string' ? q.section.trim() : filters.section
+  if (q.knowledge != null || q.isKnowledge != null) {
+    filters.knowledge =
+      knowledgeRaw === '1' ||
+      knowledgeRaw === 'true' ||
+      knowledgeRaw === 'si' ||
+      knowledgeRaw === 'sí' ||
+      knowledgeRaw === 'yes'
+  }
+  if (typeof q.q === 'string' && q.q.trim()) filters.q = q.q.trim()
 }
 
 function openPost(p) {
@@ -668,6 +700,8 @@ async function load(reset, { keepList = false } = {}) {
         q: currentQ() || undefined,
         tipo: filters.tipo || undefined,
         origin: filters.origin || undefined,
+        section: filters.section || undefined,
+        knowledge: filters.knowledge ? 1 : undefined,
         // evita respuestas cacheadas del navegador al refrescar
         ...(reset ? { _t: Date.now() } : {}),
       },
@@ -738,6 +772,7 @@ const { pullDistance, refreshing, pulling, ready } = usePullToRefresh({
   getScrollEl: () => document.querySelector('.u-main'),
   onRefresh: async () => {
     await load(true, { keepList: true })
+    storiesRail.value?.reload?.()
     if (viewMode.value === 'carousel') await loadStrips({ force: true })
   },
   threshold: 72,
@@ -749,8 +784,11 @@ const indicatorHeight = computed(() => {
 })
 
 watch(
-  () => [props.searchQuery, route.query.q],
-  () => load(true),
+  () => [props.searchQuery, route.query.q, route.query.tipo, route.query.origin, route.query.section, route.query.knowledge],
+  () => {
+    syncFiltersFromRoute()
+    load(true)
+  },
 )
 
 watch(viewMode, (mode) => {
@@ -758,8 +796,17 @@ watch(viewMode, (mode) => {
 })
 
 onMounted(() => {
+  syncFiltersFromRoute()
   load(true)
   if (viewMode.value === 'carousel') loadStrips()
+  api
+    .get('/live/active')
+    .then(({ data }) => {
+      liveBadge.value = data.liveNow || null
+    })
+    .catch(() => {
+      liveBadge.value = null
+    })
   const root = document.querySelector('.u-main')
   observer = new IntersectionObserver(
     (entries) => {
@@ -816,6 +863,26 @@ onBeforeUnmount(() => observer?.disconnect())
 }
 .feed-hub {
   margin: 0;
+}
+.live-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 16px 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #fef2f2;
+  color: #991b1b;
+  font-weight: 700;
+  font-size: 0.92rem;
+  text-decoration: none;
+}
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #dc2626;
+  box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.2);
 }
 .feed-section-head {
   display: flex;

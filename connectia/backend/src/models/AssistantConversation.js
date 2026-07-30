@@ -48,6 +48,8 @@ const assistantConversationSchema = new mongoose.Schema(
   {
     tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    /** `u` = app miembro · `a` = AdminShell (hilos separados) */
+    channel: { type: String, enum: ['u', 'a'], default: 'u', index: true },
     title: { type: String, default: 'Asistente' },
     messages: { type: [messageSchema], default: [] },
     pendingAction: { type: pendingActionSchema, default: null },
@@ -56,6 +58,6 @@ const assistantConversationSchema = new mongoose.Schema(
   { timestamps: true },
 )
 
-assistantConversationSchema.index({ tenantId: 1, userId: 1, updatedAt: -1 })
+assistantConversationSchema.index({ tenantId: 1, userId: 1, channel: 1, updatedAt: -1 })
 
 export const AssistantConversation = mongoose.model('AssistantConversation', assistantConversationSchema)

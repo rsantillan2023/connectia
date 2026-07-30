@@ -13,6 +13,11 @@ import {
   distanceKm,
   normalizeCartItems,
   computeCartTotals,
+  inferOfferType,
+  applyOfferTypeToDoc,
+  offerTypeLabel,
+  benefitDirectionsUrl,
+  benefitMapsPinUrl,
 } from '../lib/benefits.js'
 
 describe('benefits ledger', () => {
@@ -75,8 +80,25 @@ describe('benefits serialize / patch', () => {
       costoPuntos: 500,
     })
     assert.equal(s.kindLabel, 'Premio')
+    assert.equal(s.offerType, 'premio')
+    assert.equal(s.offerTypeLabel, 'Premio / recompensa')
+    assert.equal(s.statusLabel, 'Publicado')
     assert.equal(s.categoriaLabel, 'Premios')
     assert.equal(s.active, true)
+    assert.equal(s.directionsUrl, '')
+
+    const geo = serializeBenefit({
+      _id: '507f1f77bcf86cd799439012',
+      kind: 'benefit',
+      titulo: 'Farmacia',
+      status: 'published',
+      lat: -34.6,
+      lng: -58.4,
+      sucursal: 'Centro',
+    })
+    assert.equal(geo.hasLocation, true)
+    assert.ok(geo.directionsUrl.includes('maps/dir'))
+    assert.ok(geo.mapsUrl.includes('maps/search'))
   })
 
   it('applyBenefitPatch valida titulo', () => {
@@ -88,6 +110,45 @@ describe('benefits serialize / patch', () => {
     assert.equal(doc.stock, 3)
   })
 
+  it('offerType tipología legado', () => {
+    assert.equal(inferOfferType({ kind: 'reward', costoPuntos: 100 }), 'premio')
+    assert.equal(inferOfferType({ partnerUrl: 'https://x' }), 'partner')
+    assert.equal(inferOfferType({ lat: -34, lng: -58 }), 'geo')
+    assert.equal(inferOfferType({ costoPuntos: 50 }), 'canjeable')
+    assert.equal(inferOfferType({ costoPuntos: 0 }), 'informativo')
+    assert.equal(offerTypeLabel('geo'), 'Con ubicación')
+
+    const doc = { titulo: 'A', costoPuntos: 0 }
+    applyOfferTypeToDoc(doc, 'premio')
+    assert.equal(doc.offerType, 'premio')
+    assert.equal(doc.kind, 'reward')
+    assert.ok(doc.costoPuntos > 0)
+
+    applyBenefitPatch(doc, { offerType: 'informativo', costoPuntos: 99 })
+    assert.equal(doc.offerType, 'informativo')
+    assert.equal(doc.costoPuntos, 0)
+    assert.equal(doc.kind, 'benefit')
+  })
+
+  it('Google Maps Directions URL', () => {
+    const dir = benefitDirectionsUrl({ lat: -34.6, lng: -58.4, titulo: 'Farmacia' })
+    assert.ok(dir.includes('google.com/maps/dir/'))
+    assert.ok(dir.includes('destination=-34.6%2C-58.4') || dir.includes('destination=-34.6,-58.4'))
+    assert.ok(dir.includes('travelmode=driving'))
+
+    const withOrigin = benefitDirectionsUrl(
+      { lat: -34.6, lng: -58.4 },
+      { originLat: -34.5, originLng: -58.5 },
+    )
+    assert.ok(withOrigin.includes('origin='))
+
+    const byPlace = benefitDirectionsUrl({ sucursal: 'Sucursal Centro' })
+    assert.ok(byPlace.includes('destination=Sucursal'))
+
+    assert.equal(benefitDirectionsUrl({}), '')
+    assert.ok(benefitMapsPinUrl({ lat: -34, lng: -58 }).includes('maps/search'))
+  })
+
   it('search filter', () => {
     assert.equal(buildBenefitSearchFilter('a'), null)
     assert.ok(buildBenefitSearchFilter('cafe').$or.length >= 3)
@@ -95,10 +156,12 @@ describe('benefits serialize / patch', () => {
 })
 
 describe('benefits seed', () => {
-  it('defaults con marca y al menos un reward', () => {
+  it('defaults con marca, tipología y al menos un reward', () => {
     const rows = defaultBenefitSeed('Acme')
     assert.ok(rows.length >= 3)
     assert.ok(rows.some((r) => r.kind === 'reward' && r.costoPuntos > 0))
+    assert.ok(rows.some((r) => r.offerType === 'geo'))
+    assert.ok(rows.some((r) => r.offerType === 'canjeable'))
     assert.ok(rows.some((r) => /Acme/.test(r.titulo)))
   })
 })

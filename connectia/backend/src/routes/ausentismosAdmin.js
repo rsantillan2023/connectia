@@ -8,6 +8,10 @@ import {
 } from '../lib/licenciasConfig.js'
 import { recordActivity, reqMeta } from '../lib/activityLog.js'
 import { notifyAbsenceDecided } from '../services/notifyTramite.js'
+import {
+  ecrAusentismoStatus,
+  persistEcrSync,
+} from '../services/ecrAusentismoAdapter.js'
 
 const router = Router()
 const cap = 'admin.ausentismos'
@@ -22,14 +26,9 @@ router.get('/tipos', (_req, res) => {
   res.json({ tipos: DEFAULT_ABSENCE_TYPES })
 })
 
-/** Estado de integración ECR (12.04) — diferida. */
-router.get('/ecr-status', (_req, res) => {
-  res.json({
-    enabled: false,
-    deferred: true,
-    endpoint: 'ausentismo.ecrgroup.cl',
-    note: 'Integración ECR diferible (ola 17 / 12.04). Las ausencias se gestionan en Connectia.',
-  })
+/** Estado de integración ECR (12.04). */
+router.get('/ecr-status', (req, res) => {
+  res.json(ecrAusentismoStatus(req.tenant))
 })
 
 router.get('/', async (req, res, next) => {
@@ -131,6 +130,15 @@ router.post('/:id/decide', async (req, res, next) => {
       at: new Date(),
     })
     await r.save()
+    try {
+      await persistEcrSync(r, {
+        tenant: req.tenant,
+        user: req.user,
+        event: 'decide',
+      })
+    } catch (syncErr) {
+      console.warn('[ecr] absence decide', syncErr?.message || syncErr)
+    }
     await recordActivity({
       tenantId: req.tenant._id,
       actor: req.user,
@@ -144,6 +152,36 @@ router.post('/:id/decide', async (req, res, next) => {
       console.warn('[notify] absence decide', err?.message || err),
     )
     res.json({ absence: serializeAbsence(r, { includeHistorial: true }) })
+  } catch (e) {
+    next(e)
+  }
+})
+
+/** Reintento manual de sync ECR (fallidos / pendientes). */
+router.post('/:id/ecr-retry', async (req, res, next) => {
+  try {
+    const r = await AbsenceRequest.findOne({ _id: req.params.id, tenantId: req.tenant._id })
+    if (!r) return res.status(404).json({ error: 'No encontrado' })
+    const event =
+      r.estado === 'cancelada' ? 'cancel' : r.estado === 'pendiente' ? 'create' : 'decide'
+    const result = await persistEcrSync(r, {
+      tenant: req.tenant,
+      user: req.user,
+      event,
+    })
+    await recordActivity({
+      tenantId: req.tenant._id,
+      actor: req.user,
+      action: 'absence.ecr_retry',
+      entityType: 'AbsenceRequest',
+      entityId: r._id,
+      summary: `${r.codigo} ecr→${result.status}`,
+      ...reqMeta(req),
+    })
+    res.json({
+      absence: serializeAbsence(r, { includeHistorial: true }),
+      ecr: result,
+    })
   } catch (e) {
     next(e)
   }

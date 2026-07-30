@@ -21,6 +21,7 @@ describe('audience', () => {
       areaIds: [],
       groupIds: [],
       userIds: [],
+      clientIds: [],
     })
   })
 

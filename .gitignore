@@ -1,7 +1,9 @@
-# Repos legacy (solo referencia local; no subir)
+# Repos legacy / testigo (solo referencia local; no subir)
 sooft_newapp_lite_back/
 sooft_user_microservicios/
 yomob-admin/
+sooft-frontend-supervisores/
+sooft-backend-supervisores/
 
 # Cursor / IDE
 .cursor/
@@ -34,3 +36,6 @@ Desktop.ini
 *.pid
 *.seed
 dump.rdb
+
+# Uploads runtime (generados en local; no versionar)
+connectia/backend/uploads/

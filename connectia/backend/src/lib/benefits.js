@@ -6,6 +6,40 @@
 export const BENEFIT_KINDS = ['benefit', 'reward']
 export const BENEFIT_STATUSES = ['draft', 'published', 'archived']
 
+/** Tipología producto (admin wizard · paridad legado). */
+export const BENEFIT_OFFER_TYPES = [
+  {
+    id: 'informativo',
+    label: 'Informativo / convenio',
+    hint: 'Descuento o perk sin gastar puntos. Solo lectura y condiciones.',
+    kind: 'benefit',
+  },
+  {
+    id: 'canjeable',
+    label: 'Canjeable con puntos',
+    hint: 'Se canjea con puntos: código/QR, stock y cupos.',
+    kind: 'benefit',
+  },
+  {
+    id: 'premio',
+    label: 'Premio / recompensa',
+    hint: 'Catálogo de premios canjeables (gift card, día libre…).',
+    kind: 'reward',
+  },
+  {
+    id: 'geo',
+    label: 'Con ubicación',
+    hint: 'Sucursal o punto en el mapa de la app.',
+    kind: 'benefit',
+  },
+  {
+    id: 'partner',
+    label: 'Link / partner',
+    hint: 'Abre URL de un partner; ideal con imagen y nombre.',
+    kind: 'benefit',
+  },
+]
+
 export const BENEFIT_CATEGORIES = [
   { id: 'descuentos', label: 'Descuentos' },
   { id: 'salud', label: 'Salud y bienestar' },
@@ -16,6 +50,8 @@ export const BENEFIT_CATEGORIES = [
   { id: 'premios', label: 'Premios' },
   { id: 'otros', label: 'Otros' },
 ]
+
+const OFFER_TYPE_IDS = BENEFIT_OFFER_TYPES.map((t) => t.id)
 
 export const WALLET_TX_TYPES = [
   'credit',
@@ -33,8 +69,18 @@ export function kindLabel(kind) {
   return kind === 'reward' ? 'Premio' : 'Beneficio'
 }
 
+export function statusLabel(status) {
+  if (status === 'published') return 'Publicado'
+  if (status === 'archived') return 'Archivado'
+  return 'Borrador'
+}
+
 export function categoryLabel(id) {
   return BENEFIT_CATEGORIES.find((c) => c.id === id)?.label || id || 'Otros'
+}
+
+export function offerTypeLabel(id) {
+  return BENEFIT_OFFER_TYPES.find((t) => t.id === id)?.label || id || 'Beneficio'
 }
 
 export function normalizeBenefitKind(raw) {
@@ -43,6 +89,52 @@ export function normalizeBenefitKind(raw) {
 
 export function normalizeBenefitStatus(raw) {
   return BENEFIT_STATUSES.includes(raw) ? raw : 'draft'
+}
+
+export function normalizeOfferType(raw) {
+  const id = String(raw || '').trim().toLowerCase()
+  return OFFER_TYPE_IDS.includes(id) ? id : null
+}
+
+/**
+ * Infere tipología producto desde campos existentes (docs sin offerType).
+ * Prioridad: offerType guardado → premio → partner → geo → canjeable → informativo.
+ */
+export function inferOfferType(doc = {}) {
+  const stored = normalizeOfferType(doc.offerType)
+  if (stored) return stored
+  if (normalizeBenefitKind(doc.kind) === 'reward') return 'premio'
+  if (String(doc.partnerUrl || '').trim()) return 'partner'
+  const hasGeo =
+    (doc.lat != null && Number.isFinite(Number(doc.lat))) ||
+    (doc.lng != null && Number.isFinite(Number(doc.lng))) ||
+    Boolean(String(doc.sucursal || '').trim())
+  if (hasGeo) return 'geo'
+  if (Number(doc.costoPuntos || 0) > 0) return 'canjeable'
+  return 'informativo'
+}
+
+/**
+ * Ajusta kind / defaults mínimos al elegir tipología (no borra título ni imagen).
+ */
+export function applyOfferTypeToDoc(doc, offerTypeRaw) {
+  const offerType = normalizeOfferType(offerTypeRaw)
+  if (!offerType) return doc
+  doc.offerType = offerType
+  const meta = BENEFIT_OFFER_TYPES.find((t) => t.id === offerType)
+  if (meta?.kind) doc.kind = meta.kind
+  if (offerType === 'informativo') {
+    doc.costoPuntos = 0
+  }
+  if (offerType === 'premio' || offerType === 'canjeable') {
+    if (doc.costoPuntos == null || Number(doc.costoPuntos) <= 0) {
+      doc.costoPuntos = offerType === 'premio' ? 500 : 100
+    }
+  }
+  if (offerType === 'premio' && (!doc.categoria || doc.categoria === 'otros')) {
+    doc.categoria = 'premios'
+  }
+  return doc
 }
 
 export function normalizeCategory(raw) {
@@ -138,10 +230,14 @@ export function serializeBenefit(doc, extras = {}) {
   if (!doc) return null
   const id = String(doc._id || doc.id)
   const kind = normalizeBenefitKind(doc.kind)
+  const offerType = inferOfferType(doc)
+  const status = doc.status || 'draft'
   return {
     id,
     kind,
     kindLabel: kindLabel(kind),
+    offerType,
+    offerTypeLabel: offerTypeLabel(offerType),
     titulo: doc.titulo || '',
     descripcion: doc.descripcion || '',
     condiciones: doc.condiciones || '',
@@ -157,11 +253,28 @@ export function serializeBenefit(doc, extras = {}) {
     limitePorUsuario: doc.limitePorUsuario == null ? null : Number(doc.limitePorUsuario),
     vigenciaDesde: doc.vigenciaDesde || null,
     vigenciaHasta: doc.vigenciaHasta || null,
-    status: doc.status || 'draft',
+    status,
+    statusLabel: statusLabel(status),
     audience: doc.audience || { mode: 'all', areaIds: [], groupIds: [], userIds: [] },
     sucursal: doc.sucursal || '',
     lat: doc.lat ?? null,
     lng: doc.lng ?? null,
+    hasLocation:
+      (doc.lat != null &&
+        Number.isFinite(Number(doc.lat)) &&
+        doc.lng != null &&
+        Number.isFinite(Number(doc.lng))) ||
+      Boolean(String(doc.sucursal || '').trim()),
+    directionsUrl: benefitDirectionsUrl({
+      lat: doc.lat,
+      lng: doc.lng,
+      sucursal: doc.sucursal,
+    }),
+    mapsUrl: benefitMapsPinUrl({
+      lat: doc.lat,
+      lng: doc.lng,
+      sucursal: doc.sucursal,
+    }),
     destacado: Boolean(doc.destacado),
     orden: Number(doc.orden ?? 100),
     active: isBenefitActiveNow(doc),
@@ -206,8 +319,9 @@ export function serializePartnerLink(doc) {
 export function benefitsMeta() {
   return {
     kinds: BENEFIT_KINDS.map((k) => ({ id: k, label: kindLabel(k) })),
+    offerTypes: BENEFIT_OFFER_TYPES,
     categories: BENEFIT_CATEGORIES,
-    statuses: BENEFIT_STATUSES,
+    statuses: BENEFIT_STATUSES.map((s) => ({ id: s, label: statusLabel(s) })),
   }
 }
 
@@ -233,7 +347,54 @@ export function distanceKm(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
 }
 
+/**
+ * URL Google Maps Directions (“cómo llegar”).
+ * Con origen → ruta origen→destino; sin origen → Google pide/usa ubicación del dispositivo.
+ * @param {{ lat?: number|null, lng?: number|null, sucursal?: string, titulo?: string }} dest
+ * @param {{ originLat?: number|null, originLng?: number|null }} [origin]
+ * @returns {string} URL o '' si no hay destino usable
+ */
+export function benefitDirectionsUrl(dest = {}, origin = {}) {
+  const dLat = dest.lat == null || dest.lat === '' ? null : Number(dest.lat)
+  const dLng = dest.lng == null || dest.lng === '' ? null : Number(dest.lng)
+  const hasCoords = Number.isFinite(dLat) && Number.isFinite(dLng)
+  const place = String(dest.sucursal || '').trim()
+  if (!hasCoords && !place) return ''
+
+  const destination = hasCoords ? `${dLat},${dLng}` : place
+
+  const params = new URLSearchParams({
+    api: '1',
+    destination,
+    travelmode: 'driving',
+  })
+
+  const oLat = origin.originLat == null || origin.originLat === '' ? null : Number(origin.originLat)
+  const oLng = origin.originLng == null || origin.originLng === '' ? null : Number(origin.originLng)
+  if (Number.isFinite(oLat) && Number.isFinite(oLng)) {
+    params.set('origin', `${oLat},${oLng}`)
+  }
+
+  return `https://www.google.com/maps/dir/?${params.toString()}`
+}
+
+/** Pin / búsqueda en Google Maps (sin ruta). */
+export function benefitMapsPinUrl(dest = {}) {
+  const dLat = dest.lat == null || dest.lat === '' ? null : Number(dest.lat)
+  const dLng = dest.lng == null || dest.lng === '' ? null : Number(dest.lng)
+  if (Number.isFinite(dLat) && Number.isFinite(dLng)) {
+    return `https://www.google.com/maps/search/?api=1&query=${dLat},${dLng}`
+  }
+  const q = String(dest.sucursal || '').trim()
+  if (!q) return ''
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`
+}
+
 export function applyBenefitPatch(doc, body = {}) {
+  if (body.offerType !== undefined) {
+    const ot = normalizeOfferType(body.offerType)
+    if (ot) applyOfferTypeToDoc(doc, ot)
+  }
   if (body.titulo !== undefined) {
     const t = String(body.titulo || '').trim()
     if (!t) {
@@ -296,6 +457,15 @@ export function applyBenefitPatch(doc, body = {}) {
     const n = Number(body.orden)
     doc.orden = Number.isFinite(n) ? n : 100
   }
+  // Re-sync offerType if not explicitly set but fields imply one, keep stored
+  if (body.offerType === undefined && !doc.offerType) {
+    doc.offerType = inferOfferType(doc)
+  } else if (doc.offerType) {
+    const meta = BENEFIT_OFFER_TYPES.find((t) => t.id === doc.offerType)
+    if (meta?.kind && body.kind === undefined) doc.kind = meta.kind
+  }
+  if (doc.offerType === 'informativo') doc.costoPuntos = 0
+  if (doc.offerType === 'premio') doc.kind = 'reward'
   return doc
 }
 
@@ -303,6 +473,7 @@ export function defaultBenefitSeed(brand = 'la empresa') {
   return [
     {
       kind: 'benefit',
+      offerType: 'informativo',
       titulo: `Descuento en partner — ${brand}`,
       descripcion: 'Presentá tu credencial digital y obtené 15% en comercios adheridos.',
       condiciones: 'Válido para colaboradores activos. No acumulable con otras promociones.',
@@ -315,6 +486,7 @@ export function defaultBenefitSeed(brand = 'la empresa') {
     },
     {
       kind: 'benefit',
+      offerType: 'informativo',
       titulo: 'Gimnasio y bienestar',
       descripcion: 'Acceso preferencial a centros de bienestar con convenio corporativo.',
       condiciones: 'Cupo sujeto a disponibilidad. Consultá horarios en la ficha.',
@@ -325,7 +497,23 @@ export function defaultBenefitSeed(brand = 'la empresa') {
       orden: 20,
     },
     {
+      kind: 'benefit',
+      offerType: 'geo',
+      titulo: 'Farmacia adherida — sucursal centro',
+      descripcion: 'Descuento en farmacia cercana. Ver punto en el mapa de beneficios.',
+      condiciones: 'Presentá DNI laboral. Horario de lunes a viernes.',
+      categoria: 'salud',
+      imageUrl: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=900&q=80',
+      costoPuntos: 0,
+      sucursal: 'Centro',
+      lat: -34.6037,
+      lng: -58.3816,
+      status: 'published',
+      orden: 25,
+    },
+    {
       kind: 'reward',
+      offerType: 'premio',
       titulo: 'Gift card café',
       descripcion: 'Canjeá puntos por una gift card de cafetería.',
       condiciones: 'Costo 500 puntos. Un canje por mes.',
@@ -339,6 +527,7 @@ export function defaultBenefitSeed(brand = 'la empresa') {
     },
     {
       kind: 'reward',
+      offerType: 'premio',
       titulo: 'Día libre extra',
       descripcion: 'Canjeá puntos por media jornada libre (sujeto a aprobación de tu líder).',
       condiciones: 'Costo 2000 puntos. No aplica en fechas críticas del negocio.',
@@ -349,6 +538,19 @@ export function defaultBenefitSeed(brand = 'la empresa') {
       limitePorUsuario: 1,
       status: 'published',
       orden: 40,
+    },
+    {
+      kind: 'benefit',
+      offerType: 'canjeable',
+      titulo: 'Merchandising club',
+      descripcion: 'Canjeá puntos por un ítem de merchandising de la comunidad.',
+      condiciones: 'Stock limitado. Retiro en recepción.',
+      categoria: 'otros',
+      imageUrl: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=900&q=80',
+      costoPuntos: 300,
+      stock: 40,
+      status: 'published',
+      orden: 35,
     },
   ]
 }

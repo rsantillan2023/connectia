@@ -20,6 +20,84 @@
       </div>
     </header>
 
+    <section class="rules-block">
+      <div class="rules-head">
+        <div>
+          <h2>Reglas automáticas</h2>
+          <p class="muted-p">
+            Arman y envían un newsletter solas cada tantas horas, sin pasar por moderación manual.
+          </p>
+        </div>
+        <button type="button" class="btn-ghost" @click="openRuleForm()">+ Nueva regla</button>
+      </div>
+      <p v-if="rulesError" class="err">{{ rulesError }}</p>
+      <div class="rules-list" v-if="rules.length">
+        <article v-for="r in rules" :key="r.id" class="rule-row">
+          <div class="rule-main">
+            <strong>{{ r.nombre }}</strong>
+            <span class="muted">
+              cada {{ r.intervalHours }}h · {{ r.postCount }} pub{{ r.postCount === 1 ? '' : 's' }}
+              · {{ r.selectMode === 'pinned_first' ? 'fijadas primero' : 'más recientes' }}
+            </span>
+            <span class="muted">
+              Próxima corrida: {{ formatDate(r.nextRunAt) }}
+              <template v-if="r.lastRunAt"> · última: {{ formatDate(r.lastRunAt) }}</template>
+            </span>
+          </div>
+          <div class="rule-actions">
+            <button type="button" class="link-btn" :disabled="rulesBusy" @click="toggleRuleEnabled(r)">
+              {{ r.enabled ? 'Pausar' : 'Activar' }}
+            </button>
+            <button type="button" class="link-btn danger" :disabled="rulesBusy" @click="deleteRule(r)">Eliminar</button>
+          </div>
+        </article>
+      </div>
+      <p v-else class="empty-sm">Todavía no hay reglas automáticas creadas.</p>
+
+      <div v-if="ruleFormOpen" class="sheet" @click.self="ruleFormOpen = false">
+        <div class="sheet-panel rule-form-panel" role="dialog" aria-modal="true">
+          <header class="sheet-head">
+            <div>
+              <h2>Nueva regla</h2>
+              <p>Se arma y envía sola, sin pasar por revisión manual.</p>
+            </div>
+            <button type="button" class="icon-btn" aria-label="Cerrar" @click="ruleFormOpen = false">×</button>
+          </header>
+          <form class="sheet-form" @submit.prevent="createRule">
+            <label class="field">
+              <span>Nombre</span>
+              <input v-model="ruleForm.nombre" class="input" required maxlength="120" placeholder="Ej: Boletín semanal" />
+            </label>
+            <label class="field">
+              <span>Cada cuántas horas</span>
+              <input v-model.number="ruleForm.intervalHours" class="input" type="number" min="1" required />
+            </label>
+            <label class="field">
+              <span>Cantidad de publicaciones</span>
+              <input v-model.number="ruleForm.postCount" class="input" type="number" min="1" required />
+            </label>
+            <label class="field">
+              <span>Cómo elegirlas</span>
+              <select v-model="ruleForm.selectMode" class="input">
+                <option value="latest">Más recientes</option>
+                <option value="pinned_first">Fijadas primero</option>
+              </select>
+            </label>
+            <label class="field-inline">
+              <input v-model="ruleForm.enabled" type="checkbox" />
+              <span>Activa</span>
+            </label>
+          </form>
+          <footer class="sheet-foot">
+            <button type="button" class="btn-ghost" @click="ruleFormOpen = false">Cancelar</button>
+            <button type="button" class="btn-primary" :disabled="rulesBusy || !ruleForm.nombre.trim()" @click="createRule">
+              {{ rulesBusy ? 'Creando…' : 'Crear regla' }}
+            </button>
+          </footer>
+        </div>
+      </div>
+    </section>
+
     <div class="filters">
       <button
         v-for="f in statusFilters"
@@ -325,6 +403,12 @@ const htmlPreview = ref('')
 const recQ = ref('')
 const addEmail = ref('')
 const addNombre = ref('')
+
+const rules = ref([])
+const rulesError = ref('')
+const rulesBusy = ref(false)
+const ruleFormOpen = ref(false)
+const ruleForm = ref({ nombre: '', intervalHours: 24, postCount: 5, selectMode: 'latest', enabled: true })
 
 const statusFilters = [
   { value: '', label: 'Todos' },
@@ -716,15 +800,73 @@ async function downloadPdf(id, subject = '') {
   }
 }
 
+async function loadRules() {
+  rulesError.value = ''
+  try {
+    const { data } = await api.get('/admin/newsletters/rules')
+    rules.value = data.rules || []
+  } catch (e) {
+    rulesError.value = e.response?.data?.error || e.message || 'No se pudieron cargar las reglas'
+  }
+}
+
+function openRuleForm() {
+  ruleForm.value = { nombre: '', intervalHours: 24, postCount: 5, selectMode: 'latest', enabled: true }
+  ruleFormOpen.value = true
+}
+
+async function createRule() {
+  if (!ruleForm.value.nombre.trim()) return
+  rulesBusy.value = true
+  rulesError.value = ''
+  try {
+    await api.post('/admin/newsletters/rules', { ...ruleForm.value })
+    ruleFormOpen.value = false
+    await loadRules()
+  } catch (e) {
+    rulesError.value = e.response?.data?.error || e.message || 'No se pudo crear la regla'
+  } finally {
+    rulesBusy.value = false
+  }
+}
+
+async function toggleRuleEnabled(r) {
+  rulesBusy.value = true
+  rulesError.value = ''
+  try {
+    await api.patch(`/admin/newsletters/rules/${r.id}`, { enabled: !r.enabled })
+    await loadRules()
+  } catch (e) {
+    rulesError.value = e.response?.data?.error || e.message || 'No se pudo actualizar la regla'
+  } finally {
+    rulesBusy.value = false
+  }
+}
+
+async function deleteRule(r) {
+  if (!window.confirm(`¿Eliminar la regla "${r.nombre}"?`)) return
+  rulesBusy.value = true
+  rulesError.value = ''
+  try {
+    await api.delete(`/admin/newsletters/rules/${r.id}`)
+    await loadRules()
+  } catch (e) {
+    rulesError.value = e.response?.data?.error || e.message || 'No se pudo eliminar la regla'
+  } finally {
+    rulesBusy.value = false
+  }
+}
+
 onMounted(async () => {
   await load()
+  await loadRules()
   const openId = String(route.query.id || '')
   if (openId) openDetail(openId)
 })
 </script>
 
 <style scoped>
-.nls { max-width: 1100px; color: var(--cx-text); }
+.nls { max-width: none; color: var(--cx-text); }
 .nls-hero { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
 .nls-hero h1 { margin: 0; font-size: 1.55rem; font-weight: 700; }
 .nls-hero p { margin: 6px 0 0; max-width: 58ch; font-size: 14px; color: var(--cx-muted); line-height: 1.45; }
@@ -733,42 +875,42 @@ onMounted(async () => {
   border-radius: 12px; padding: 11px 16px; font-weight: 700; font-size: 14px; text-decoration: none;
   display: inline-flex; align-items: center;
 }
-.btn-primary, a.btn-primary { border: 0; background: #0f766e; color: #fff; }
+.btn-primary, a.btn-primary { border: 0; background: var(--brand-primary); color: #fff; }
 .btn-ghost { border: 1px solid var(--cx-border); background: transparent; color: var(--cx-text); font-weight: 600; }
-.btn-ghost.danger { color: #b91c1c; border-color: color-mix(in srgb, #b91c1c 35%, var(--cx-border)); }
+.btn-ghost.danger { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 35%, var(--cx-border)); }
 .filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
 .chip {
   border: 1px solid var(--cx-border); background: var(--cx-surface); color: var(--cx-text);
   border-radius: 999px; padding: 8px 14px; font-size: 13px; font-weight: 600;
 }
-.chip.on { background: #0f766e; border-color: #0f766e; color: #fff; }
+.chip.on { background: var(--brand-primary); border-color: var(--brand-primary); color: #fff; }
 .list { display: grid; gap: 10px; }
 .row {
   display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px;
   border: 1px solid var(--cx-border); background: var(--cx-surface); border-radius: 16px; padding: 14px; cursor: pointer;
 }
-.row:hover { border-color: #0f766e; }
+.row:hover { border-color: var(--brand-primary); }
 .meta { display: flex; flex-wrap: wrap; gap: 8px; font-size: 12px; color: var(--cx-muted); margin-bottom: 6px; }
 .row h2 { margin: 0; font-size: 1.05rem; }
 .excerpt { margin: 6px 0 0; font-size: 13px; color: var(--cx-muted); }
 .empty { text-align: center; color: var(--cx-muted); padding: 28px; }
-.err { color: #b91c1c; background: #fef2f2; border-radius: 12px; padding: 10px 12px; font-size: 13px; }
-.warn { color: #92400e; background: #fffbeb; border-radius: 12px; padding: 10px 12px; font-size: 13px; margin-bottom: 12px; }
-.ok { color: #065f46; background: #ecfdf5; border-radius: 12px; padding: 10px 12px; font-size: 13px; font-weight: 600; }
+.err { color: var(--bad); background: var(--bad-bg); border-radius: 12px; padding: 10px 12px; font-size: 13px; }
+.warn { color: var(--warn); background: #fffbeb; border-radius: 12px; padding: 10px 12px; font-size: 13px; margin-bottom: 12px; }
+.ok { color: var(--ok); background: var(--ok-bg); border-radius: 12px; padding: 10px 12px; font-size: 13px; font-weight: 600; }
 .status-badge {
   display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
   padding: 3px 8px; border-radius: 6px; background: #e5e7eb; color: #374151;
 }
-.status-badge[data-status='pending_review'] { background: #fef3c7; color: #92400e; }
+.status-badge[data-status='pending_review'] { background: var(--warn-bg); color: var(--warn); }
 .status-badge[data-status='approved'] { background: #dbeafe; color: #1e40af; }
-.status-badge[data-status='sent'] { background: #d1fae5; color: #065f46; }
-.status-badge[data-status='rejected'] { background: #fee2e2; color: #991b1b; }
+.status-badge[data-status='sent'] { background: var(--ok-bg); color: var(--ok); }
+.status-badge[data-status='rejected'] { background: var(--bad-bg); color: var(--bad); }
 .status-badge[data-status='cancelled'] { background: #f3f4f6; color: #6b7280; }
 .status-badge[data-status='sending'] { background: #e0e7ff; color: #3730a3; }
 .status-badge.inline { vertical-align: middle; }
-.link-btn { border: 0; background: transparent; color: #0f766e; font-weight: 600; font-size: 13px; cursor: pointer; white-space: nowrap; }
+.link-btn { border: 0; background: transparent; color: var(--brand-primary); font-weight: 600; font-size: 13px; cursor: pointer; white-space: nowrap; }
 .link-btn:disabled { opacity: 0.55; cursor: wait; }
-.link-btn.danger { color: #b91c1c; }
+.link-btn.danger { color: var(--bad); }
 .row-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: flex-end; }
 .sheet {
   position: fixed; inset: 0; z-index: 80; background: rgba(15, 23, 42, 0.5);
@@ -783,7 +925,7 @@ onMounted(async () => {
 }
 .sheet-head h2 { margin: 0; font-size: 1.2rem; }
 .sheet-head p { margin: 4px 0 0; font-size: 13px; color: var(--cx-muted); }
-.kicker { font-size: 11px !important; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #0f766e !important; }
+.kicker { font-size: 11px !important; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--brand-primary) !important; }
 .sheet-form { padding: 16px 20px; overflow-y: auto; flex: 1; }
 .sheet-foot {
   display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; align-items: center;
@@ -805,7 +947,7 @@ onMounted(async () => {
 .posts li {
   display: grid; gap: 2px; padding: 10px 12px; border: 1px solid var(--cx-border); border-radius: 12px;
 }
-.tipo { font-size: 11px; font-weight: 700; color: #0f766e; text-transform: uppercase; }
+.tipo { font-size: 11px; font-weight: 700; color: var(--brand-primary); text-transform: uppercase; }
 .muted { color: var(--cx-muted); font-size: 12px; }
 .variant {
   border: 1px solid var(--cx-border); border-radius: 14px; padding: 12px; margin-bottom: 10px;
@@ -813,12 +955,12 @@ onMounted(async () => {
 }
 .variant-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
 .ai-tag {
-  font-size: 10px; font-weight: 700; text-transform: uppercase; color: #0f766e;
-  background: color-mix(in srgb, #0f766e 12%, transparent); border-radius: 6px; padding: 2px 6px;
+  font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary) 12%, transparent); border-radius: 6px; padding: 2px 6px;
 }
 .variant blockquote {
-  margin: 0 0 8px; padding: 10px 12px; border-left: 3px solid #0f766e; border-radius: 0 10px 10px 0;
-  background: color-mix(in srgb, #0f766e 8%, transparent); font-size: 14px; line-height: 1.5;
+  margin: 0 0 8px; padding: 10px 12px; border-left: 3px solid var(--brand-primary); border-radius: 0 10px 10px 0;
+  background: color-mix(in srgb, var(--brand-primary) 8%, transparent); font-size: 14px; line-height: 1.5;
 }
 .stats-row {
   display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px;
@@ -826,7 +968,7 @@ onMounted(async () => {
 .stats-row div {
   text-align: center; padding: 10px; border-radius: 12px; border: 1px solid var(--cx-border);
 }
-.stats-row strong { display: block; font-size: 1.2rem; color: #0f766e; }
+.stats-row strong { display: block; font-size: 1.2rem; color: var(--brand-primary); }
 .stats-row span { font-size: 11px; color: var(--cx-muted); }
 .table-wrap { overflow-x: auto; border: 1px solid var(--cx-border); border-radius: 12px; }
 .rec-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
@@ -842,23 +984,43 @@ onMounted(async () => {
 }
 .ext-tag {
   display: inline-block; margin-left: 6px; font-size: 10px; font-weight: 700;
-  text-transform: uppercase; color: #0f766e;
-  background: color-mix(in srgb, #0f766e 12%, transparent);
+  text-transform: uppercase; color: var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
   border-radius: 6px; padding: 2px 6px;
 }
 .grid tbody tr.off { opacity: 0.55; }
 .org-cell { font-size: 12px; max-width: 220px; }
 .grid { width: 100%; border-collapse: collapse; font-size: 13px; }
 .grid th, .grid td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--cx-border); }
-.deliv[data-s='sent'] { color: #065f46; font-weight: 600; }
-.deliv[data-s='failed'] { color: #b91c1c; font-weight: 600; }
+.deliv[data-s='sent'] { color: var(--ok); font-weight: 600; }
+.deliv[data-s='failed'] { color: var(--bad); font-weight: 600; }
 .deliv[data-s='skipped'] { color: #6b7280; }
 .audit { margin: 0; padding-left: 18px; display: grid; gap: 8px; font-size: 13px; }
 .audit time { color: var(--cx-muted); font-size: 12px; margin-right: 6px; }
 .preview-frame {
-  width: 100%; height: 360px; border: 1px solid var(--cx-border); border-radius: 12px; background: #fff;
+  width: 100%; height: 360px; border: 1px solid var(--cx-border); border-radius: 12px; background: var(--panel);
 }
 @media (max-width: 700px) {
   .stats-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+.rules-block {
+  border: 1px solid var(--cx-border); background: var(--cx-surface); border-radius: 16px;
+  padding: 16px; margin-bottom: 18px;
+}
+.rules-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.rules-head h2 { margin: 0; font-size: 1.05rem; }
+.muted-p { margin: 4px 0 0; font-size: 13px; color: var(--cx-muted); max-width: 60ch; }
+.rules-list { display: grid; gap: 8px; }
+.rule-row {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+  border: 1px solid var(--cx-border); border-radius: 12px; padding: 10px 12px;
+}
+.rule-main { display: grid; gap: 2px; }
+.rule-main strong { font-size: 14px; }
+.rule-main .muted { font-size: 12px; color: var(--cx-muted); }
+.rule-actions { display: flex; gap: 10px; }
+.empty-sm { color: var(--cx-muted); font-size: 13px; padding: 8px 0; margin: 0; }
+.rule-form-panel { width: min(440px, 100%); }
+.field { display: grid; gap: 6px; margin-bottom: 14px; font-size: 13px; font-weight: 600; }
+.field-inline { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; margin-bottom: 10px; }
 </style>

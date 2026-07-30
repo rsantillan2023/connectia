@@ -14,6 +14,25 @@ const menuItemSchema = new mongoose.Schema(
     },
     channel: { type: String, enum: ['u', 'a', 'both'], default: 'u' },
     activo: { type: Boolean, default: true },
+    /** Si true, aparece en la botonera inferior de la app U (Ola 3 · 04.16). */
+    showInTabbar: { type: Boolean, default: false },
+    /** Orden dentro de la tabbar (menor = más a la izquierda). */
+    tabOrder: { type: Number, default: 100 },
+    /** Canal admin: también en el sidebar derecho del MainLayout. */
+    showInAdminSidebar: { type: Boolean, default: false },
+    /** Canal admin: también en el menú superior (quick links). */
+    showInAdminHeader: { type: Boolean, default: false },
+    /**
+     * Acción al tocar (Ola 3 · 04.04).
+     * navigate = ir a route (default); compose_post = abrir composer UGC con params.
+     */
+    actionType: {
+      type: String,
+      enum: ['navigate', 'compose_post'],
+      default: 'navigate',
+    },
+    /** Params de acción: { tipo, categoryId, section, isKnowledge } */
+    actionParams: { type: mongoose.Schema.Types.Mixed, default: {} },
   },
   { timestamps: true },
 )

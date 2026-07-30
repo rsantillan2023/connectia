@@ -26,6 +26,12 @@ import {
 } from '../lib/audience.js'
 import { toPublicMediaUrl } from '../lib/mediaUrl.js'
 import { startWorkflowForOrigin } from '../services/workflowRuntime.js'
+import {
+  notifyRequestCreated,
+  notifyRequestGenerated,
+  notifyRequestMessage,
+  notifyRequestStateChanged,
+} from '../services/notifyRequest.js'
 
 const router = Router()
 const ObjectId = mongoose.Types.ObjectId
@@ -314,7 +320,10 @@ router.post('/broadcast', requireAuth, requireCapability('admin.solicitudes'), a
       ],
     }))
 
-    await Request.insertMany(docs)
+    const inserted = await Request.insertMany(docs)
+    notifyRequestGenerated({ tenant: req.tenant, requests: inserted, cfg }).catch((err) =>
+      console.warn('[notify-request] generated:', err?.message || err),
+    )
     res.status(201).json({
       campaignId,
       created: docs.length,
@@ -546,6 +555,10 @@ router.post('/', requireAuth, async (req, res, next) => {
       console.warn('[workflow] no se pudo iniciar instancia', wfErr?.message || wfErr)
     }
 
+    notifyRequestCreated({ tenant: req.tenant, request: r, cfg }).catch((err) =>
+      console.warn('[notify-request] created:', err?.message || err),
+    )
+
     res.status(201).json({ request: serialize(r, { cfg }) })
   } catch (e) {
     next(e)
@@ -585,11 +598,28 @@ router.post('/:id/complete', requireAuth, async (req, res, next) => {
     })
 
     const activos = new Set(activeStates(cfg).map((e) => e.key))
+    const fromEstado = r.estado
     if (r.estado === 'a_completar' && activos.has('en_proceso')) {
       r.estado = 'en_proceso'
     }
 
     await r.save()
+
+    const lastMsg = r.messages[r.messages.length - 1]
+    notifyRequestMessage({ tenant: req.tenant, request: r, message: lastMsg, cfg }).catch((err) =>
+      console.warn('[notify-request] complete-msg:', err?.message || err),
+    )
+    if (fromEstado !== r.estado) {
+      notifyRequestStateChanged({
+        tenant: req.tenant,
+        request: r,
+        fromEstado,
+        toEstado: r.estado,
+        cfg,
+        actorId: req.user._id,
+      }).catch((err) => console.warn('[notify-request] complete-state:', err?.message || err))
+    }
+
     res.json({ request: serialize(r, { cfg }) })
   } catch (e) {
     next(e)
@@ -610,6 +640,7 @@ router.post('/:id/messages', requireAuth, async (req, res, next) => {
     const admin = canManageRequests(req.user, req.tenant)
     const interno = Boolean(req.body?.interno) && admin
     const terminales = new Set(cfg.estadosTerminales || [])
+    const fromEstado = r.estado
 
     if (terminales.has(r.estado) && !admin) {
       return res.status(400).json({ error: 'La solicitud está cerrada' })
@@ -637,6 +668,22 @@ router.post('/:id/messages', requireAuth, async (req, res, next) => {
     }
 
     await r.save()
+
+    const lastMsg = r.messages[r.messages.length - 1]
+    notifyRequestMessage({ tenant: req.tenant, request: r, message: lastMsg, cfg }).catch((err) =>
+      console.warn('[notify-request] message:', err?.message || err),
+    )
+    if (fromEstado !== r.estado) {
+      notifyRequestStateChanged({
+        tenant: req.tenant,
+        request: r,
+        fromEstado,
+        toEstado: r.estado,
+        cfg,
+        actorId: req.user._id,
+      }).catch((err) => console.warn('[notify-request] message-state:', err?.message || err))
+    }
+
     res.status(201).json({
       request: serialize(r, { includeInternal: admin, cfg }),
       transitions: allowedTransitions(cfg, r.estado, { isAdmin: admin }),
@@ -656,6 +703,8 @@ router.patch('/:id', requireAuth, async (req, res, next) => {
     const body = req.body || {}
     const admin = canManageRequests(req.user, req.tenant)
     const activos = new Set(activeStates(cfg).map((e) => e.key))
+    const fromEstado = r.estado
+    const fromArea = r.area
 
     if (body.estado) {
       if (!activos.has(body.estado)) {
@@ -703,6 +752,20 @@ router.patch('/:id', requireAuth, async (req, res, next) => {
     }
 
     await r.save()
+
+    if (fromEstado !== r.estado || fromArea !== r.area) {
+      notifyRequestStateChanged({
+        tenant: req.tenant,
+        request: r,
+        fromEstado,
+        toEstado: r.estado,
+        fromArea,
+        toArea: r.area,
+        cfg,
+        actorId: req.user._id,
+      }).catch((err) => console.warn('[notify-request] patch:', err?.message || err))
+    }
+
     res.json({
       request: serialize(r, { includeInternal: admin, cfg }),
       transitions: allowedTransitions(cfg, r.estado, { isAdmin: admin }),

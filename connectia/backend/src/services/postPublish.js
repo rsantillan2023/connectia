@@ -1,5 +1,6 @@
 import { Post } from '../models/Post.js'
 import { Tenant } from '../models/Tenant.js'
+import { processPostLifecycle } from '../lib/postLifecycle.js'
 import { notifyPostPublished } from './notifyPost.js'
 
 /**
@@ -31,4 +32,9 @@ export async function processDueScheduledPosts(now = new Date()) {
     }
   }
   return results
+}
+
+/** Desfijar por pinnedUntil + archivar por expiresAt (Ola 36 a/b). */
+export async function processDuePostLifecycle(now = new Date()) {
+  return processPostLifecycle(Post, now)
 }

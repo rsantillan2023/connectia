@@ -2,15 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Color base producto = lila Talent (#8554C9) — login sin empresa / fallbacks */
 :root,
 [data-theme='light'] {
   --font-sans: 'Montserrat', system-ui, sans-serif;
   --font-display: 'Montserrat', system-ui, sans-serif;
-  --brand-primary: #0f766e;
-  --brand-secondary: #115e59;
+  --brand-primary: #8554c9;
+  --brand-secondary: #6b3fa0;
   --cx-page: #f8fafc;
-  --cx-page-glow-a: rgba(15, 118, 110, 0.18);
-  --cx-page-glow-b: rgba(20, 184, 166, 0.12);
+  --cx-page-glow-a: rgba(133, 84, 201, 0.18);
+  --cx-page-glow-b: rgba(168, 125, 222, 0.12);
   --cx-surface: #ffffff;
   --cx-surface-2: #f8fafc;
   --cx-text: #0f172a;
@@ -24,11 +25,11 @@
 }
 
 [data-theme='dark'] {
-  --brand-primary: #2dd4bf;
-  --brand-secondary: #14b8a6;
+  --brand-primary: #a78bfa;
+  --brand-secondary: #8554c9;
   --cx-page: #0b1220;
-  --cx-page-glow-a: rgba(45, 212, 191, 0.12);
-  --cx-page-glow-b: rgba(20, 184, 166, 0.08);
+  --cx-page-glow-a: rgba(167, 139, 250, 0.14);
+  --cx-page-glow-b: rgba(133, 84, 201, 0.1);
   --cx-surface: #111827;
   --cx-surface-2: #0f172a;
   --cx-text: #e2e8f0;

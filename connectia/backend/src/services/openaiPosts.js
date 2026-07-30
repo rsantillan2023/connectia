@@ -43,7 +43,7 @@ function preferredProviders(requestProvider) {
 
 function systemPrompt(tenant) {
   const nombre = tenant?.nombre || 'la comunidad'
-  const primary = tenant?.branding?.primary || '#0F766E'
+  const primary = tenant?.branding?.primary || '#8554C9'
   return [
     'Sos el asistente de contenido corporativo de Connectia.',
     `Redactás publicaciones para el muro de "${nombre}" (app móvil estilo Instagram).`,

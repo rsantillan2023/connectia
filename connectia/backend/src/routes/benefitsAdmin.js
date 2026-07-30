@@ -13,6 +13,7 @@ import {
   benefitsMeta,
   buildBenefitSearchFilter,
   applyBenefitPatch,
+  inferOfferType,
 } from '../lib/benefits.js'
 import { seedBenefitsForTenant } from '../lib/benefitsSeed.js'
 import { postLedgerEntry } from '../lib/walletService.js'
@@ -149,6 +150,7 @@ router.get('/', async (req, res, next) => {
     const q = String(req.query.q || '').trim()
     const kind = String(req.query.kind || '').trim()
     const status = String(req.query.status || '').trim()
+    const offerType = String(req.query.offerType || '').trim()
     const filter = { tenantId }
     if (kind === 'benefit' || kind === 'reward') filter.kind = kind
     if (['draft', 'published', 'archived'].includes(status)) filter.status = status
@@ -161,9 +163,13 @@ router.get('/', async (req, res, next) => {
       UserGroup.find({ tenantId, activo: true }).select('_id nombre').lean(),
     ])
 
+    const list = ['informativo', 'canjeable', 'premio', 'geo', 'partner'].includes(offerType)
+      ? items.filter((d) => inferOfferType(d) === offerType)
+      : items
+
     const caps = req.tenant.capabilities || []
     res.json({
-      items: items.map((d) => serializeBenefit(d)),
+      items: list.map((d) => serializeBenefit(d)),
       ...benefitsMeta(),
       walletEnabled: caps.includes('beneficios.billetera'),
       partnersEnabled: caps.includes('beneficios.partners'),

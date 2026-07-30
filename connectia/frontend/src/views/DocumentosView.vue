@@ -299,7 +299,7 @@ const FOLDER_LABELS = {
   comunicación: 'Comunicación',
   comunicacion: 'Comunicación',
   ti: 'TI',
-  connectia: 'Connectia',
+  connectia: 'Connectyx',
 }
 
 const showFolders = computed(() => !category.value && !q.value.trim())

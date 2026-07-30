@@ -112,7 +112,7 @@ onBeforeUnmount(() => {
   cursor: pointer;
 }
 .paudio.on {
-  background: var(--brand-primary, #0f766e);
+  background: var(--brand-primary);
 }
 .paudio.err {
   opacity: 0.45;

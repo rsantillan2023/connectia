@@ -15,6 +15,10 @@ import postsRoutes from './src/routes/posts.js'
 import postsAdminRoutes from './src/routes/postsAdmin.js'
 import postsAiRoutes from './src/routes/postsAi.js'
 import postsWebNewsRoutes from './src/routes/postsWebNews.js'
+import postsMediaSearchRoutes from './src/routes/postsMediaSearch.js'
+import postsImportAdminRoutes from './src/routes/postsImportAdmin.js'
+import storiesRoutes from './src/routes/stories.js'
+import storiesAdminRoutes from './src/routes/storiesAdmin.js'
 import uploadsAdminRoutes from './src/routes/uploadsAdmin.js'
 import uploadsBrandingAdminRoutes from './src/routes/uploadsBrandingAdmin.js'
 import usersAdminRoutes from './src/routes/usersAdmin.js'
@@ -25,10 +29,14 @@ import hrCatalogsRoutes from './src/routes/hrCatalogs.js'
 import onboardingRoutes from './src/routes/onboarding.js'
 import onboardingAdminRoutes from './src/routes/onboardingAdmin.js'
 import orgAdminRoutes from './src/routes/orgAdmin.js'
+import orgRoutes from './src/routes/org.js'
+import audienceClientsAdminRoutes from './src/routes/audienceClientsAdmin.js'
+import reportsAdminRoutes from './src/routes/reportsAdmin.js'
 import profileFieldsAdminRoutes from './src/routes/profileFieldsAdmin.js'
 import rolesAdminRoutes from './src/routes/rolesAdmin.js'
 import paramsAdminRoutes from './src/routes/paramsAdmin.js'
 import postCategoriesAdminRoutes from './src/routes/postCategoriesAdmin.js'
+import postTemplatesAdminRoutes from './src/routes/postTemplatesAdmin.js'
 import requestsRoutes from './src/routes/requests.js'
 import requestTypesRoutes from './src/routes/requestTypes.js'
 import licenciasRoutes from './src/routes/licencias.js'
@@ -58,8 +66,33 @@ import uploadsBenefitsAdminRoutes from './src/routes/uploadsBenefitsAdmin.js'
 import uploadsEventsAdminRoutes from './src/routes/uploadsEventsAdmin.js'
 import pointsRulesAdminRoutes from './src/routes/pointsRulesAdmin.js'
 import walletRoutes from './src/routes/wallet.js'
+import spacesRoutes from './src/routes/spaces.js'
+import spacesAdminRoutes from './src/routes/spacesAdmin.js'
+import attendanceRoutes from './src/routes/attendance.js'
+import attendanceAdminRoutes from './src/routes/attendanceAdmin.js'
+import supervisionRoutes from './src/routes/supervision.js'
+import supervisionAdminRoutes from './src/routes/supervisionAdmin.js'
+import supervisionEcrRoutes from './src/routes/supervisionEcr.js'
+import relevamientosRoutes from './src/routes/relevamientos.js'
+import relevamientosAdminRoutes from './src/routes/relevamientosAdmin.js'
+import pedidosRoutes from './src/routes/pedidos.js'
+import pedidosAdminRoutes from './src/routes/pedidosAdmin.js'
+import serviciosRoutes from './src/routes/servicios.js'
+import serviciosAdminRoutes from './src/routes/serviciosAdmin.js'
+import teamRoutes from './src/routes/team.js'
+import teamAdminRoutes from './src/routes/teamAdmin.js'
+import talentRoutes from './src/routes/talent.js'
+import talentAdminRoutes from './src/routes/talentAdmin.js'
+import cultureRoutes from './src/routes/culture.js'
+import cultureAdminRoutes from './src/routes/cultureAdmin.js'
+import tvRoutes from './src/routes/tv.js'
+import tvAdminRoutes from './src/routes/tvAdmin.js'
+import liveRoutes from './src/routes/live.js'
+import liveAdminRoutes from './src/routes/liveAdmin.js'
 import notificationsRoutes from './src/routes/notifications.js'
 import newsletterAdminRoutes from './src/routes/newsletterAdmin.js'
+import communicationsAdminRoutes from './src/routes/communicationsAdmin.js'
+import whatsappWebhookRoutes from './src/routes/whatsappWebhook.js'
 import notificationsAdminRoutes from './src/routes/notificationsAdmin.js'
 import greetingsAdminRoutes from './src/routes/greetingsAdmin.js'
 import commentsRoutes from './src/routes/comments.js'
@@ -73,6 +106,7 @@ import kbAdminRoutes from './src/routes/kbAdmin.js'
 import { startPushCampaignScheduler } from './src/services/pushCampaignScheduler.js'
 import { startGreetingScheduler } from './src/services/greetingScheduler.js'
 import { startPostPublishScheduler } from './src/services/postPublishScheduler.js'
+import { startNewsletterRuleScheduler } from './src/services/newsletterRuleScheduler.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
@@ -110,13 +144,19 @@ app.use('/api/admin/tenants/upload', uploadsBrandingAdminRoutes)
 app.use('/api/admin/tenants', tenantsRoutes)
 app.use('/api/me', meRoutes)
 app.use('/api/posts', postsRoutes)
+app.use('/api/stories', storiesRoutes)
 app.use('/api/comments', commentsRoutes)
 app.use('/api/admin/comments', commentsAdminRoutes)
 app.use('/api/admin/posts/ai', postsAiRoutes)
 app.use('/api/admin/posts/web-news', postsWebNewsRoutes)
+app.use('/api/admin/posts/media-search', postsMediaSearchRoutes)
 app.use('/api/admin/posts/upload', uploadsAdminRoutes)
+app.use('/api/admin/posts/import', postsImportAdminRoutes)
 app.use('/api/admin/posts', postsAdminRoutes)
+app.use('/api/admin/stories', storiesAdminRoutes)
 app.use('/api/admin/newsletters', newsletterAdminRoutes)
+app.use('/api/admin/communications', communicationsAdminRoutes)
+app.use('/api/webhooks', whatsappWebhookRoutes)
 app.use('/api/admin/users', usersImportAdminRoutes)
 app.use('/api/admin/users', usersAdminRoutes)
 app.use('/api/admin/legajos', legajosAdminRoutes)
@@ -125,10 +165,14 @@ app.use('/api/hr-catalogs', hrCatalogsRoutes)
 app.use('/api/onboarding', onboardingRoutes)
 app.use('/api/admin/onboarding', onboardingAdminRoutes)
 app.use('/api/admin/org', orgAdminRoutes)
+app.use('/api/org', orgRoutes)
+app.use('/api/admin/audience-clients', audienceClientsAdminRoutes)
+app.use('/api/admin/reports', reportsAdminRoutes)
 app.use('/api/admin/profile-fields', profileFieldsAdminRoutes)
 app.use('/api/admin/roles', rolesAdminRoutes)
 app.use('/api/admin/params', paramsAdminRoutes)
 app.use('/api/admin/post-categories', postCategoriesAdminRoutes)
+app.use('/api/admin/post-templates', postTemplatesAdminRoutes)
 app.use('/api/requests', requestsRoutes)
 app.use('/api/request-types', requestTypesRoutes)
 app.use('/api/licencias', licenciasRoutes)
@@ -157,6 +201,29 @@ app.use('/api/admin/benefits/upload', uploadsBenefitsAdminRoutes)
 app.use('/api/admin/benefits', benefitsAdminRoutes)
 app.use('/api/admin/points-rules', pointsRulesAdminRoutes)
 app.use('/api/wallet', walletRoutes)
+app.use('/api/spaces', spacesRoutes)
+app.use('/api/admin/spaces', spacesAdminRoutes)
+app.use('/api/attendance', attendanceRoutes)
+app.use('/api/admin/attendance', attendanceAdminRoutes)
+app.use('/api/supervision', supervisionRoutes)
+app.use('/api/supervision/ecr', supervisionEcrRoutes)
+app.use('/api/admin/supervision', supervisionAdminRoutes)
+app.use('/api/relevamientos', relevamientosRoutes)
+app.use('/api/admin/relevamientos', relevamientosAdminRoutes)
+app.use('/api/pedidos', pedidosRoutes)
+app.use('/api/admin/pedidos', pedidosAdminRoutes)
+app.use('/api/servicios', serviciosRoutes)
+app.use('/api/admin/servicios', serviciosAdminRoutes)
+app.use('/api/team', teamRoutes)
+app.use('/api/admin/team', teamAdminRoutes)
+app.use('/api/talent', talentRoutes)
+app.use('/api/admin/talent', talentAdminRoutes)
+app.use('/api/culture', cultureRoutes)
+app.use('/api/admin/culture', cultureAdminRoutes)
+app.use('/api/tv', tvRoutes)
+app.use('/api/admin/tv', tvAdminRoutes)
+app.use('/api/live', liveRoutes)
+app.use('/api/admin/live', liveAdminRoutes)
 app.use('/api/notifications', notificationsRoutes)
 app.use('/api/admin/notifications', notificationsAdminRoutes)
 app.use('/api/chats', chatRoutes)
@@ -181,6 +248,7 @@ const server = app.listen(port, () => {
   startPushCampaignScheduler()
   startGreetingScheduler()
   startPostPublishScheduler()
+  startNewsletterRuleScheduler()
 })
 server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {

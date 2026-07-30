@@ -6,7 +6,10 @@
       style="background: var(--cx-surface); border-color: var(--cx-border)"
       @submit.prevent="onSubmit"
     >
-      <h1 class="text-xl font-semibold">Admin Connectia</h1>
+      <div class="flex flex-col items-center gap-2 pb-1">
+        <img :src="logoSrc" alt="" class="h-8 w-auto max-w-[240px] object-contain" />
+        <h1 class="text-xl font-semibold">{{ PRODUCT_NAME_ADMIN }}</h1>
+      </div>
       <p class="text-xs" style="color: var(--cx-muted)">Tenant (cliente) o PLATFORM (vendedor).</p>
       <input
         v-model="empCodigo"
@@ -28,7 +31,7 @@
         placeholder="Contraseña"
       />
       <p v-if="error" class="text-sm text-red-500">{{ error }}</p>
-      <button class="w-full bg-teal-700 text-white rounded-lg py-2.5 font-medium">Ingresar</button>
+      <button class="w-full text-white rounded-lg py-2.5 font-medium" style="background: var(--brand-primary)">Ingresar</button>
       <div class="text-xs space-y-1 pt-1" style="color: var(--cx-muted)">
         <p><strong>Plataforma:</strong> PLATFORM / sooft / Demo1234!</p>
         <p><strong>Tenant:</strong> DEMO / demo / Demo1234!</p>
@@ -46,13 +49,17 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useThemeStore } from '../stores/theme'
 import ThemeToggle from '../components/ThemeToggle.vue'
+import { PRODUCT_LOGO_LIGHT, PRODUCT_LOGO_SVG, PRODUCT_NAME_ADMIN } from '../constants/brand'
 
 const auth = useAuthStore()
+const theme = useThemeStore()
 const router = useRouter()
+const logoSrc = computed(() => (theme.resolved === 'dark' ? PRODUCT_LOGO_SVG : PRODUCT_LOGO_LIGHT))
 const empCodigo = ref('PLATFORM')
 const usuario = ref('sooft')
 const password = ref('Demo1234!')

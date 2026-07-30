@@ -66,6 +66,7 @@ async function captureAudienceSnapshot(tenantId, audience) {
     mode: a.mode,
     areaIds: a.areaIds,
     groupIds: a.groupIds,
+    userIds: a.userIds,
   }
 }
 
