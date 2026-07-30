@@ -125,7 +125,7 @@ export const MODULE_CATALOG = [
   },
   {
     id: 'pedidos',
-    label: 'Pedidos de campo',
+    label: 'Alarmas',
     hint: 'Catálogo + canal alarma/pánico con mapa (Ola 25).',
     group: 'campo',
     packs: ['todo'],

@@ -298,6 +298,7 @@ const menuSeed = [
   { key: 'admin.reqtypes', label: 'Plantillas', route: '/tipos-solicitud', icon: 'tag', order: 19, channel: 'a' },
   { key: 'admin.reqstates', label: 'Estados solicitud', route: '/estados-solicitud', icon: 'flag', order: 19.5, channel: 'a' },
   { key: 'admin.pubs', label: 'Publicaciones', route: '/publicaciones', icon: 'megaphone', order: 40, channel: 'a' },
+  { key: 'admin.stories', label: 'Stories', route: '/stories', icon: 'sparkles', order: 40.5, channel: 'a' },
   { key: 'admin.engagement', label: 'Emociones', route: '/emociones', icon: 'heart', order: 41, channel: 'a' },
   { key: 'admin.surveys', label: 'Encuestas', route: '/encuestas', icon: 'clipboard', order: 45, channel: 'a' },
   { key: 'admin.notifications', label: 'Notificaciones', route: '/notificaciones', icon: 'bell', order: 45.5, channel: 'a' },
@@ -565,6 +566,20 @@ console.log(
   `Publicaciones seed: ${postsCreated} nuevas, ${postsUpdated} actualizadas ` +
     `(${seedPosts.length} total; incluye demos imagen / video MP4 / YouTube)`,
 )
+
+{
+  const { seedStoriesForTenant } = await import('../lib/storiesSeed.js')
+  const storiesSeed = await seedStoriesForTenant(tenant._id, {
+    brandName: tenant.nombre || 'Connectia',
+    variant: 'demo',
+    authorId: user._id,
+    authorName: user.nombre || 'demo',
+    force: true,
+  })
+  console.log(
+    `Stories DEMO: ${storiesSeed.created} nuevas · ${storiesSeed.updated} actualizadas · ${storiesSeed.skipped} omitidas`,
+  )
+}
 
 await Post.updateMany(
   { tenantId: tenant._id, layout: { $exists: false } },

@@ -124,6 +124,7 @@ export const GROUP_HEADER_FA = {
   empleados: 'fas fa-id-card',
   negocio: 'fas fa-briefcase',
   contenido: 'fas fa-newspaper',
+  comunicaciones: 'fas fa-bullhorn',
   analisis: 'fas fa-chart-bar',
   recursos: 'fas fa-folder',
   herramientas: 'fas fa-toolbox',

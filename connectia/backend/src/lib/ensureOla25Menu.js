@@ -25,7 +25,7 @@ export const OLA25_MENU_ITEMS = [
   },
   {
     key: 'admin.pedidos',
-    label: 'Pedidos de campo',
+    label: 'Alarmas',
     route: '/pedidos',
     icon: 'package',
     order: 48,
@@ -38,10 +38,16 @@ export async function ensureOla25MenuItems(tenantId) {
   for (const item of OLA25_MENU_ITEMS) {
     const existing = await MenuItem.findOne({ tenantId, key: item.key })
     if (existing) {
+      let dirty = false
       if (existing.activo === false) {
         existing.activo = true
-        await existing.save()
+        dirty = true
       }
+      if (item.key === 'admin.pedidos' && existing.label !== item.label) {
+        existing.label = item.label
+        dirty = true
+      }
+      if (dirty) await existing.save()
       continue
     }
     await MenuItem.create({

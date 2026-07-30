@@ -103,6 +103,7 @@ const MENU = [
   { key: 'admin.feriados', label: 'Feriados', route: '/feriados', icon: 'calendar', order: 19.55, channel: 'a' },
   { key: 'admin.ausentismos', label: 'Ausentismos', route: '/ausentismos', icon: 'list', order: 19.8, channel: 'a' },
   { key: 'admin.pubs', label: 'Publicaciones', route: '/publicaciones', icon: 'megaphone', order: 40, channel: 'a' },
+  { key: 'admin.stories', label: 'Stories', route: '/stories', icon: 'sparkles', order: 40.5, channel: 'a' },
   { key: 'admin.engagement', label: 'Emociones', route: '/emociones', icon: 'heart', order: 41, channel: 'a' },
   { key: 'admin.surveys', label: 'Encuestas', route: '/encuestas', icon: 'clipboard', order: 45, channel: 'a' },
   { key: 'admin.notifications', label: 'Notificaciones', route: '/notificaciones', icon: 'bell', order: 45.5, channel: 'a' },
@@ -597,6 +598,22 @@ export async function seedArcorTenant(passwordHash) {
     }
   }
   console.log(`Publicaciones ARCOR: ${postsCreated} nuevas, ${postsUpdated} actualizadas`)
+
+  {
+    const { seedStoriesForTenant } = await import('../lib/storiesSeed.js')
+    const storiesSeed = await seedStoriesForTenant(tenant._id, {
+      brandName: 'Arcor',
+      variant: 'arcor',
+      authorId: comunicacion?._id || admin?._id,
+      authorName: comunicacion
+        ? `${comunicacion.nombre} ${comunicacion.apellido}`.trim()
+        : 'seed',
+      force: true,
+    })
+    console.log(
+      `Stories ARCOR: ${storiesSeed.created} nuevas · ${storiesSeed.updated} actualizadas · ${storiesSeed.skipped} omitidas`,
+    )
+  }
 
   // Demo UGC pendiente de moderación
   const ugcPendingTitulo = '¡Gran clima en planta Arroyito hoy!'

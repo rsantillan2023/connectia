@@ -389,9 +389,6 @@ const ADMIN_MENU_GROUPS = [
       return (
         r.includes('solicitud') ||
         r === '/workflows' ||
-        r === '/reservas' ||
-        r === '/asistencia' ||
-        r === '/pedidos' ||
         r === '/relevamientos' ||
         [
           'admin.requests',
@@ -399,19 +396,32 @@ const ADMIN_MENU_GROUPS = [
           'admin.reqtypes',
           'admin.reqstates',
           'admin.workflows',
-          'admin.reservas',
-          'admin.asistencia',
-          'admin.pedidos',
           'admin.relevamientos',
           'solicitudes',
           'enviar',
           'tipos',
           'estados',
           'workflows',
-          'reservas',
-          'asistencia',
-          'pedidos',
           'relevamientos',
+        ].includes(k)
+      )
+    },
+  },
+  {
+    id: 'herramientas',
+    label: 'Herramientas',
+    match: (item) => {
+      const r = String(item.route || '')
+      const k = String(item.key || '')
+      return (
+        ['/reservas', '/pedidos', '/encuestas'].includes(r) ||
+        [
+          'admin.reservas',
+          'admin.pedidos',
+          'admin.surveys',
+          'reservas',
+          'pedidos',
+          'encuestas',
         ].includes(k)
       )
     },
@@ -423,14 +433,16 @@ const ADMIN_MENU_GROUPS = [
       const r = String(item.route || '')
       const k = String(item.key || '')
       return (
-        ['/licencias', '/tipos-licencia', '/ausentismos'].includes(r) ||
+        ['/licencias', '/tipos-licencia', '/ausentismos', '/asistencia'].includes(r) ||
         [
           'admin.licencias',
           'admin.tipos-licencia',
           'admin.ausentismos',
+          'admin.asistencia',
           'licencias',
           'tipos-licencia',
           'ausentismos',
+          'asistencia',
         ].includes(k)
       )
     },
@@ -560,17 +572,15 @@ const ADMIN_MENU_GROUPS = [
       const r = String(item.route || '')
       const k = String(item.key || '')
       return (
-        ['/ayuda', '/modo-tv', '/live', '/encuestas'].includes(r) ||
+        ['/ayuda', '/modo-tv', '/live'].includes(r) ||
         [
           'admin.ayuda',
           'admin.tv',
           'admin.live',
-          'admin.surveys',
           'ayuda',
           'modo-tv',
           'tv',
           'live',
-          'encuestas',
         ].includes(k)
       )
     },

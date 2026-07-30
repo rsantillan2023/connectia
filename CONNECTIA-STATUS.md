@@ -188,7 +188,7 @@
 | **40** Deseables / caprichos (otro MVP) | **no hecha** | `40.a`–`40.z` · Sammy `40.n` · plano/bundle `40.s`/`40.t` · billet. `40.u`–`40.w` CAPRICHO · quiet hours `40.x` DESEABLE · historial/org `40.y`/`40.z` CAPRICHO · `40.o`–`40.r` CAPRICHO |
 | **41** Coherencia entre módulos | **no hecha** | `41.A1`–`41.B2` · base canvas coherencia · retomar cuando se priorice |
 | **42** Secrets / env / vault (ops) | **no hecha** | Checklist env/vault de integraciones ya hechas · **no** es desarrollo de producto |
-| **43** Portal de servicios (§42) | **en desarrollo** | Catálogo + agentes + SLA · `41.M3` cerrado · [`CONNECTIA-OLA43-SPEC.md`](./CONNECTIA-OLA43-SPEC.md) |
+| **43** Portal de servicios (§42) | **cerrada** (núcleo) | Catálogo + agentes + SLA · postdev QA/docs · [`CONNECTIA-OLA43-SPEC.md`](./CONNECTIA-OLA43-SPEC.md) |
 
 ### Reciente (2026-07-30 · Ola 25 en seeds)
 
@@ -231,6 +231,13 @@
 - **Mapa admin por categoría = DoD MVP** (no diferido).
 - **Emp60 labels fuera** de esta ola → **24** `NR.EMP60` + **39**.
 - Spec: [`CONNECTIA-OLA25-SPEC.md`](./CONNECTIA-OLA25-SPEC.md). `41.M3` Alarma↔Pedido cerrado; §9 vs Portal → D43-1.
+
+### Reciente (2026-07-30 · Ola 43 Portal de servicios)
+
+- Núcleo MVP: `ServiceArea` · `ServiceCatalogItem` · `ServiceRequest` + caps `servicios` / `admin.servicios`.
+- U `/servicios` · A `/servicios` (bandeja + ABM áreas/catálogo + SLA).
+- Seed: `node src/scripts/seedOla43ForTenant.js DEMO`. Tests `servicios.test.js`.
+- Spec: [`CONNECTIA-OLA43-SPEC.md`](./CONNECTIA-OLA43-SPEC.md). `41.M3` cerrado (D43-1).
 
 ### Reciente (2026-07-30 · `41.M3` cerrado + Ola 43)
 
@@ -1441,12 +1448,12 @@
 
 | ID | Punto | Capa | Dev | Config | Global |
 |----|-------|------|-----|--------|--------|
-| `42.01` | Catálogo + portal | U A S | `pendiente` | `pendiente` | `pendiente` |
-| `42.02` | Panel de agentes | U A S | `pendiente` | `pendiente` | `pendiente` |
+| `42.01` | Catálogo + portal | U A S | `desarrollado` | `parcial` | `parcial` |
+| `42.02` | Panel de agentes | U A S | `desarrollado` | `parcial` | `parcial` |
 | `42.QA` | Criterios de aceptación del módulo verificados (checklist §) | U A S | `pendiente` | `n/a` | `pendiente` |
-| `42.SEC` | Authz tenant + sin hardcode Emp_Id (premisa) | U A S | `pendiente` | `n/a` | `pendiente` |
-| `42.UX` | UX moderna móvil-primero revisada (§45) | U A S | `pendiente` | `n/a` | `pendiente` |
-| `42.ADM` | Pantallas/admin de configuración del módulo listas (si aplica) | U A S | `pendiente` | `n/a` | `pendiente` |
+| `42.SEC` | Authz tenant + sin hardcode Emp_Id (premisa) | U A S | `desarrollado` | `n/a` | `parcial` |
+| `42.UX` | UX moderna móvil-primero revisada (§45) | U A S | `desarrollado` | `n/a` | `parcial` |
+| `42.ADM` | Pantallas/admin de configuración del módulo listas (si aplica) | U A S | `desarrollado` | `parcial` | `parcial` |
 | `42.DOC` | OpenAPI / notas de contrato del módulo | U A S | `pendiente` | `n/a` | `pendiente` |
 ### 43. Seguridad, privacidad y cumplimiento
 
@@ -3086,7 +3093,7 @@ Detalle: sección *Ola 41 — Coherencia funcional entre módulos* en `CONNECTIA
 | **Spec** | §42 Gestión de servicios (portal) |
 | **IDs** | `42.01` · `42.02` · `42.QA` · `42.SEC` · `42.UX` · `42.ADM` · `42.DOC` |
 | **Prioridad** | NECESARIO · según demanda |
-| **Estado** | `en desarrollo` · creada 2026-07-30 · `41.M3` cerrado |
+| **Estado** | `cerrada` (núcleo 2026-07-30) · postdev QA/smoke/docs |
 | **Spec** | [`CONNECTIA-OLA43-SPEC.md`](./CONNECTIA-OLA43-SPEC.md) |
 
 **Objetivo:** Catálogo + portal U + panel agentes + estados/SLA. Complementa §9/§20; no los reemplaza.

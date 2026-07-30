@@ -88,6 +88,7 @@ async function seedTenantMenus(tenantId) {
     { key: 'admin.tenants', label: 'Comunidad', route: '/comunidad', icon: 'building', order: 50, channel: 'a' },
     { key: 'admin.menu', label: 'Menú dinámico', route: '/menu', icon: 'menu', order: 55, channel: 'a' },
     { key: 'admin.pubs', label: 'Publicaciones', route: '/publicaciones', icon: 'megaphone', order: 40, channel: 'a' },
+    { key: 'admin.stories', label: 'Stories', route: '/stories', icon: 'sparkles', order: 40.5, channel: 'a' },
     { key: 'admin.engagement', label: 'Emociones', route: '/emociones', icon: 'heart', order: 41, channel: 'a' },
     { key: 'admin.surveys', label: 'Encuestas', route: '/encuestas', icon: 'clipboard', order: 45, channel: 'a' },
     { key: 'admin.docs', label: 'Documentos', route: '/documentos', icon: 'file', order: 46, channel: 'a' },
@@ -105,6 +106,8 @@ async function seedTenantMenus(tenantId) {
   await seedDirectoryForTenant(tenantId, { brandName: 'la empresa' })
   const { seedBenefitsForTenant } = await import('../lib/benefitsSeed.js')
   await seedBenefitsForTenant(tenantId, { brandName: 'la empresa' })
+  const { seedStoriesForTenant } = await import('../lib/storiesSeed.js')
+  await seedStoriesForTenant(tenantId, { brandName: 'la empresa', variant: 'default' })
 }
 
 /** Comunidad del admin logueado (tenant admin; plataforma también puede leer la suya) */

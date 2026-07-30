@@ -30,6 +30,7 @@ import { seedGreetingsForTenant } from './seedGreetings.js'
 import { seedDirectoryForTenant } from '../lib/directorySeed.js'
 import { DEFAULT_CAPS } from '../constants/moduleCatalog.js'
 import { seedBenefitsForTenant } from '../lib/benefitsSeed.js'
+import { seedStoriesForTenant } from '../lib/storiesSeed.js'
 import { postLedgerEntry } from '../lib/walletService.js'
 import { syncKbSource } from '../services/kbIndex.js'
 import {
@@ -1064,6 +1065,18 @@ export async function seedGenericTenant({ tenant, passwordHash, profile: profile
 
   const directorySeed = await seedDirectoryForTenant(tenant._id, { brandName: brand })
   const benefitsSeed = await seedBenefitsForTenant(tenant._id, { brandName: brand })
+  const storiesSeed = await seedStoriesForTenant(tenant._id, {
+    brandName: brand,
+    variant: 'default',
+    authorId: comunicacion?._id || admin?._id,
+    authorName: comunicacion
+      ? `${comunicacion.nombre} ${comunicacion.apellido}`.trim()
+      : 'seed',
+    force: false,
+  })
+  console.log(
+    `[seedGeneric] Stories: ${storiesSeed.created} nuevas · ${storiesSeed.skipped} omitidas`,
+  )
 
   // Saldo demo para miembros (idempotente por usuario)
   for (const u of [juan, sofia, carlos, usersByUsuario['maria.lopez']].filter(Boolean)) {
@@ -1123,6 +1136,7 @@ export async function seedGenericTenant({ tenant, passwordHash, profile: profile
     industry: profile.industry,
     directory: directorySeed,
     benefits: benefitsSeed,
+    stories: storiesSeed,
     users: userDefs.map((u) => ({ usuario: u.usuario, idExterno: u.idExterno, roles: u.roles })),
     credentials: {
       empCodigo,

@@ -265,7 +265,7 @@ const mapEmpty = computed(() => !loading.value && mapItems.value.length === 0)
   <div class="wrap">
     <header class="head">
       <div>
-        <h1>Pedidos de campo</h1>
+        <h1>Alarmas</h1>
         <p class="muted">Bandeja unificada · canal alarma · mapa por categoría</p>
       </div>
       <button type="button" class="btn ghost" @click="ensureCaps">Activar caps / menú</button>

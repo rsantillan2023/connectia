@@ -482,12 +482,12 @@
 <tr>
   <td>43</td>
   <td>Portal de servicios (§42)</td>
-  <td style="text-align:center; font-size:1.15rem" title="no hecha"><span style="color:#dc2626">✗</span></td>
-  <td style="color:#ca8a04; font-weight:600; font-size:0.85em">NECESARIO</td>
-  <td>Catálogo + portal U + panel agentes + SLA</td>
+  <td style="text-align:center; font-size:1.15rem" title="cerrada"><span style="color:#16a34a">✓</span></td>
+  <td>—</td>
+  <td>—</td>
   <td>Service desk interno: el miembro pide servicios (RRHH/TI/Ops/facilities) y los agentes atienden con estados y SLA. Separado de seguridad (ola 23).</td>
   <td style="width:30%; vertical-align:top"><ul style="margin:0.2rem 0; padding-left:1.15rem"><li>Catálogo de servicios internos por tenant</li><li>Solicitud de servicio desde el portal (U)</li><li>Formularios dinámicos por tipo de servicio</li><li>Asignación / atención por agentes (A)</li><li>Estados y SLA del servicio</li><li>Aprobaciones (propias o vía §41)</li><li>Reportes de volumen / SLA / CSAT</li></ul></td>
-<td style="width:27%; vertical-align:top; font-size:0.9em"><ul><li><strong>41.M3</strong> cerrado · [`CONNECTIA-OLA43-SPEC.md`](./CONNECTIA-OLA43-SPEC.md)</li><li>≠ solicitudes §9 · ≠ pedidos §20</li><li>enrutamiento IA / CSAT post-cierre</li></ul></td>
+  <td style="width:27%; vertical-align:top; font-size:0.9em"><ul><li>enrutamiento IA / CSAT post-cierre</li><li>reportes volumen (postdev)</li><li>≠ solicitudes §9 · ≠ pedidos §20</li></ul></td>
 </tr>
 </tbody>
 </table>
@@ -1318,7 +1318,7 @@ Gate de go-live: controles mínimos de privacidad y cumplimiento para operar y v
 
 ## Ola 43 — Definiciones (Portal de servicios · §42)
 
-> **Prioridad:** NECESARIO · **Estado:** en desarrollo · **Creada:** 2026-07-30 (separada de ola 23)  
+> **Prioridad:** NECESARIO · **Estado:** cerrada (núcleo 2026-07-30) · **Creada:** 2026-07-30 (separada de ola 23)  
 > **Spec:** consolidado §42 · [`CONNECTIA-OLA43-SPEC.md`](./CONNECTIA-OLA43-SPEC.md) · **IDs:** `42.01` · `42.02` · `42.QA` · `42.SEC` · `42.UX` · `42.ADM` · `42.DOC`  
 > **≠** Ola 42 (secrets/env ops). Los IDs `42.01`… son del módulo portal; `42.cal.*` son checklist ops.  
 > **Frontera `41.M3`:** **cerrada** (ADR-GAPS §E + D25-2 + D43-1).
@@ -1326,6 +1326,10 @@ Gate de go-live: controles mínimos de privacidad y cumplimiento para operar y v
 **Objetivo:** Service desk interno: catálogo + portal U + panel de agentes con estados/SLA. Complementa §9 y §20; no los reemplaza.
 
 **Absorbido desde ola 30:** `32.04` gestión de atenciones (legado) → portal §42 (o tipo §9 si el tenant no habilita portal).
+
+### Entrega núcleo
+- Caps `servicios` / `admin.servicios` · menú U/A · modelos `ServiceArea` · `ServiceCatalogItem` · `ServiceRequest`.
+- API `/api/servicios` + `/api/admin/servicios` · seed `seedOla43ForTenant.js` · tests `servicios.test.js`.
 
 ### Requisitos (mínimo)
 1. Catálogo de servicios por tenant (ítems inactivos no se ofrecen).
@@ -1335,9 +1339,10 @@ Gate de go-live: controles mínimos de privacidad y cumplimiento para operar y v
 5. Habilitable por capability/suscriptor.
 
 ### Criterios DoD
-- [ ] U pide y sigue un servicio; A resuelve con SLA básico.
-- [ ] Regla de producto documentada vs §9 / §20 (sin duplicar el mismo hecho) — **D43-1**.
-- [ ] Aislamiento multi-tenant + caps.
+- [x] U pide y sigue un servicio; A resuelve con SLA básico.
+- [x] Regla de producto documentada vs §9 / §20 (sin duplicar el mismo hecho) — **D43-1**.
+- [x] Aislamiento multi-tenant + caps.
+- [ ] QA smoke / OpenAPI (`42.QA` · `42.DOC`) — postdev.
 
 ## Ola 24 — Definiciones (IMPRESCINDIBLE · paridad por cliente)
 

@@ -158,7 +158,7 @@ export const ADMIN_SCREEN_CAPABILITIES = [
   },
   {
     id: 'admin.pedidos',
-    label: 'Pedidos de campo',
+    label: 'Alarmas',
     description: 'Bandeja, categorías, artículos y mapa de alarmas/pedidos (Ola 25)',
     routes: ['/pedidos'],
   },

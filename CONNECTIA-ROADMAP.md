@@ -68,7 +68,7 @@
 | **40** | Deseables / caprichos (otro MVP) | `40.a`–`40.r` · `40.n` DESEABLE · `40.o`–`40.r` CAPRICHO | Otro MVP · bajo Sammy | no hecha |
 | **41** | Coherencia entre módulos | `41.A1`–`41.B2` · canvas coherencia | Deuda fronteras/sync entre módulos | no hecha |
 | **42** | Secrets / env / vault (ops) | `42.cal.*` · `.env.example` | Config productiva de integraciones ya hechas | no hecha |
-| **43** | Portal de servicios | §42 · [`OLA43-SPEC`](./CONNECTIA-OLA43-SPEC.md) | NECESARIO · `41.M3` ✓ | en desarrollo |
+| **43** | Portal de servicios | §42 · [`OLA43-SPEC`](./CONNECTIA-OLA43-SPEC.md) | — | cerrada (núcleo) |
 
 > Cobertura: **0–32** = catálogo §1–§46 + NR · **33–34** = especiales (Rendi, Hiryx) · **37** = Relevamientos · **38–39** = padrón IdP + textos · **40** = deseables otro MVP · **41** = coherencia · **42** = secrets/env ops · **43** = portal servicios. Transversales §44/§45 en todas.
 
