@@ -22,6 +22,7 @@ import {
   ecrAusentismoStatus,
   persistEcrSync,
 } from '../services/ecrAusentismoAdapter.js'
+import { scheduleAwardPoints } from '../lib/pointsRules.js'
 
 const router = Router()
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -233,6 +234,13 @@ router.post('/', requireAuth, async (req, res, next) => {
     notifyAbsenceCreated({ tenant: req.tenant, absence: r }).catch((err) =>
       console.warn('[notify] absence create', err?.message || err),
     )
+
+    scheduleAwardPoints({
+      tenant: req.tenant,
+      userId: req.user._id,
+      event: 'ausencia_requested',
+      entityId: r._id,
+    })
 
     res.status(201).json({ absence: serializeAbsence(r, { includeHistorial: true }) })
   } catch (e) {

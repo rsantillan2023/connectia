@@ -13,6 +13,14 @@ const MEDIA = {
   cafe: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=720&h=1280&fit=crop&q=80',
 }
 
+/** Tracks demo (MP3 públicos) — SoundHelix examples. */
+const AUDIO = {
+  upbeat: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+  soft: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
+  groove: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3',
+  bright: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-16.mp3',
+}
+
 /**
  * Stories demo por variante (idempotentes por título).
  * @param {string} [brandName]
@@ -27,24 +35,28 @@ export function defaultStories(brandName = 'la empresa', { variant = 'default' }
         titulo: 'Hoy en planta — clima top',
         category: 'planta',
         mediaUrl: MEDIA.planta,
+        audioUrl: AUDIO.groove,
         order: 1,
       },
       {
         titulo: 'Novedad dulce de la semana',
         category: 'producto',
         mediaUrl: MEDIA.comida,
+        audioUrl: AUDIO.bright,
         order: 2,
       },
       {
         titulo: 'Seguridad primero',
         category: 'seguridad',
         mediaUrl: MEDIA.seguridad,
+        audioUrl: AUDIO.soft,
         order: 3,
       },
       {
         titulo: 'Celebramos al equipo Arcor',
         category: 'cultura',
         mediaUrl: MEDIA.celebracion,
+        audioUrl: AUDIO.upbeat,
         order: 4,
       },
     ]
@@ -56,24 +68,28 @@ export function defaultStories(brandName = 'la empresa', { variant = 'default' }
         titulo: 'Bienvenida a Connectia',
         category: 'onboarding',
         mediaUrl: MEDIA.oficina,
+        audioUrl: AUDIO.soft,
         order: 1,
       },
       {
         titulo: 'Tu equipo en el muro',
         category: 'comunidad',
         mediaUrl: MEDIA.equipo,
+        audioUrl: AUDIO.upbeat,
         order: 2,
       },
       {
         titulo: 'Café y buenas noticias',
         category: 'cultura',
         mediaUrl: MEDIA.cafe,
+        audioUrl: AUDIO.bright,
         order: 3,
       },
       {
         titulo: 'Reconocimientos de la semana',
         category: 'reconocimiento',
         mediaUrl: MEDIA.celebracion,
+        audioUrl: AUDIO.groove,
         order: 4,
       },
     ]
@@ -84,18 +100,21 @@ export function defaultStories(brandName = 'la empresa', { variant = 'default' }
       titulo: `Bienvenida a ${brand}`,
       category: 'onboarding',
       mediaUrl: MEDIA.oficina,
+      audioUrl: AUDIO.soft,
       order: 1,
     },
     {
       titulo: 'Novedades del equipo',
       category: 'comunidad',
       mediaUrl: MEDIA.equipo,
+      audioUrl: AUDIO.upbeat,
       order: 2,
     },
     {
       titulo: 'Recordatorio de seguridad',
       category: 'seguridad',
       mediaUrl: MEDIA.seguridad,
+      audioUrl: AUDIO.bright,
       order: 3,
     },
   ]
@@ -103,7 +122,7 @@ export function defaultStories(brandName = 'la empresa', { variant = 'default' }
 
 /**
  * Upsert de stories publicadas (vigencia 7 días para que el seed se vea en demo).
- * No pisa si ya existe el mismo título (salvo force).
+ * Sin force: crea nuevas y backfillea audioUrl vacío. Con force: pisa campos del seed.
  */
 export async function seedStoriesForTenant(
   tenantId,
@@ -124,11 +143,13 @@ export async function seedStoriesForTenant(
 
   for (const row of rows) {
     const existing = await Story.findOne({ tenantId, titulo: row.titulo })
+    const audioUrl = String(row.audioUrl || '').trim().slice(0, 500)
     const payload = {
       titulo: row.titulo,
       category: row.category || 'general',
       mediaUrl: row.mediaUrl,
       mediaType: 'image',
+      audioUrl,
       startsAt: now,
       endsAt,
       order: row.order || 0,
@@ -140,7 +161,16 @@ export async function seedStoriesForTenant(
 
     if (existing) {
       if (!force) {
-        skipped += 1
+        const missingAudio = audioUrl && !String(existing.audioUrl || '').trim()
+        if (missingAudio) {
+          existing.audioUrl = audioUrl
+          existing.startsAt = now
+          existing.endsAt = endsAt
+          await existing.save()
+          updated += 1
+        } else {
+          skipped += 1
+        }
         continue
       }
       Object.assign(existing, payload)

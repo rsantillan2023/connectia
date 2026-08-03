@@ -145,12 +145,12 @@
     },
     {
       "id": "beneficios",
-      "titulo": "Beneficios y billetera",
+      "titulo": "Beneficios",
       "aliases": ["beneficios", "billetera", "partners", "puntos"],
       "tags": ["beneficios"],
       "ruta": "/beneficios",
       "categoria": "guia",
-      "cuerpo": "Beneficios y billetera (/beneficios): catálogo, partners, reglas de puntos y reportes. Visible según capabilities del admin."
+      "cuerpo": "Beneficios (/beneficios): catálogo, partners, reglas de puntos y reportes. Visible según capabilities del admin."
     },
     {
       "id": "reservas",

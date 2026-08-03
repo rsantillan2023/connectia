@@ -3,6 +3,7 @@ import { OnboardingInstance } from '../models/OnboardingInstance.js'
 import { requireAuth } from '../middleware/auth.js'
 import { serializeInstance, completeMilestoneOnDoc } from '../lib/onboarding.js'
 import { syncSurveyMilestonesForUser } from '../services/onboardingSurveyHook.js'
+import { scheduleAwardPoints } from '../lib/pointsRules.js'
 
 const router = Router()
 
@@ -68,6 +69,12 @@ router.post('/mine/:id/milestones/:key/complete', requireAuth, async (req, res, 
       notes: req.body?.notes,
     })
     await doc.save()
+    scheduleAwardPoints({
+      tenant: req.tenant,
+      userId: req.user._id,
+      event: 'onboarding_milestone',
+      entityId: `${doc._id}:${req.params.key}`,
+    })
     res.json({ instance: serializeInstance(doc) })
   } catch (e) {
     next(e)

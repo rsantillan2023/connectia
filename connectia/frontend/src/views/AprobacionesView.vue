@@ -412,8 +412,8 @@ onMounted(load)
   cursor: pointer;
 }
 .chip.is-active {
-  background: #0f766e;
-  border-color: #0f766e;
+  background: var(--brand-primary, #0f766e);
+  border-color: var(--brand-primary, #0f766e);
   color: #fff;
 }
 .aprob-err {
@@ -533,7 +533,7 @@ onMounted(load)
 .cond {
   margin: 6px 0 0;
   font-size: 0.82rem;
-  color: #0f766e;
+  color: var(--brand-primary, #0f766e);
   background: #f0fdfa;
   padding: 6px 8px;
   border-radius: 8px;
@@ -591,7 +591,7 @@ onMounted(load)
   opacity: 0.55;
 }
 .btn.ok {
-  background: #0f766e;
+  background: var(--brand-primary, #0f766e);
   color: #fff;
 }
 .btn.reject {
@@ -607,7 +607,7 @@ onMounted(load)
 .link {
   border: 0;
   background: transparent;
-  color: #0f766e;
+  color: var(--brand-primary, #0f766e);
   font: inherit;
   font-weight: 650;
   font-size: 0.88rem;
@@ -736,7 +736,7 @@ onMounted(load)
   border: 2px solid #fff;
 }
 .timeline li.done .dot {
-  background: #0f766e;
+  background: var(--brand-primary, #0f766e);
 }
 .timeline li.current .dot {
   background: #f59e0b;

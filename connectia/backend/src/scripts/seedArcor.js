@@ -84,8 +84,15 @@ const MENU = [
   { key: 'bienvenida', label: 'Tu ingreso', route: '/bienvenida', icon: 'sparkles', order: 43, channel: 'u' },
   { key: 'hub', label: 'Enlaces', route: '/accesos', icon: 'grid', order: 50, channel: 'u' },
   { key: 'beneficios', label: 'Beneficios', route: '/beneficios', icon: 'gift', order: 52, channel: 'u' },
+  {
+    key: 'beneficios.earn',
+    label: 'Cómo sumar puntos',
+    route: '/beneficios?tab=earn',
+    icon: 'sparkles',
+    order: 52.1,
+    channel: 'u',
+  },
   { key: 'espacios', label: 'Espacios', route: '/espacios', icon: 'building', order: 53, channel: 'u' },
-  { key: 'oficina', label: 'Oficina', route: '/oficina', icon: 'grid', order: 54, channel: 'u' },
   { key: 'avisos', label: 'Avisos', route: '/avisos', icon: 'bell', order: 55, channel: 'u' },
   { key: 'chat', label: 'Chat', route: '/chat', icon: 'chat', order: 60, channel: 'u' },
   { key: 'admin.home', label: 'Dashboard', route: '/', icon: 'home', order: 10, channel: 'a' },
@@ -113,7 +120,7 @@ const MENU = [
   { key: 'admin.docs', label: 'Documentos', route: '/documentos', icon: 'file', order: 46, channel: 'a' },
   { key: 'admin.directorio', label: 'Datos útiles', route: '/directorio', icon: 'grid', order: 46.1, channel: 'a' },
   { key: 'admin.eventos', label: 'Eventos', route: '/eventos', icon: 'calendar', order: 46.2, channel: 'a' },
-  { key: 'admin.beneficios', label: 'Beneficios y billetera', route: '/beneficios', icon: 'gift', order: 46.3, channel: 'a' },
+  { key: 'admin.beneficios', label: 'Beneficios', route: '/beneficios', icon: 'gift', order: 46.3, channel: 'a' },
   { key: 'admin.reservas', label: 'Reserva de espacios', route: '/reservas', icon: 'building', order: 46.4, channel: 'a' },
   { key: 'admin.hub', label: 'Enlaces', route: '/accesos', icon: 'grid', order: 47, channel: 'a' },
   { key: 'admin.tenants', label: 'Comunidad', route: '/comunidad', icon: 'building', order: 50, channel: 'a' },
@@ -1032,6 +1039,15 @@ export async function seedArcorTenant(passwordHash) {
   }
 
   let survey = await Survey.findOne({ tenantId: tenant._id, titulo: 'Clima y seguridad — pulse Arcor' })
+  const SURVEY_IMG_CLIMA_ARCOR =
+    'https://images.unsplash.com/photo-1581092160562-40aa08e78837?w=1200&q=80'
+  const SURVEY_IMG_VENTAS_ARCOR =
+    'https://images.unsplash.com/photo-1481391319762-47dff72954d9?w=1200&q=80'
+  const SURVEY_IMG_ONBOARD_ARCOR =
+    'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=1200&q=80'
+  const SURVEY_IMG_EXIT_ARCOR =
+    'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=1200&q=80'
+
   if (!survey) {
     const invitedCount = await User.countDocuments({ tenantId: tenant._id, activo: true })
     survey = await Survey.create({
@@ -1039,6 +1055,7 @@ export async function seedArcorTenant(passwordHash) {
       titulo: 'Clima y seguridad — pulse Arcor',
       descripcion:
         'Encuesta trimestral de clima y percepción de seguridad en planta. Tus respuestas ayudan a priorizar acciones.',
+      imageUrl: SURVEY_IMG_CLIMA_ARCOR,
       status: 'published',
       publishedAt: new Date(),
       version: 1,
@@ -1090,7 +1107,13 @@ export async function seedArcorTenant(passwordHash) {
     })
     console.log('Encuesta ARCOR creada')
   } else {
-    console.log('Encuesta ARCOR ya existe')
+    if (!survey.imageUrl) {
+      survey.imageUrl = SURVEY_IMG_CLIMA_ARCOR
+      await survey.save()
+      console.log('Encuesta ARCOR: portada actualizada')
+    } else {
+      console.log('Encuesta ARCOR ya existe')
+    }
   }
 
   let surveyVentas = await Survey.findOne({ tenantId: tenant._id, titulo: 'Cobertura campaña Rocklets Verano' })
@@ -1099,6 +1122,7 @@ export async function seedArcorTenant(passwordHash) {
       tenantId: tenant._id,
       titulo: 'Cobertura campaña Rocklets Verano',
       descripcion: 'Solo fuerza de ventas: confirmá si tu zona ya tiene material POP desplegado.',
+      imageUrl: SURVEY_IMG_VENTAS_ARCOR,
       status: 'published',
       publishedAt: new Date(Date.now() - 86400000),
       version: 1,
@@ -1137,6 +1161,10 @@ export async function seedArcorTenant(passwordHash) {
       ],
     })
     console.log('Encuesta comercial ARCOR creada')
+  } else if (!surveyVentas.imageUrl) {
+    surveyVentas.imageUrl = SURVEY_IMG_VENTAS_ARCOR
+    await surveyVentas.save()
+    console.log('Encuesta comercial ARCOR: portada actualizada')
   }
 
   const respDefs = [
@@ -1529,7 +1557,11 @@ export async function seedArcorTenant(passwordHash) {
   )
 
   const { seedServiciosForTenant } = await import('../lib/serviciosSeed.js')
-  const srvSeed = await seedServiciosForTenant(tenant, { force: true })
+  const srvSeed = await seedServiciosForTenant(tenant, {
+    force: true,
+    brandName: 'Arcor',
+    variant: 'arcor',
+  })
   console.log(
     `Ola 43 ARCOR: áreas +${srvSeed.areasCreated} · ítems +${srvSeed.itemsCreated} · req +${srvSeed.requestsCreated}`,
   )
@@ -1706,6 +1738,7 @@ export async function seedArcorTenant(passwordHash) {
       tenantId: tenant._id,
       titulo: 'Bienvenida Arcor — primer día',
       descripcion: 'Encuesta de onboarding Arcor (reusa motor §15).',
+      imageUrl: SURVEY_IMG_ONBOARD_ARCOR,
       status: 'published',
       purpose: 'onboarding',
       publishedAt: new Date(),
@@ -1749,9 +1782,17 @@ export async function seedArcorTenant(passwordHash) {
       ],
     })
     console.log('Encuesta onboarding ARCOR creada')
-  } else if (onboardSurvey.purpose !== 'onboarding') {
-    onboardSurvey.purpose = 'onboarding'
-    await onboardSurvey.save()
+  } else {
+    let dirty = false
+    if (onboardSurvey.purpose !== 'onboarding') {
+      onboardSurvey.purpose = 'onboarding'
+      dirty = true
+    }
+    if (!onboardSurvey.imageUrl) {
+      onboardSurvey.imageUrl = SURVEY_IMG_ONBOARD_ARCOR
+      dirty = true
+    }
+    if (dirty) await onboardSurvey.save()
   }
 
   let exitSurvey = await Survey.findOne({
@@ -1763,6 +1804,7 @@ export async function seedArcorTenant(passwordHash) {
       tenantId: tenant._id,
       titulo: 'Encuesta de salida Arcor',
       descripcion: 'Offboarding — encuesta de egreso (motor §15).',
+      imageUrl: SURVEY_IMG_EXIT_ARCOR,
       status: 'published',
       purpose: 'offboarding',
       publishedAt: new Date(),
@@ -1806,9 +1848,17 @@ export async function seedArcorTenant(passwordHash) {
       ],
     })
     console.log('Encuesta offboarding ARCOR creada')
-  } else if (exitSurvey.purpose !== 'offboarding') {
-    exitSurvey.purpose = 'offboarding'
-    await exitSurvey.save()
+  } else {
+    let dirty = false
+    if (exitSurvey.purpose !== 'offboarding') {
+      exitSurvey.purpose = 'offboarding'
+      dirty = true
+    }
+    if (!exitSurvey.imageUrl) {
+      exitSurvey.imageUrl = SURVEY_IMG_EXIT_ARCOR
+      dirty = true
+    }
+    if (dirty) await exitSurvey.save()
   }
 
   let onboardTpl = await OnboardingTemplate.findOne({

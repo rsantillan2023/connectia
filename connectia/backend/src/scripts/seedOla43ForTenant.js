@@ -9,6 +9,13 @@ import { seedServiciosForTenant } from '../lib/serviciosSeed.js'
 
 const code = process.argv[2] || 'DEMO'
 
+function variantForCode(empCodigo) {
+  const c = String(empCodigo || '').toUpperCase()
+  if (c === 'ARCOR') return 'arcor'
+  if (c === 'DEMO') return 'demo'
+  return 'default'
+}
+
 await connectDB()
 const tenant = await Tenant.findOne({ empCodigo: new RegExp(`^${code}$`, 'i') })
 if (!tenant) {
@@ -16,6 +23,11 @@ if (!tenant) {
   process.exit(1)
 }
 
-const r = await seedServiciosForTenant(tenant, { force: true })
-console.log('Ola 43 seed:', tenant.empCodigo, r)
+const variant = variantForCode(tenant.empCodigo)
+const r = await seedServiciosForTenant(tenant, {
+  force: true,
+  brandName: tenant.nombre || tenant.empCodigo,
+  variant,
+})
+console.log('Ola 43 seed:', tenant.empCodigo, { variant, ...r })
 process.exit(0)

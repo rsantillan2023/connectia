@@ -2,18 +2,22 @@ import { Router } from 'express'
 import { requireAuth, requireCapability } from '../middleware/auth.js'
 import { Story } from '../models/Story.js'
 import { toPublicMediaUrl } from '../lib/mediaUrl.js'
+import { parseStoryDurationSec } from '../lib/storyDuration.js'
 
 const router = Router()
 
 const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000
 
 function serialize(s) {
+  const mediaType = s.mediaType || 'image'
   return {
     id: s._id,
     titulo: s.titulo || '',
     category: s.category || 'general',
     mediaUrl: toPublicMediaUrl(s.mediaUrl),
-    mediaType: s.mediaType || 'image',
+    mediaType,
+    durationSec: parseStoryDurationSec(s.durationSec),
+    audioUrl: mediaType === 'video' ? '' : toPublicMediaUrl(s.audioUrl || ''),
     startsAt: s.startsAt,
     endsAt: s.endsAt,
     order: s.order || 0,
@@ -62,12 +66,18 @@ router.post('/', requireAuth, requireCapability('admin.publicaciones'), async (r
     }
     if (endsAt <= startsAt) endsAt = new Date(startsAt.getTime() + DEFAULT_TTL_MS)
     const status = ['draft', 'published', 'archived'].includes(body.status) ? body.status : 'published'
+    const mediaType = body.mediaType === 'video' ? 'video' : 'image'
+    const audioUrl =
+      mediaType === 'video' ? '' : String(body.audioUrl || '').trim().slice(0, 500)
+    const durationSec = parseStoryDurationSec(body.durationSec)
     const s = await Story.create({
       tenantId: req.tenant._id,
       titulo: String(body.titulo || '').trim().slice(0, 80),
       category: String(body.category || 'general').trim().slice(0, 60) || 'general',
       mediaUrl,
-      mediaType: body.mediaType === 'video' ? 'video' : 'image',
+      mediaType,
+      durationSec,
+      audioUrl,
       startsAt,
       endsAt,
       order: Number(body.order) || 0,
@@ -91,6 +101,11 @@ router.patch('/:id', requireAuth, requireCapability('admin.publicaciones'), asyn
     if (typeof body.category === 'string') s.category = body.category.trim().slice(0, 60) || 'general'
     if (typeof body.mediaUrl === 'string' && body.mediaUrl.trim()) s.mediaUrl = body.mediaUrl.trim()
     if (body.mediaType === 'image' || body.mediaType === 'video') s.mediaType = body.mediaType
+    if (typeof body.audioUrl === 'string') s.audioUrl = body.audioUrl.trim().slice(0, 500)
+    if (s.mediaType === 'video') s.audioUrl = ''
+    if (body.durationSec !== undefined && body.durationSec !== null && body.durationSec !== '') {
+      s.durationSec = parseStoryDurationSec(body.durationSec)
+    }
     if (body.startsAt) {
       const d = new Date(body.startsAt)
       if (!Number.isNaN(d.getTime())) s.startsAt = d

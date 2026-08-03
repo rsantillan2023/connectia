@@ -16,10 +16,17 @@ import {
   withinHorario,
 } from '../lib/spaces.js'
 import {
+  resolveOccupancyClass,
+  buildUnitCodes,
+  occupancyShortLabel,
+  normalizeOccupancyFields,
+} from '../lib/spacesOccupancy.js'
+import {
   normalizeAttributes,
   resourceHasAttributes,
   serializeResourceType,
   serializeAttributeDef,
+  defaultIconForEngine,
 } from '../lib/spacesCatalog.js'
 import { detectAssistantIntent } from '../lib/assistantIntent.js'
 
@@ -161,10 +168,78 @@ describe('spaces serialize / week', () => {
       activo: true,
     })
     assert.equal(s.effectiveCupo, 10)
+    assert.equal(s.occupancyClass, 'pool')
+    assert.equal(s.occupancyShort, 'Cupo 10 (sin número)')
     assert.equal(toDateKey('2026-07-28T15:00:00Z'), '2026-07-28')
     assert.equal(weekDateKeys('2026-07-28').length, 7)
   })
+})
 
+describe('spaces occupancy', () => {
+  it('clases y códigos numerados', () => {
+    assert.equal(resolveOccupancyClass({ kind: 'sala' }), 'unitario')
+    assert.equal(resolveOccupancyClass({ kind: 'zona_cupo', cupo: 5 }), 'pool')
+    assert.equal(
+      resolveOccupancyClass({ occupancyClass: 'unidades_numeradas', unitCount: 3 }),
+      'unidades_numeradas',
+    )
+    const locker = {
+      occupancyClass: 'unidades_numeradas',
+      unitCount: 3,
+      unitPrefix: 'L-',
+      unitPad: 3,
+      unitLabel: 'Cajón',
+    }
+    assert.deepEqual(buildUnitCodes(locker), ['L-001', 'L-002', 'L-003'])
+    assert.equal(occupancyShortLabel(locker), '3 cajones numerados')
+    const ok = evaluateCreateReservation({
+      resource: {
+        ...locker,
+        kind: 'activo',
+        activo: true,
+        horario: { days: [0, 1, 2, 3, 4, 5, 6], open: '00:00', close: '23:59' },
+      },
+      policy: {},
+      startAt: '2026-08-10T10:00:00.000Z',
+      endAt: '2026-08-10T11:00:00.000Z',
+      overlappingCount: 0,
+      unitCode: 'L-002',
+      now: new Date('2026-08-01T12:00:00Z'),
+    })
+    assert.equal(ok.ok, true)
+    assert.equal(ok.unitCode, 'L-002')
+    const missing = evaluateCreateReservation({
+      resource: {
+        ...locker,
+        kind: 'activo',
+        activo: true,
+        horario: { days: [0, 1, 2, 3, 4, 5, 6], open: '00:00', close: '23:59' },
+      },
+      policy: {},
+      startAt: '2026-08-10T10:00:00.000Z',
+      endAt: '2026-08-10T11:00:00.000Z',
+      overlappingCount: 0,
+      unitCode: '',
+      now: new Date('2026-08-01T12:00:00Z'),
+    })
+    assert.equal(missing.ok, false)
+  })
+
+  it('normalizeOccupancyFields alinea cupo', () => {
+    const n = normalizeOccupancyFields({
+      occupancyClass: 'pool',
+      unitCount: 20,
+      kind: 'zona_cupo',
+    })
+    assert.equal(n.cupo, 20)
+    assert.equal(n.unitCount, 20)
+    const u = normalizeOccupancyFields({ occupancyClass: 'unitario', cupo: 5 })
+    assert.equal(u.unitCount, 1)
+    assert.equal(u.cupo, null)
+  })
+})
+
+describe('spaces serialize / week leftover', () => {
   it('horario', () => {
     // Usa Date local: forzamos un recurso 24/7 para no depender del TZ del runner
     const r = { horario: { days: [0, 1, 2, 3, 4, 5, 6], open: '00:00', close: '23:59' } }
@@ -213,6 +288,10 @@ describe('spaces catalog (tipos + atributos)', () => {
     })
     assert.equal(t.codigo, 'proyector')
     assert.equal(t.engineKind, 'activo')
+    assert.equal(t.icon, 'projector')
+    assert.equal(defaultIconForEngine('sala'), 'meeting')
+    assert.equal(defaultIconForEngine('cochera'), 'parking')
+    assert.equal(defaultIconForEngine('activo'), 'box')
     const a = serializeAttributeDef({
       _id: 'bbbbbbbbbbbbbbbbbbbbbbbb',
       key: 'hdmi',
@@ -222,5 +301,18 @@ describe('spaces catalog (tipos + atributos)', () => {
       orden: 20,
     })
     assert.equal(a.label, 'HDMI')
+  })
+})
+
+describe('space reminder window', () => {
+  it('filtra reservas en la ventana de 10 minutos', async () => {
+    const { reminderDueFilter, SPACE_REMINDER_MINUTES } = await import('../services/spaceReminder.js')
+    assert.equal(SPACE_REMINDER_MINUTES, 10)
+    const now = new Date('2026-08-03T12:00:00.000Z')
+    const f = reminderDueFilter(now, 10)
+    assert.deepEqual(f.status.$in, ['confirmed', 'checked_in'])
+    assert.equal(f.reminderSentAt, null)
+    assert.equal(+f.startAt.$gt, +now)
+    assert.equal(+f.startAt.$lte, +new Date('2026-08-03T12:10:00.000Z'))
   })
 })

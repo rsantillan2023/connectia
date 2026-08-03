@@ -26,10 +26,13 @@ describe('pointsRules helpers', () => {
     const engagement = POINTS_EVENTS.filter((e) => e !== 'external_credit')
     assert.equal(DEFAULT_POINTS_RULES.length, engagement.length)
     for (const e of engagement) {
-      assert.ok(POINTS_EVENT_LABELS[e])
-      assert.ok(DEFAULT_POINTS_RULES.some((r) => r.event === e && r.points > 0))
+      assert.ok(POINTS_EVENT_LABELS[e], `falta label para ${e}`)
+      assert.ok(DEFAULT_POINTS_RULES.some((r) => r.event === e && r.points > 0), `falta default para ${e}`)
     }
     assert.ok(POINTS_EVENT_LABELS.external_credit)
+    assert.ok(POINTS_EVENT_LABELS.survey_completed)
+    assert.ok(POINTS_EVENT_LABELS.attendance_punch)
+    assert.ok(POINTS_EVENT_LABELS.course_completed)
   })
 
   it('serializePointsRule', () => {

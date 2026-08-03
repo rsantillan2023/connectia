@@ -110,13 +110,13 @@ onUnmounted(() => window.removeEventListener('beforeinstallprompt', onBip))
 .supc-muted { font-size: 0.8rem; color: #94a3b8; }
 .supc-btn {
   border: 0;
-  background: #0d9488;
+  background: var(--brand-primary, #0d9488);
   color: #fff;
   border-radius: 8px;
   padding: 0.5rem 0.9rem;
   margin-top: 0.35rem;
 }
 .supc-btn.ghost { background: #f1f5f9; color: #0f172a; }
-.supc-ok { color: #0f766e; font-size: 0.85rem; }
+.supc-ok { color: var(--brand-primary, #0f766e); font-size: 0.85rem; }
 .supc-err { color: #b91c1c; font-size: 0.85rem; }
 </style>

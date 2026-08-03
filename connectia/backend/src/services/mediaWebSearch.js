@@ -51,13 +51,21 @@ async function searchSerperVideos(query, limit) {
   })
 }
 
+const KIND_LABEL = {
+  youtube: 'videos de YouTube',
+  vimeo: 'videos de Vimeo',
+  hls: 'streams HLS (.m3u8)',
+  audio: 'audios',
+}
+
 /**
- * @param {'youtube'|'audio'} kind
+ * @param {'youtube'|'vimeo'|'hls'|'audio'} kind
  * @param {string} query
  * @param {{ limit?: number }} [opts]
  */
 export async function searchMediaOnWeb(kind, query, opts = {}) {
-  const k = kind === 'audio' ? 'audio' : 'youtube'
+  const allowed = new Set(['youtube', 'vimeo', 'hls', 'audio'])
+  const k = allowed.has(kind) ? kind : 'youtube'
   const q = String(query || '').trim()
   if (q.length < 2) {
     const err = new Error('Escribí al menos 2 caracteres para buscar')
@@ -97,10 +105,11 @@ export async function searchMediaOnWeb(kind, query, opts = {}) {
     errors.push(`web: ${e.message}`)
   }
 
+  const label = KIND_LABEL[k] || k
   const err = new Error(
     errors.length
-      ? `No se encontraron ${k === 'youtube' ? 'videos de YouTube' : 'audios'}. ${errors.join(' | ')}`
-      : `No hubo resultados de ${k === 'youtube' ? 'YouTube' : 'audio'}. Probá otras palabras.`,
+      ? `No se encontraron ${label}. ${errors.join(' | ')}`
+      : `No hubo resultados de ${label}. Probá otras palabras.`,
   )
   err.status = 502
   throw err

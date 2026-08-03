@@ -5,19 +5,29 @@ import {
   applyAdjust,
   canRedeemBenefit,
   isBenefitActiveNow,
+  isBenefitInSchedule,
   serializeBenefit,
   applyBenefitPatch,
   buildBenefitSearchFilter,
   kindLabel,
   defaultBenefitSeed,
+  defaultPartnerSeed,
   distanceKm,
   normalizeCartItems,
   computeCartTotals,
   inferOfferType,
   applyOfferTypeToDoc,
   offerTypeLabel,
+  resolveOfferTypes,
+  normalizeBenefitsConfig,
+  resolveCategories,
+  normalizeCategoriesInput,
+  slugCategoryId,
+  categoryLabel,
   benefitDirectionsUrl,
   benefitMapsPinUrl,
+  simulateBenefitEligibility,
+  resolveBenefitLocations,
 } from '../lib/benefits.js'
 
 describe('benefits ledger', () => {
@@ -66,6 +76,53 @@ describe('benefits eligibility', () => {
     )
     assert.equal(lim.ok, false)
   })
+
+  it('días, horario y sede', () => {
+    // jueves 2026-07-30 15:00 local (depende de TZ; usamos Date con componentes)
+    const thu = new Date(2026, 6, 30, 15, 0, 0)
+    assert.equal(thu.getDay(), 4)
+    assert.equal(
+      isBenefitInSchedule({ daysOfWeek: [4], timeFrom: '09:00', timeTo: '18:00' }, thu),
+      true,
+    )
+    assert.equal(
+      isBenefitInSchedule({ daysOfWeek: [1], timeFrom: '09:00', timeTo: '18:00' }, thu),
+      false,
+    )
+    assert.equal(
+      isBenefitInSchedule({ timeFrom: '16:00', timeTo: '18:00' }, thu),
+      false,
+    )
+    const sedeOk = canRedeemBenefit(
+      { status: 'published', requireUserSede: true, sucursal: 'Centro', locations: [] },
+      { user: { sede: 'Centro' }, now: thu },
+    )
+    assert.equal(sedeOk.ok, true)
+    const sedeBad = canRedeemBenefit(
+      { status: 'published', requireUserSede: true, sucursal: 'Centro' },
+      { user: { sede: 'Norte' }, now: thu },
+    )
+    assert.equal(sedeBad.ok, false)
+  })
+
+  it('límites por día y simulador', () => {
+    const now = new Date('2026-07-28T12:00:00')
+    const day = canRedeemBenefit(
+      { status: 'published', limitePorDia: 1 },
+      { userRedeemCountDay: 1, now },
+    )
+    assert.equal(day.ok, false)
+    const sim = simulateBenefitEligibility(
+      { status: 'published', daysOfWeek: [2], timeFrom: '10:00', timeTo: '11:00' },
+      { now },
+    )
+    assert.equal(sim.ok, false)
+    const locs = resolveBenefitLocations({
+      locations: [{ id: 'a', name: 'Norte', lat: -34.5, lng: -58.4, stock: 3 }],
+    })
+    assert.equal(locs.length, 1)
+    assert.equal(locs[0].name, 'Norte')
+  })
 })
 
 describe('benefits serialize / patch', () => {
@@ -86,6 +143,18 @@ describe('benefits serialize / patch', () => {
     assert.equal(s.categoriaLabel, 'Premios')
     assert.equal(s.active, true)
     assert.equal(s.directionsUrl, '')
+    assert.equal(s.displayTitle, 'Gift')
+    assert.equal(s.nombreComercial, '')
+
+    const branded = serializeBenefit({
+      _id: '507f1f77bcf86cd799439013',
+      kind: 'benefit',
+      titulo: '10% reintegro combustible',
+      nombreComercial: 'Puma Energy',
+      status: 'published',
+    })
+    assert.equal(branded.displayTitle, 'Puma Energy')
+    assert.equal(branded.nombreComercial, 'Puma Energy')
 
     const geo = serializeBenefit({
       _id: '507f1f77bcf86cd799439012',
@@ -104,8 +173,9 @@ describe('benefits serialize / patch', () => {
   it('applyBenefitPatch valida titulo', () => {
     const doc = { titulo: 'X' }
     assert.throws(() => applyBenefitPatch(doc, { titulo: '  ' }))
-    applyBenefitPatch(doc, { titulo: 'Nuevo', costoPuntos: 12.7, stock: 3 })
+    applyBenefitPatch(doc, { titulo: 'Nuevo', nombreComercial: 'Marca X', costoPuntos: 12.7, stock: 3 })
     assert.equal(doc.titulo, 'Nuevo')
+    assert.equal(doc.nombreComercial, 'Marca X')
     assert.equal(doc.costoPuntos, 12)
     assert.equal(doc.stock, 3)
   })
@@ -117,6 +187,17 @@ describe('benefits serialize / patch', () => {
     assert.equal(inferOfferType({ costoPuntos: 50 }), 'canjeable')
     assert.equal(inferOfferType({ costoPuntos: 0 }), 'informativo')
     assert.equal(offerTypeLabel('geo'), 'Con ubicación')
+    assert.equal(
+      offerTypeLabel('geo', { benefitsConfig: { offerTypes: { geo: { label: 'Sucursales' } } } }),
+      'Sucursales',
+    )
+    const resolved = resolveOfferTypes({
+      benefitsConfig: { offerTypes: [{ id: 'premio', label: 'Premios club', hint: 'Canjeá puntos' }] },
+    })
+    assert.equal(resolved.find((t) => t.id === 'premio')?.label, 'Premios club')
+    assert.equal(resolved.find((t) => t.id === 'informativo')?.label, 'Informativo / convenio')
+    const cfg = normalizeBenefitsConfig({ offerTypes: { canjeable: { label: '  ', hint: 'x' } } })
+    assert.equal(cfg.offerTypes.canjeable.label, 'Canjeable con puntos')
 
     const doc = { titulo: 'A', costoPuntos: 0 }
     applyOfferTypeToDoc(doc, 'premio')
@@ -155,13 +236,63 @@ describe('benefits serialize / patch', () => {
   })
 })
 
+describe('benefits categories config', () => {
+  it('defaults y custom CRUD', () => {
+    const defs = resolveCategories({})
+    assert.ok(defs.length >= 5)
+    assert.ok(defs.every((c) => c.id && c.label && c.emoji))
+    assert.ok(defs.every((c) => typeof c.example === 'string'))
+
+    const custom = normalizeCategoriesInput([
+      { label: 'Club Viajes', emoji: '✈️', example: 'Paquetes a la costa' },
+      { id: 'salud', label: 'Salud plus' },
+    ])
+    assert.ok(custom.some((c) => c.id === 'club_viajes' && c.emoji === '✈️' && c.example === 'Paquetes a la costa'))
+    assert.ok(custom.some((c) => c.id === 'salud' && c.label === 'Salud plus' && c.example))
+    assert.ok(custom.some((c) => c.id === 'otros'))
+
+    const cfg = normalizeBenefitsConfig({
+      categories: custom,
+      offerTypes: { geo: { label: 'Mapa', hint: 'x' } },
+    })
+    assert.equal(cfg.offerTypes.geo.label, 'Mapa')
+    assert.ok(cfg.categories.some((c) => c.id === 'club_viajes'))
+    assert.equal(categoryLabel('club_viajes', { benefitsConfig: cfg }), 'Club Viajes')
+    assert.equal(slugCategoryId('¡Hola Mundo!'), 'hola_mundo')
+  })
+})
+
 describe('benefits seed', () => {
-  it('defaults con marca, tipología y al menos un reward', () => {
+  it('defaults con marca, tipología completa y casuísticas', () => {
     const rows = defaultBenefitSeed('Acme')
-    assert.ok(rows.length >= 3)
+    assert.ok(rows.length >= 18)
     assert.ok(rows.some((r) => r.kind === 'reward' && r.costoPuntos > 0))
-    assert.ok(rows.some((r) => r.offerType === 'geo'))
-    assert.ok(rows.some((r) => r.offerType === 'canjeable'))
+    assert.ok(rows.some((r) => r.kind === 'benefit'))
+    for (const t of ['informativo', 'canjeable', 'premio', 'geo', 'partner']) {
+      const ofType = rows.filter((r) => r.offerType === t)
+      assert.ok(ofType.length >= 3, `offerType ${t} necesita ≥3 (tiene ${ofType.length})`)
+      const published = ofType.filter((r) => r.status === 'published')
+      assert.ok(published.length >= 3, `offerType ${t} necesita ≥3 published (tiene ${published.length})`)
+    }
+    for (const s of ['published', 'draft', 'archived']) {
+      assert.ok(rows.some((r) => r.status === s), `falta status ${s}`)
+    }
+    assert.ok(rows.some((r) => r.destacado === true))
+    assert.ok(rows.some((r) => r.partnerUrl))
+    assert.ok(rows.some((r) => Array.isArray(r.locations) && r.locations.length > 1))
+    assert.ok(rows.some((r) => r.requireUserSede === true))
+    assert.ok(rows.some((r) => r.allowWaitlist === true))
+    assert.ok(rows.some((r) => r.limitePorDia != null))
+    assert.ok(rows.some((r) => Array.isArray(r.daysOfWeek) && r.daysOfWeek.length > 0))
+    assert.ok(rows.some((r) => /Acme/.test(r.titulo) || /Acme/.test(r.nombreComercial || '')))
+    const cats = new Set(rows.map((r) => r.categoria))
+    assert.ok(cats.size >= 5, 'cubre varias categorías')
+  })
+
+  it('empresas asociadas seed trae varias', () => {
+    const rows = defaultPartnerSeed('Acme')
+    assert.ok(rows.length >= 5)
+    assert.ok(rows.every((r) => r.titulo && r.url))
     assert.ok(rows.some((r) => /Acme/.test(r.titulo)))
   })
 })
@@ -197,5 +328,34 @@ describe('benefits cart', () => {
     const w = applyLedgerEntry(500, 'withdraw', 120)
     assert.equal(w.balanceAfter, 380)
     assert.equal(w.signedAmount, -120)
+  })
+})
+
+describe('benefits AI draft', () => {
+  it('heurística infiere canjeable y arma campos', async () => {
+    const { draftBenefitHeuristic, searchBenefitImages, draftBenefitCopy } = await import(
+      '../services/benefitsAi.js'
+    )
+    const h = draftBenefitHeuristic({
+      prompt: 'Canje de 150 puntos por almuerzo en el comedor',
+      brand: 'Demo',
+    })
+    assert.equal(h.offerType, 'canjeable')
+    assert.ok(h.titulo)
+    assert.ok(h.descripcion)
+    assert.ok(h.costoPuntos > 0)
+    assert.equal(h.source, 'heuristic')
+
+    const images = await searchBenefitImages('farmacia descuento', 'salud')
+    assert.ok(/^https?:\/\//i.test(images.imageUrl))
+    assert.ok(images.imageCandidates.length >= 1)
+
+    const draft = await draftBenefitCopy({
+      prompt: 'Premio gift card 500 puntos',
+      brand: 'Demo',
+      findImage: true,
+    })
+    assert.equal(draft.offerType, 'premio')
+    assert.ok(draft.imageUrl)
   })
 })

@@ -9,12 +9,13 @@ router.get('/status', requireAuth, requireAdmin, (_req, res) => {
 })
 
 /**
- * Busca media en la red para pegar URL en el editor.
- * Body: { kind: 'youtube'|'audio', query, limit? }
+ * Busca media en la red para pegar URL en el editor / Live.
+ * Body: { kind: 'youtube'|'vimeo'|'hls'|'audio', query, limit? }
  */
 router.post('/search', requireAuth, requireAdmin, async (req, res, next) => {
   try {
-    const kind = req.body?.kind === 'audio' ? 'audio' : 'youtube'
+    const allowed = new Set(['youtube', 'vimeo', 'hls', 'audio'])
+    const kind = allowed.has(req.body?.kind) ? req.body.kind : 'youtube'
     const result = await searchMediaOnWeb(kind, req.body?.query, { limit: req.body?.limit })
     res.json(result)
   } catch (e) {

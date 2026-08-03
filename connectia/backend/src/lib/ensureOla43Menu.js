@@ -1,4 +1,5 @@
 import { MenuItem } from '../models/MenuItem.js'
+import { Tenant } from '../models/Tenant.js'
 
 export const OLA43_PRODUCT_CAPS = ['servicios']
 export const OLA43_ADMIN_CAPS = ['admin.servicios']
@@ -50,10 +51,13 @@ export async function ensureOla43MenuItems(tenantId) {
 }
 
 export async function activateOla43ForTenant(tenant) {
+  await Tenant.updateOne(
+    { _id: tenant._id },
+    { $addToSet: { capabilities: { $each: OLA43_ALL_CAPS } } },
+  )
   const caps = new Set(tenant.capabilities || [])
   for (const c of OLA43_ALL_CAPS) caps.add(c)
   tenant.capabilities = [...caps]
-  await tenant.save()
   await ensureOla43MenuItems(tenant._id)
   return tenant
 }

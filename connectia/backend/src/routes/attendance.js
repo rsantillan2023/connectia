@@ -31,6 +31,7 @@ import {
 } from '../lib/attendanceVertical.js'
 import { TeamScope } from '../models/TeamScope.js'
 import { notifyAttendancePunch } from '../services/notifyAttendance.js'
+import { scheduleAwardPoints } from '../lib/pointsRules.js'
 
 const router = Router()
 const ObjectId = mongoose.Types.ObjectId
@@ -375,6 +376,14 @@ router.post('/punch', async (req, res, next) => {
       console.warn('[attendance] notify:', err?.message || err)
     }
 
+    scheduleAwardPoints({
+      tenant: req.tenant,
+      userId: req.user._id,
+      event: 'attendance_punch',
+      entityId: punch._id,
+      meta: { kind, channel: String(body.channel || 'app') },
+    })
+
     res.status(201).json({
       item: serializePunch(punch, { place }),
       replayed: false,
@@ -668,6 +677,14 @@ router.post('/qr/punch', async (req, res, next) => {
     } catch {
       /* ignore */
     }
+
+    scheduleAwardPoints({
+      tenant: req.tenant,
+      userId: targetUserId,
+      event: 'attendance_punch',
+      entityId: punch._id,
+      meta: { kind, channel: 'qr' },
+    })
 
     res.status(201).json({
       item: serializePunch(punch, { place, userName }),

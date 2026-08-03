@@ -254,7 +254,7 @@ onUnmounted(() => {
 <template>
   <section class="al">
     <header class="al-head">
-      <h1>Reportes</h1>
+      <h1>Reportar Incidente</h1>
       <p>Botón rápido con foto y ubicación. Genera un pedido de campo.</p>
     </header>
 

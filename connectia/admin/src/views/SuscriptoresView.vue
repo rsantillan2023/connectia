@@ -305,7 +305,7 @@ function onPackChange() {
   if (draft.value.pack !== 'personalizado') {
     draft.value.moduleIds = resolvePackSelection(draft.value.pack, [])
   } else if (!draft.value.moduleIds?.length) {
-    draft.value.moduleIds = [...MODULE_PACKS.basico]
+    draft.value.moduleIds = [...MODULE_PACKS.todo]
   }
 }
 
@@ -327,8 +327,8 @@ function openNew() {
     activo: true,
     websiteUrl: '',
     notes: '',
-    pack: 'basico',
-    moduleIds: [...MODULE_PACKS.basico],
+    pack: 'todo',
+    moduleIds: [...MODULE_PACKS.todo],
   }
   msg.value = ''
 }
@@ -338,7 +338,7 @@ function edit(t) {
   draft.value = {
     ...t,
     pack: detectPack(licensed),
-    moduleIds: licensed.length ? [...licensed] : [...MODULE_PACKS.basico],
+    moduleIds: licensed.length ? [...licensed] : [...MODULE_PACKS.todo],
   }
   msg.value = ''
   copyFlash.value = ''

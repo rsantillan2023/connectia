@@ -78,6 +78,11 @@ const benefitRedemptionSchema = new mongoose.Schema(
     pointsSpent: { type: Number, default: 0 },
     transactionId: { type: mongoose.Schema.Types.ObjectId, ref: 'WalletTransaction', default: null },
     idempotencyKey: { type: String, required: true, trim: true, maxlength: 120 },
+    locationId: { type: String, default: '' },
+    locationName: { type: String, default: '', maxlength: 160 },
+    waitlisted: { type: Boolean, default: false },
+    usedAt: { type: Date, default: null },
+    usedByMerchant: { type: Boolean, default: false },
   },
   { timestamps: true },
 )

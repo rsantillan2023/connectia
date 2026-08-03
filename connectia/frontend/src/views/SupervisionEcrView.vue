@@ -180,7 +180,7 @@ onMounted(async () => {
 .hint { font-size: 0.8rem; color: #a16207; background: #fef9c3; padding: 0.4rem 0.6rem; border-radius: 8px; }
 .tabs { display: flex; gap: 0.4rem; margin: 0.75rem 0; }
 .tabs button { flex: 1; border: 0; background: #f1f5f9; padding: 0.55rem; border-radius: 8px; }
-.tabs button.on { background: #0f766e; color: #fff; }
+.tabs button.on { background: var(--brand-primary, #0f766e); color: #fff; }
 .fecha { display: grid; gap: 0.25rem; font-size: 0.85rem; margin-bottom: 0.75rem; }
 .list { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.5rem; }
 .list li { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 0.85rem; display: grid; gap: 0.2rem; }
@@ -193,6 +193,6 @@ onMounted(async () => {
 .actions { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.75rem; }
 .actions button { border: 0; background: #f1f5f9; border-radius: 8px; padding: 0.5rem 0.7rem; }
 .danger { color: #b91c1c; }
-.ok { color: #0f766e; }
+.ok { color: var(--brand-primary, #0f766e); }
 .sup-err { color: #b91c1c; }
 </style>

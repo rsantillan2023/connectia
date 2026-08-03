@@ -19,6 +19,8 @@ const surveySchema = new mongoose.Schema(
     tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
     titulo: { type: String, required: true, trim: true },
     descripcion: { type: String, default: '' },
+    /** Portada visible en app (lista, detalle, muro) y admin */
+    imageUrl: { type: String, default: '', maxlength: 500 },
     status: {
       type: String,
       enum: ['draft', 'published', 'closed'],

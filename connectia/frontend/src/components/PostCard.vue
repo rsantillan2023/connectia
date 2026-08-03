@@ -15,7 +15,10 @@
           </span>
         </p>
       </div>
-      <span v-if="show.tipo && tipoLabel" class="tipo tipo-end">{{ tipoLabel }}</span>
+      <div v-if="show.tipo && tipoLabel" class="tipo-block">
+        <span class="tipo">{{ tipoLabel }}</span>
+        <span v-if="sectionLabel" class="section-label">{{ sectionLabel }}</span>
+      </div>
       <button
         v-if="showMoreMenu"
         type="button"
@@ -202,6 +205,7 @@ const TIPO_LABELS = {
   general: 'General',
 }
 const tipoLabel = computed(() => TIPO_LABELS[props.post?.tipo] || props.post?.tipo || '')
+const sectionLabel = computed(() => String(props.post?.section || '').trim())
 
 const show = computed(() => ({ ...DEFAULT_SHOW, ...(props.post?.display?.show || {}) }))
 const layout = computed(() => props.post?.layout || 'vertical')
@@ -276,7 +280,7 @@ function onNotInterested() {
   font-size: 12px;
   font-weight: 700;
   color: #fff;
-  background: linear-gradient(135deg, var(--brand-primary, #0f766e), var(--brand-secondary, #115e59));
+  background: linear-gradient(135deg, var(--brand-primary, #0f766e), var(--brand-secondary, #6b3fa0));
 }
 .author {
   margin: 0;
@@ -296,17 +300,37 @@ function onNotInterested() {
   flex-shrink: 0;
   line-height: 0;
 }
+.tipo-block {
+  flex-shrink: 0;
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  min-width: 0;
+  max-width: 42%;
+  text-align: right;
+}
 .tipo {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--brand-primary, #0f766e);
   font-weight: 700;
   font-size: 11px;
+  line-height: 1.15;
 }
-.tipo-end {
-  flex-shrink: 0;
-  margin-left: auto;
-  text-align: right;
+.section-label {
+  display: block;
+  font-size: 9px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  color: #94a3b8;
+  text-transform: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
 }
 .pcard-date {
   margin: 8px 0 2px;

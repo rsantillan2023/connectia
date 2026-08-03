@@ -1,6 +1,43 @@
 <template>
-  <div class="share-sheet" @click.self="emit('close')">
-    <div class="share-panel" role="dialog" aria-modal="true" aria-labelledby="share-title">
+  <div class="share-sheet" @click.self="onBackdrop">
+    <!-- Confirmación: no se pierde al scrollear el sheet -->
+    <div
+      v-if="done"
+      class="share-confirm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="share-done-title"
+    >
+      <div class="share-confirm-icon" aria-hidden="true">✓</div>
+      <h2 id="share-done-title">Listo, se derivó</h2>
+      <p class="share-confirm-text">
+        Enviaste
+        <strong>«{{ postTitle }}»</strong>
+        <template v-if="doneTo"> a <strong>{{ doneTo }}</strong></template>
+        por chat interno.
+      </p>
+      <div class="share-confirm-actions">
+        <button
+          v-if="chatId"
+          type="button"
+          class="share-btn share-btn--primary"
+          @click="openChat"
+        >
+          Abrir conversación
+        </button>
+        <button type="button" class="share-btn share-btn--ghost" @click="emit('close')">
+          Cerrar
+        </button>
+      </div>
+    </div>
+
+    <div
+      v-else
+      class="share-panel"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="share-title"
+    >
       <header class="share-head">
         <h2 id="share-title">Derivar publicación</h2>
         <button type="button" class="share-close" aria-label="Cerrar" @click="emit('close')">×</button>
@@ -42,11 +79,6 @@
         </li>
         <li v-if="!directory.length" class="share-empty">No hay resultados.</li>
       </ul>
-
-      <p v-if="done" class="share-ok">
-        Listo. Se envió por chat.
-        <button type="button" class="share-link" @click="openChat">Abrir conversación</button>
-      </p>
     </div>
   </div>
 </template>
@@ -71,6 +103,7 @@ const busy = ref(false)
 const busyId = ref('')
 const error = ref('')
 const done = ref(false)
+const doneTo = ref('')
 const chatId = ref('')
 let timer = null
 
@@ -112,12 +145,14 @@ async function shareWith(u) {
   busyId.value = u.id
   error.value = ''
   done.value = false
+  doneTo.value = ''
   try {
     const { data } = await api.post(`/posts/${props.post.id}/share`, {
       userId: u.id,
       note: note.value.trim() || undefined,
     })
     chatId.value = data?.chatId || ''
+    doneTo.value = u.displayName || label(u)
     done.value = true
     emit('shared', { chatId: chatId.value, user: u })
   } catch (e) {
@@ -132,6 +167,12 @@ function openChat() {
   if (!chatId.value) return
   emit('close')
   router.push(`/chat/${chatId.value}`)
+}
+
+function onBackdrop() {
+  // Con confirmación abierta, el backdrop no cierra (hay que confirmar)
+  if (done.value) return
+  emit('close')
 }
 
 onMounted(fetchDirectory)
@@ -158,6 +199,69 @@ onMounted(fetchDirectory)
   border: 1px solid var(--cx-border);
   border-bottom: 0;
   box-shadow: 0 -12px 40px rgba(15, 23, 42, 0.18);
+}
+.share-confirm {
+  width: min(100% - 28px, 360px);
+  margin: auto 14px;
+  align-self: center;
+  background: var(--cx-surface);
+  color: var(--cx-text);
+  border-radius: 20px;
+  padding: 22px 18px 16px;
+  border: 1px solid var(--cx-border);
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.28);
+  text-align: center;
+}
+.share-confirm-icon {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 12px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 1.35rem;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--brand-primary, #0f766e) 16%, transparent);
+  color: var(--brand-primary, #0f766e);
+}
+.share-confirm h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+.share-confirm-text {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--cx-muted);
+}
+.share-confirm-text strong {
+  color: var(--cx-text);
+  font-weight: 650;
+}
+.share-confirm-actions {
+  margin-top: 18px;
+  display: grid;
+  gap: 8px;
+}
+.share-btn {
+  width: 100%;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.share-btn--primary {
+  background: var(--brand-primary, #0f766e);
+  color: #fff;
+}
+.share-btn--ghost {
+  background: transparent;
+  border-color: var(--cx-border);
+  color: var(--cx-text);
 }
 .share-head {
   display: flex;
@@ -257,8 +361,8 @@ onMounted(fetchDirectory)
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: color-mix(in srgb, var(--cx-primary, #0f766e) 16%, transparent);
-  color: var(--cx-primary, #0f766e);
+  background: color-mix(in srgb, var(--brand-primary, #0f766e) 16%, transparent);
+  color: var(--brand-primary, #0f766e);
   font-size: 12px;
   font-weight: 700;
   flex-shrink: 0;
@@ -281,27 +385,8 @@ onMounted(fetchDirectory)
 .share-send {
   font-size: 12px;
   font-weight: 700;
-  color: var(--cx-primary, #0f766e);
+  color: var(--brand-primary, #0f766e);
   flex-shrink: 0;
-}
-.share-ok {
-  margin: 14px 0 0;
-  padding: 12px;
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--cx-primary, #0f766e) 10%, transparent);
-  font-size: 13px;
-  line-height: 1.4;
-}
-.share-link {
-  display: inline;
-  margin-left: 6px;
-  border: 0;
-  background: transparent;
-  color: var(--cx-primary, #0f766e);
-  font: inherit;
-  font-weight: 700;
-  cursor: pointer;
-  text-decoration: underline;
 }
 .sr-only {
   position: absolute;

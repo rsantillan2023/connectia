@@ -26,6 +26,7 @@ import {
 } from '../lib/audience.js'
 import { toPublicMediaUrl } from '../lib/mediaUrl.js'
 import { startWorkflowForOrigin } from '../services/workflowRuntime.js'
+import { scheduleAwardPoints } from '../lib/pointsRules.js'
 import {
   notifyRequestCreated,
   notifyRequestGenerated,
@@ -558,6 +559,13 @@ router.post('/', requireAuth, async (req, res, next) => {
     notifyRequestCreated({ tenant: req.tenant, request: r, cfg }).catch((err) =>
       console.warn('[notify-request] created:', err?.message || err),
     )
+
+    scheduleAwardPoints({
+      tenant: req.tenant,
+      userId: req.user._id,
+      event: 'request_created',
+      entityId: r._id,
+    })
 
     res.status(201).json({ request: serialize(r, { cfg }) })
   } catch (e) {

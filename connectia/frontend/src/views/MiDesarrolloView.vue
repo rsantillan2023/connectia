@@ -2,10 +2,14 @@
   <section class="dev">
     <header class="dev-head">
       <h1>Mi desarrollo</h1>
-      <p>Objetivos, desempeño, carrera, aprendizaje y vacantes internas.</p>
+      <p v-if="!moduleDisabled">Objetivos, desempeño, carrera, aprendizaje y vacantes internas.</p>
     </header>
 
-    <p v-if="moduleDisabled" class="err" role="alert">Módulo no habilitado</p>
+    <ModuleDisabledState
+      v-if="moduleDisabled"
+      module-name="Mi desarrollo"
+      icon="sparkles"
+    />
     <template v-else>
       <div v-if="visibleTabs.length" class="dev-tabs" role="tablist">
         <button
@@ -200,6 +204,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import api from '../services/api'
+import ModuleDisabledState from '../components/ModuleDisabledState.vue'
 import PersonPicker from '../components/PersonPicker.vue'
 
 const caps = ref({ okr: false, desempeno: false, carrera: false, lms: false, vacantes: false })
@@ -243,7 +248,8 @@ function vacancyTitle(id) {
 
 function handleErr(e, fallback) {
   if (e.response?.status === 403) {
-    error.value = 'Módulo no habilitado'
+    moduleDisabled.value = true
+    error.value = ''
     return true
   }
   error.value = e.response?.data?.error || fallback
@@ -260,7 +266,7 @@ async function loadMeta() {
   } catch (e) {
     if (e.response?.status === 403) {
       moduleDisabled.value = true
-      error.value = 'Módulo no habilitado'
+      error.value = ''
     } else {
       error.value = e.response?.data?.error || 'No se pudo cargar el módulo'
     }
@@ -432,7 +438,7 @@ onMounted(async () => {
 .dev-head p { margin: 0; color: #64748b; font-size: 0.92rem; }
 .dev-tabs { display: flex; gap: 6px; overflow-x: auto; margin: 14px 0 12px; padding-bottom: 4px; }
 .dev-tabs button { flex-shrink: 0; border: 1px solid #e2e8f0; background: #fff; border-radius: 999px; padding: 8px 14px; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
-.dev-tabs button.on { background: #0f766e; color: #fff; border-color: transparent; }
+.dev-tabs button.on { background: var(--brand-primary, #0f766e); color: #fff; border-color: transparent; }
 .dev-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
 .card { border: 1px solid #e2e8f0; background: #fff; border-radius: 14px; padding: 14px; }
 .card.flat { display: grid; gap: 4px; }
@@ -440,7 +446,7 @@ onMounted(async () => {
 .card-body { margin-top: 12px; display: grid; gap: 8px; border-top: 1px solid #e2e8f0; padding-top: 12px; }
 .prog-wrap { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
 .prog-bar { flex: 1; height: 8px; background: #e2e8f0; border-radius: 999px; overflow: hidden; }
-.prog-bar span { display: block; height: 100%; background: #0f766e; border-radius: 999px; }
+.prog-bar span { display: block; height: 100%; background: var(--brand-primary, #0f766e); border-radius: 999px; }
 .prog-wrap em { font-size: 0.8rem; color: #64748b; font-style: normal; min-width: 36px; }
 .pill { font-size: 0.72rem; font-weight: 700; border-radius: 999px; padding: 3px 8px; background: #e2e8f0; margin-left: 6px; }
 .meta { margin: 4px 0 0; color: #64748b; font-size: 0.85rem; }
@@ -453,7 +459,7 @@ onMounted(async () => {
 .gaps { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .tag { background: #ecfdf5; color: #065f46; font-size: 0.78rem; padding: 4px 8px; border-radius: 999px; }
 .check-row label { display: flex; gap: 8px; align-items: center; font-weight: 500; }
-.btn { border: none; background: #0f766e; color: #fff; border-radius: 12px; padding: 10px 14px; font-weight: 600; cursor: pointer; justify-self: start; }
+.btn { border: none; background: var(--brand-primary, #0f766e); color: #fff; border-radius: 12px; padding: 10px 14px; font-weight: 600; cursor: pointer; justify-self: start; }
 .btn-ghost { border: 1px solid #e2e8f0; background: #fff; border-radius: 10px; padding: 6px 12px; cursor: pointer; }
 .sheet { position: fixed; inset: 0; background: rgba(15,23,42,.45); z-index: 40; display: grid; place-items: end center; padding: 12px; }
 .sheet-panel { width: min(720px, 100%); max-height: 90vh; overflow: auto; background: #fff; border-radius: 16px 16px 0 0; padding: 16px; display: grid; gap: 12px; }

@@ -27,6 +27,7 @@ import {
 import { resolveDocumentDownload } from '../services/docStorage.js'
 import { toPublicMediaUrl } from '../lib/mediaUrl.js'
 import { startWorkflowForOrigin } from '../services/workflowRuntime.js'
+import { scheduleAwardPoints } from '../lib/pointsRules.js'
 
 const router = Router()
 const ObjectId = mongoose.Types.ObjectId
@@ -453,6 +454,12 @@ router.post('/:id/sign', requireAuth, async (req, res, next) => {
       ip,
     })
     await doc.save()
+    scheduleAwardPoints({
+      tenant: req.tenant,
+      userId: req.user._id,
+      event: 'document_signed',
+      entityId: `${doc._id}:${doc.version || 1}`,
+    })
     res.status(201).json({
       ok: true,
       document: serializeDoc(doc.toObject(), req.user._id),

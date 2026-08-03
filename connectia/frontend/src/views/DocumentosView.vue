@@ -618,7 +618,7 @@ onMounted(async () => {
   min-height: 100%;
   background:
     radial-gradient(120% 80% at 0% 0%, color-mix(in srgb, var(--brand-primary, #0f766e) 10%, transparent), transparent 55%),
-    radial-gradient(90% 60% at 100% 0%, color-mix(in srgb, var(--brand-secondary, #134e4a) 8%, transparent), transparent 50%),
+    radial-gradient(90% 60% at 100% 0%, color-mix(in srgb, var(--brand-secondary, #6b3fa0) 8%, transparent), transparent 50%),
     var(--cx-page, #f8fafc);
 }
 .docs-head {
@@ -793,7 +793,7 @@ onMounted(async () => {
   font-weight: 800;
   letter-spacing: 0.02em;
   background: #ecfdf5;
-  color: #0f766e;
+  color: var(--brand-primary, #0f766e);
 }
 .docs-icon[data-type='pdf'] { background: #fef2f2; color: #b91c1c; }
 .docs-icon[data-type='image'] { background: #eff6ff; color: #1d4ed8; }

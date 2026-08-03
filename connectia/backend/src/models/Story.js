@@ -15,6 +15,10 @@ const storySchema = new mongoose.Schema(
       enum: ['image', 'video'],
       default: 'image',
     },
+    /** Segundos visibles en el viewer de la app antes de pasar a la siguiente. */
+    durationSec: { type: Number, min: 1, max: 60, default: 5 },
+    /** Música/audio opcional (solo aplica con mediaType image; se ignora en video). */
+    audioUrl: { type: String, default: '', trim: true, maxlength: 500 },
     startsAt: { type: Date, default: Date.now, index: true },
     endsAt: { type: Date, required: true, index: true },
     order: { type: Number, default: 0 },

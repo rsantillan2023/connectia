@@ -3,19 +3,27 @@ import { requireAuth, hasCapability } from '../middleware/auth.js'
 import { ServiceArea } from '../models/ServiceArea.js'
 import { ServiceCatalogItem } from '../models/ServiceCatalogItem.js'
 import { ServiceRequest } from '../models/ServiceRequest.js'
+import { ServiceFeedback } from '../models/ServiceFeedback.js'
 import {
   serializeArea,
   serializeCatalogItem,
   serializeRequest,
+  serializeFeedback,
   validateFormAnswers,
+  validateCsat,
   computeSlaDueAt,
   buildHistoryEntry,
   canTransitionServicio,
+  heuristicServiceFromText,
 } from '../lib/servicios.js'
+import { userMatchesAudience } from '../lib/audience.js'
 import {
   notifyServicioCreated,
   notifyServicioStatusChanged,
 } from '../services/notifyServicios.js'
+import { startWorkflowForOrigin } from '../services/workflowRuntime.js'
+import { createJiraIssueFromServicio } from '../lib/jiraServiciosAdapter.js'
+import { scheduleAwardPoints } from '../lib/pointsRules.js'
 
 const router = Router()
 
@@ -36,6 +44,10 @@ async function nextNumber(tenantId) {
   return (last?.number || 0) + 1
 }
 
+function visibleCatalog(items, user) {
+  return (items || []).filter((it) => userMatchesAudience(user, it.audience || { mode: 'all' }))
+}
+
 /** GET /api/servicios/meta */
 router.get('/meta', async (req, res, next) => {
   try {
@@ -49,11 +61,33 @@ router.get('/meta', async (req, res, next) => {
         label: 1,
       }),
     ])
+    const visible = visibleCatalog(items, req.user)
     res.json({
       areas: areas.map(serializeArea),
-      items: items.map(serializeCatalogItem),
+      items: visible.map(serializeCatalogItem),
       statuses: ['recibido', 'en_curso', 'resuelto', 'cancelado'],
     })
+  } catch (e) {
+    next(e)
+  }
+})
+
+/** POST /api/servicios/suggest — enrutamiento heurístico */
+router.post('/suggest', async (req, res, next) => {
+  try {
+    const prompt = String(req.body?.prompt || req.body?.q || '').trim()
+    const [areas, items] = await Promise.all([
+      ServiceArea.find({ tenantId: req.tenant._id, active: true }).lean(),
+      ServiceCatalogItem.find({ tenantId: req.tenant._id, active: true }).lean(),
+    ])
+    const visible = visibleCatalog(items, req.user).map((i) => ({
+      ...i,
+      id: String(i._id),
+      areaId: i.areaId ? String(i.areaId) : null,
+    }))
+    const areaList = areas.map((a) => ({ id: String(a._id), name: a.name }))
+    const result = heuristicServiceFromText(prompt, visible, areaList)
+    res.json(result)
   } catch (e) {
     next(e)
   }
@@ -93,6 +127,34 @@ router.get('/', async (req, res, next) => {
   }
 })
 
+/** POST /api/servicios/feedback */
+router.post('/feedback', async (req, res, next) => {
+  try {
+    const text = String(req.body?.text || '').trim()
+    if (text.length < 5) {
+      return res.status(400).json({ error: 'Escribí una sugerencia (mín. 5 caracteres)' })
+    }
+    const doc = await ServiceFeedback.create({
+      tenantId: req.tenant._id,
+      createdBy: req.user._id,
+      text: text.slice(0, 2000),
+      catalogItemId: req.body?.catalogItemId || null,
+      areaId: req.body?.areaId || null,
+      status: 'pendiente',
+    })
+    scheduleAwardPoints({
+      tenant: req.tenant,
+      userId: req.user._id,
+      event: 'service_feedback_given',
+      entityId: doc._id,
+      meta: { kind: 'suggestion' },
+    })
+    res.status(201).json({ item: serializeFeedback(doc) })
+  } catch (e) {
+    next(e)
+  }
+})
+
 /** GET /api/servicios/:id */
 router.get('/:id', async (req, res, next) => {
   try {
@@ -113,6 +175,38 @@ router.get('/:id', async (req, res, next) => {
         catalogLabel: item?.label || '',
       }),
     })
+  } catch (e) {
+    next(e)
+  }
+})
+
+/** POST /api/servicios/:id/csat */
+router.post('/:id/csat', async (req, res, next) => {
+  try {
+    const doc = await ServiceRequest.findOne({
+      _id: req.params.id,
+      tenantId: req.tenant._id,
+      createdBy: req.user._id,
+    })
+    if (!doc) return res.status(404).json({ error: 'Solicitud no encontrada' })
+    if (doc.status !== 'resuelto') {
+      return res.status(400).json({ error: 'Solo se califica una solicitud resuelta' })
+    }
+    if (doc.csat?.score) {
+      return res.status(400).json({ error: 'Ya calificaste esta solicitud' })
+    }
+    const v = validateCsat(req.body || {})
+    if (!v.ok) return res.status(400).json({ error: v.error })
+    doc.csat = v.csat
+    await doc.save()
+    scheduleAwardPoints({
+      tenant: req.tenant,
+      userId: req.user._id,
+      event: 'service_feedback_given',
+      entityId: doc._id,
+      meta: { kind: 'csat' },
+    })
+    res.json({ item: serializeRequest(doc) })
   } catch (e) {
     next(e)
   }
@@ -151,6 +245,9 @@ router.post('/', async (req, res, next) => {
     })
     if (!catalog) {
       return res.status(400).json({ error: 'Servicio inexistente o inactivo' })
+    }
+    if (!userMatchesAudience(req.user, catalog.audience || { mode: 'all' })) {
+      return res.status(403).json({ error: 'Este servicio no está disponible para tu perfil' })
     }
     const area = await ServiceArea.findOne({
       _id: catalog.areaId,
@@ -192,6 +289,51 @@ router.post('/', async (req, res, next) => {
     })
 
     notifyServicioCreated({ tenant: req.tenant, request: doc, area }).catch(() => {})
+
+    if (catalog.requireApproval) {
+      try {
+        const authorName = [req.user.nombre, req.user.apellido].filter(Boolean).join(' ') ||
+          req.user.usuario
+        const wf = await startWorkflowForOrigin({
+          tenantId: req.tenant._id,
+          module: 'servicios',
+          refId: doc._id,
+          titulo: `${catalog.label} #${doc.number}`,
+          codigo: String(doc.number),
+          tipoKey: String(catalog._id),
+          solicitanteId: req.user._id,
+          solicitanteName: authorName,
+        })
+        if (wf) {
+          doc.workflowStarted = true
+          await doc.save()
+        }
+      } catch (wfErr) {
+        console.warn('[wf] servicios', wfErr?.message || wfErr)
+      }
+    }
+
+    if (catalog.createJiraIssue) {
+      try {
+        const sync = await createJiraIssueFromServicio({
+          tenant: req.tenant,
+          request: doc,
+          catalog,
+          area,
+        })
+        doc.jiraSync = sync
+        await doc.save()
+      } catch (jErr) {
+        console.warn('[jira] servicios', jErr?.message || jErr)
+      }
+    }
+
+    scheduleAwardPoints({
+      tenant: req.tenant,
+      userId: req.user._id,
+      event: 'service_request_created',
+      entityId: doc._id,
+    })
 
     res.status(201).json({ item: serializeRequest(doc) })
   } catch (e) {

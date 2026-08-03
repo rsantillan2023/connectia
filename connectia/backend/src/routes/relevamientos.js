@@ -7,6 +7,7 @@ import {
   evaluateFieldLogic,
   normalizeAnswerValue,
 } from '../lib/fieldFormQuestions.js'
+import { scheduleAwardPoints } from '../lib/pointsRules.js'
 
 const router = Router()
 
@@ -210,6 +211,13 @@ router.post('/assignments/:id/submit', async (req, res, next) => {
     doc.status = 'synced'
     doc.submittedAt = submission.submittedAt
     await doc.save()
+
+    scheduleAwardPoints({
+      tenant: req.tenant,
+      userId: req.user._id,
+      event: 'relevamiento_submitted',
+      entityId: submission._id,
+    })
 
     res.status(201).json({
       ok: true,

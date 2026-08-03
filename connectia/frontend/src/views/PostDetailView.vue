@@ -513,7 +513,7 @@ onMounted(load)
   padding: 8px 16px;
   font: inherit;
   font-weight: 600;
-  background: var(--cx-primary, #1a3a4a);
+  background: var(--brand-primary, #1a3a4a);
   color: #fff;
   cursor: pointer;
 }

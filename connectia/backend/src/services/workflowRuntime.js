@@ -4,6 +4,8 @@ import { Request } from '../models/Request.js'
 import { DocItem } from '../models/DocItem.js'
 import { LicenseRequest } from '../models/LicenseRequest.js'
 import { AbsenceRequest } from '../models/AbsenceRequest.js'
+import { ServiceRequest } from '../models/ServiceRequest.js'
+import { ServiceCatalogItem } from '../models/ServiceCatalogItem.js'
 import {
   applyDecision,
   currentStep,
@@ -15,6 +17,7 @@ import {
 import { isFullAdmin } from '../middleware/auth.js'
 import { normalizeSolicitudesConfig } from '../lib/solicitudesConfig.js'
 import { syncKbSource } from './kbIndex.js'
+import { buildHistoryEntry, canTransitionServicio } from '../lib/servicios.js'
 
 function actorName(user) {
   return [user?.nombre, user?.apellido].filter(Boolean).join(' ') || user?.usuario || 'Usuario'
@@ -90,6 +93,26 @@ export async function loadOriginContext(instOrOrigen, tenantId) {
         { key: 'desde', label: 'Desde', value: aus.desde },
         { key: 'hasta', label: 'Hasta', value: aus.hasta },
       ]
+    }
+  } else if (mod === 'servicios') {
+    const srv = await ServiceRequest.findOne({ _id: refId, tenantId: tid })
+      .select('number note formAnswers catalogItemId status')
+      .lean()
+    if (srv) {
+      const cat = srv.catalogItemId
+        ? await ServiceCatalogItem.findOne({ _id: srv.catalogItemId, tenantId: tid })
+            .select('label')
+            .lean()
+        : null
+      ctx.titulo = ctx.titulo || `${cat?.label || 'Servicio'} #${srv.number}`
+      ctx.descripcion = srv.note || ''
+      ctx.cuerpo = srv.note || ''
+      ctx.tipoKey = srv.catalogItemId ? String(srv.catalogItemId) : ctx.tipoKey
+      ctx.campos = (srv.formAnswers || []).map((a) => ({
+        key: a.key,
+        label: a.key,
+        value: a.value,
+      }))
     }
   }
   return ctx
@@ -487,6 +510,38 @@ async function applyOriginSideEffects(inst, decision, tenant) {
       } catch (err) {
         console.warn('[notify] wf absence', err?.message || err)
       }
+    }
+    return
+  }
+
+  if (mod === 'servicios') {
+    const srv = await ServiceRequest.findOne({ _id: refId, tenantId: inst.tenantId })
+    if (!srv) return
+    const from = srv.status
+    if (decision === 'rechazar' || inst.status === 'rechazado') {
+      if (canTransitionServicio(from, 'cancelado')) {
+        srv.status = 'cancelado'
+        srv.history.push(
+          buildHistoryEntry({
+            actorId: null,
+            from,
+            to: 'cancelado',
+            reason: 'Rechazado vía workflow §41',
+          }),
+        )
+        await srv.save()
+      }
+    } else if (inst.status === 'aprobado') {
+      // Queda en recibido/en_curso para agentes; solo marca history
+      srv.history.push(
+        buildHistoryEntry({
+          actorId: null,
+          from,
+          to: from,
+          reason: 'Aprobado vía workflow §41',
+        }),
+      )
+      await srv.save()
     }
   }
 }

@@ -4,7 +4,7 @@ import { requireAuth } from '../middleware/auth.js'
 import { User } from '../models/User.js'
 import { WalletTransaction } from '../models/Wallet.js'
 import { PointsRule } from '../models/PointsRule.js'
-import { serializePointsRule } from '../lib/pointsRules.js'
+import { serializePointsRule, ensureDefaultPointsRules } from '../lib/pointsRules.js'
 import {
   WalletPayToken,
   WalletWithdrawAccount,
@@ -78,6 +78,8 @@ router.get('/points', async (req, res, next) => {
 router.get('/how-to-earn', async (req, res, next) => {
   try {
     requireWalletCapability(req.tenant)
+    // Sembrar reglas nuevas faltantes sin pisar las ya editadas por admin.
+    await ensureDefaultPointsRules(req.tenant._id)
     const rules = await PointsRule.find({
       tenantId: req.tenant._id,
       enabled: true,

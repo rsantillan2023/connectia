@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import api from '../services/api'
 import { useThemeStore } from './theme'
+import { applyBrandingCssVars } from '../utils/applyBrandingCssVars'
 
 const REMEMBER_KEY = 'cx_remember'
 
@@ -49,7 +50,10 @@ export const useAuthStore = defineStore('auth', () => {
   hydrateFromSession()
 
   if (tenant.value) {
-    queueMicrotask(() => useThemeStore().initFromTenant(tenant.value))
+    queueMicrotask(() => {
+      useThemeStore().initFromTenant(tenant.value)
+      if (tenant.value?.branding) applyBrandingCssVars(tenant.value.branding)
+    })
   }
 
   function applySession(data, rememberMe = true) {
@@ -58,9 +62,8 @@ export const useAuthStore = defineStore('auth', () => {
     refreshToken.value = data.refreshToken
     user.value = data.user
     tenant.value = data.tenant
-    if (tenant.value?.branding?.primary) {
-      document.documentElement.style.setProperty('--brand-primary', tenant.value.branding.primary)
-      document.documentElement.style.setProperty('--brand-secondary', tenant.value.branding.secondary)
+    if (tenant.value?.branding) {
+      applyBrandingCssVars(tenant.value.branding)
     }
     useThemeStore().initFromTenant(tenant.value)
     persist()
@@ -167,12 +170,11 @@ export const useAuthStore = defineStore('auth', () => {
   function patchTenant(partial = {}) {
     if (!tenant.value) return
     tenant.value = { ...tenant.value, ...partial }
-    if (partial.branding?.primary) {
-      document.documentElement.style.setProperty('--brand-primary', partial.branding.primary)
-      document.documentElement.style.setProperty(
-        '--brand-secondary',
-        partial.branding.secondary || partial.branding.primary,
-      )
+    if (partial.branding) {
+      applyBrandingCssVars({
+        ...(tenant.value.branding || {}),
+        ...partial.branding,
+      })
     }
     persist()
   }

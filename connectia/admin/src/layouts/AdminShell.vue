@@ -501,7 +501,13 @@ const adminFnSections = computed(() => {
     }
   }
   if (loose.length) {
-    sections.unshift({ title: 'Inicio', headerIcon: GROUP_HEADER_FA.inicio, items: loose })
+    const isComunidad = (i) =>
+      i.route === '/comunidad' || i.key === 'admin.tenants' || i.key === 'comunidad'
+    const inicioItems = [
+      ...loose.filter(isComunidad),
+      ...loose.filter((i) => !isComunidad(i)),
+    ]
+    sections.unshift({ title: 'Inicio', headerIcon: GROUP_HEADER_FA.inicio, items: inicioItems })
   }
   return sections
 })
@@ -559,6 +565,7 @@ const platformMenu = [
 ]
 
 const fallbackMenu = [
+  { key: 'comunidad', label: 'Comunidad', route: '/comunidad' },
   { key: 'home', label: 'Dashboard', route: '/' },
   { key: 'usuarios', label: 'Usuarios', route: '/usuarios' },
   { key: 'legajos', label: 'Listado de legajos', route: '/legajos' },
@@ -589,13 +596,12 @@ const fallbackMenu = [
   { key: 'documentos', label: 'Documentos', route: '/documentos' },
   { key: 'directorio', label: 'Datos útiles', route: '/directorio' },
   { key: 'eventos', label: 'Eventos', route: '/eventos' },
-  { key: 'beneficios', label: 'Beneficios y billetera', route: '/beneficios' },
+  { key: 'beneficios', label: 'Beneficios', route: '/beneficios' },
   { key: 'reservas', label: 'Reserva de espacios', route: '/reservas' },
   { key: 'ayuda', label: 'Ayuda', route: '/ayuda' },
   { key: 'politicas', label: 'Políticas y cumplimiento', route: '/politicas' },
   { key: 'accesos', label: 'Enlaces', route: '/accesos' },
   { key: 'chatmod', label: 'Moderación de chat', route: '/chat-moderacion' },
-  { key: 'comunidad', label: 'Comunidad', route: '/comunidad' },
   { key: 'menu', label: 'Menú dinámico', route: '/menu' },
   { key: 'kb', label: 'Base de conocimientos', route: '/asistente-kb' },
 ]
@@ -826,15 +832,13 @@ const MENU_GROUPS = [
       const r = String(item.route || '')
       const k = String(item.key || '')
       return (
-        ['/comunidad', '/menu', '/parametros', '/asistente-kb', '/accesos'].includes(r) ||
+        ['/menu', '/parametros', '/asistente-kb', '/accesos'].includes(r) ||
         [
-          'admin.tenants',
           'admin.menu',
           'admin.params',
           'admin.kb',
           'admin.ia',
           'admin.hub',
-          'comunidad',
           'menu',
           'parametros',
           'asistente-kb',
@@ -864,13 +868,13 @@ function withBeneficiosLink(items) {
   ) {
     return items.map((i) =>
       i.route === '/beneficios' || i.key === 'admin.beneficios' || i.key === 'beneficios'
-        ? { ...i, label: 'Beneficios y billetera' }
+        ? { ...i, label: 'Beneficios' }
         : i,
     )
   }
   const entry = {
     key: 'admin.beneficios',
-    label: 'Beneficios y billetera',
+    label: 'Beneficios',
     route: '/beneficios',
     icon: 'gift',
   }
@@ -1517,9 +1521,15 @@ const menuTree = computed(() => {
   const used = new Set()
   const tree = []
 
-  // Enlaces sueltos primero (Dashboard, etc.)
-  for (const item of items) {
-    if (groupForItem(item)) continue
+  // Enlaces sueltos primero (Comunidad, Dashboard, etc.)
+  const looseItems = items.filter((item) => !groupForItem(item))
+  const isComunidadItem = (item) =>
+    item.route === '/comunidad' || item.key === 'admin.tenants' || item.key === 'comunidad'
+  const orderedLoose = [
+    ...looseItems.filter(isComunidadItem),
+    ...looseItems.filter((item) => !isComunidadItem(item)),
+  ]
+  for (const item of orderedLoose) {
     tree.push({
       type: 'link',
       id: item.id,

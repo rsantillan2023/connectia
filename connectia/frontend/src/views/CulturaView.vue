@@ -2,10 +2,14 @@
   <section class="cul">
     <header class="cul-head">
       <h1>Cultura</h1>
-      <p>Reconocimientos, marketplace interno, referidos y pulso organizacional.</p>
+      <p v-if="!moduleDisabled">Reconocimientos, marketplace interno, referidos y pulso organizacional.</p>
     </header>
 
-    <p v-if="moduleDisabled" class="err" role="alert">Módulo no habilitado</p>
+    <ModuleDisabledState
+      v-if="moduleDisabled"
+      module-name="Cultura"
+      icon="heart"
+    />
     <template v-else>
       <div v-if="visibleTabs.length" class="cul-tabs" role="tablist">
         <button
@@ -182,6 +186,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../services/api'
+import ModuleDisabledState from '../components/ModuleDisabledState.vue'
 import PersonPicker from '../components/PersonPicker.vue'
 
 const router = useRouter()
@@ -221,7 +226,8 @@ function fmtDate(d) {
 
 function handleErr(e, fallback) {
   if (e.response?.status === 403) {
-    error.value = 'Módulo no habilitado'
+    moduleDisabled.value = true
+    error.value = ''
     return true
   }
   error.value = e.response?.data?.error || fallback
@@ -241,7 +247,7 @@ async function loadMeta() {
   } catch (e) {
     if (e.response?.status === 403) {
       moduleDisabled.value = true
-      error.value = 'Módulo no habilitado'
+      error.value = ''
     } else {
       error.value = e.response?.data?.error || 'No se pudo cargar el módulo'
     }
@@ -395,7 +401,7 @@ onMounted(async () => {
 .cul-head p { margin: 0; color: #64748b; font-size: 0.92rem; }
 .cul-tabs { display: flex; gap: 6px; overflow-x: auto; margin: 14px 0 12px; }
 .cul-tabs button { flex-shrink: 0; border: 1px solid #e2e8f0; background: #fff; border-radius: 999px; padding: 8px 14px; font-size: 0.85rem; font-weight: 600; cursor: pointer; }
-.cul-tabs button.on { background: #0f766e; color: #fff; border-color: transparent; }
+.cul-tabs button.on { background: var(--brand-primary, #0f766e); color: #fff; border-color: transparent; }
 .cul-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
 .card { border: 1px solid #e2e8f0; background: #fff; border-radius: 14px; padding: 14px; }
 .card.flat { display: grid; gap: 4px; }
@@ -403,8 +409,8 @@ onMounted(async () => {
 .form { display: grid; gap: 10px; margin-bottom: 16px; }
 .sub { font-size: 1rem; margin: 0 0 8px; }
 .input { width: 100%; box-sizing: border-box; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 12px; font: inherit; margin-top: 4px; }
-.btn { border: none; background: #0f766e; color: #fff; border-radius: 12px; padding: 10px 14px; font-weight: 600; cursor: pointer; justify-self: start; }
-.btn.ghost { background: #fff; color: #0f766e; border: 1px solid #0f766e; margin-top: 8px; }
+.btn { border: none; background: var(--brand-primary, #0f766e); color: #fff; border-radius: 12px; padding: 10px 14px; font-weight: 600; cursor: pointer; justify-self: start; }
+.btn.ghost { background: #fff; color: var(--brand-primary, #0f766e); border: 1px solid var(--brand-primary, #0f766e); margin-top: 8px; }
 .pill { font-size: 0.72rem; font-weight: 700; border-radius: 999px; padding: 3px 8px; background: #e2e8f0; }
 .tag { display: inline-block; background: #ecfdf5; color: #065f46; font-size: 0.78rem; padding: 4px 8px; border-radius: 999px; margin: 6px 0; }
 .meta { margin: 4px 0 0; color: #64748b; font-size: 0.85rem; }
@@ -413,7 +419,7 @@ onMounted(async () => {
 .q-block p { margin: 0 0 8px; font-weight: 600; font-size: 0.9rem; }
 .enps-btns { display: flex; flex-wrap: wrap; gap: 6px; }
 .enps-btns button { width: 36px; height: 36px; border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; font-weight: 600; cursor: pointer; }
-.enps-btns button.on { background: #0f766e; color: #fff; border-color: transparent; }
+.enps-btns button.on { background: var(--brand-primary, #0f766e); color: #fff; border-color: transparent; }
 .err { color: #b91c1c; }
 .ok { color: #065f46; }
 .muted { color: #64748b; }

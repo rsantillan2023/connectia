@@ -62,7 +62,7 @@ export const ADMIN_SCREEN_CAPABILITIES = [
   },
   {
     id: 'admin.beneficios',
-    label: 'Beneficios y billetera',
+    label: 'Beneficios',
     description: 'Catálogo de beneficios, canjes, puntos y partners',
     routes: ['/beneficios'],
   },

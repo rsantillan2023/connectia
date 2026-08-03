@@ -64,6 +64,7 @@ import benefitsRoutes from './src/routes/benefits.js'
 import benefitsAdminRoutes from './src/routes/benefitsAdmin.js'
 import uploadsBenefitsAdminRoutes from './src/routes/uploadsBenefitsAdmin.js'
 import uploadsEventsAdminRoutes from './src/routes/uploadsEventsAdmin.js'
+import uploadsSurveysAdminRoutes from './src/routes/uploadsSurveysAdmin.js'
 import pointsRulesAdminRoutes from './src/routes/pointsRulesAdmin.js'
 import walletRoutes from './src/routes/wallet.js'
 import spacesRoutes from './src/routes/spaces.js'
@@ -107,6 +108,7 @@ import { startPushCampaignScheduler } from './src/services/pushCampaignScheduler
 import { startGreetingScheduler } from './src/services/greetingScheduler.js'
 import { startPostPublishScheduler } from './src/services/postPublishScheduler.js'
 import { startNewsletterRuleScheduler } from './src/services/newsletterRuleScheduler.js'
+import { startSpaceReminderScheduler } from './src/services/spaceReminderScheduler.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
@@ -180,6 +182,7 @@ app.use('/api/admin/licencias', licenciasAdminRoutes)
 app.use('/api/ausentismos', ausentismosRoutes)
 app.use('/api/admin/ausentismos', ausentismosAdminRoutes)
 app.use('/api/surveys', surveysRoutes)
+app.use('/api/admin/surveys/upload', uploadsSurveysAdminRoutes)
 app.use('/api/admin/surveys', surveysAdminRoutes)
 app.use('/api/documents', documentsRoutes)
 app.use('/api/admin/documents/upload', documentsUploadAdminRoutes)
@@ -249,6 +252,7 @@ const server = app.listen(port, () => {
   startGreetingScheduler()
   startPostPublishScheduler()
   startNewsletterRuleScheduler()
+  startSpaceReminderScheduler()
 })
 server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {

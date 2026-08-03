@@ -1,6 +1,6 @@
 # Connectia — Olas (tablero corto)
 
-> Actualizado: 2026-07-30  
+> Actualizado: 2026-08-03  
 > **Estado:** <span style="color:#16a34a">✓</span> cerrada · <span style="color:#ca8a04">●</span> parcial · <span style="color:#dc2626">✗</span> no hecha  
 > Regla: **cerrada** si solo falta QA / smoke / docs.  
 > Columna **Qué falta** = solo desarrollo pendiente (nunca UAT, smoke ni documentación).  
@@ -14,6 +14,29 @@
 > **Ola 23** = solo **seguridad/privacidad** (§43 · IMPRESCINDIBLE). **Portal de servicios** (§42) → **Ola 43** (separado 2026-07-30).  
 > **Ola 24** = paridad por cliente estratégico (**IMPRESCINDIBLE** · no perder lo que hoy opera en legacy). Seguimiento tema a tema: [`CONNECTIA-OLA24-NR.md`](./CONNECTIA-OLA24-NR.md).  
 > **Ola 28** = centro de comunicaciones de plataforma (`28.COM.*` · **cerrada** 2026-07-30 · testigo Hiryx). Packs de cliente ≠ esta ola.
+
+### Avance del tablero
+
+| Estado | Olas | Score |
+|--------|-----:|------:|
+| <span style="color:#16a34a">✓</span> cerrada | 35 | 100% c/u |
+| <span style="color:#ca8a04">●</span> parcial | 2 | 50% c/u |
+| <span style="color:#dc2626">✗</span> no hecha | 8 | 0% c/u |
+| **Total** | **45** | |
+
+| Métrica | Valor |
+|---------|------:|
+| **Avance simple** (todas las olas pesan igual) | **80%** |
+| **Avance ponderado** (por prioridad) | **78%** |
+
+```
+████████████████░░░░  78% ponderado
+```
+
+Pendientes abiertas por prioridad: <span style="color:#dc2626">IMPRESCINDIBLE</span> 4 · <span style="color:#ca8a04">NECESARIO</span> 5 · <span style="color:#2563eb">DESEABLE</span> 1 (incluye las 2 parciales).
+
+**Cómo se pondera:** peso <span style="color:#dc2626">IMPRESCINDIBLE</span>=3 · <span style="color:#ca8a04">NECESARIO</span>=2 · <span style="color:#2563eb">DESEABLE</span>=1 · olas ya cerradas (sin prio)=2. Avance por ola: ✓=1 · ●=0,5 · ✗=0.  
+`% ponderado = Σ(peso × avance) / Σ(peso)` → hoy `72,5 / 93 ≈ 78%`. Recalcular al cambiar estados en la tabla.
 
 <table style="width:100%; table-layout:fixed; border-collapse:collapse">
 <colgroup>
@@ -487,7 +510,7 @@
   <td>—</td>
   <td>Service desk interno: el miembro pide servicios (RRHH/TI/Ops/facilities) y los agentes atienden con estados y SLA. Separado de seguridad (ola 23).</td>
   <td style="width:30%; vertical-align:top"><ul style="margin:0.2rem 0; padding-left:1.15rem"><li>Catálogo de servicios internos por tenant</li><li>Solicitud de servicio desde el portal (U)</li><li>Formularios dinámicos por tipo de servicio</li><li>Asignación / atención por agentes (A)</li><li>Estados y SLA del servicio</li><li>Aprobaciones (propias o vía §41)</li><li>Reportes de volumen / SLA / CSAT</li></ul></td>
-  <td style="width:27%; vertical-align:top; font-size:0.9em"><ul><li>enrutamiento IA / CSAT post-cierre</li><li>reportes volumen (postdev)</li><li>≠ solicitudes §9 · ≠ pedidos §20</li></ul></td>
+  <td style="width:27%; vertical-align:top; font-size:0.9em">—</td>
 </tr>
 </tbody>
 </table>
@@ -1327,21 +1350,16 @@ Gate de go-live: controles mínimos de privacidad y cumplimiento para operar y v
 
 **Absorbido desde ola 30:** `32.04` gestión de atenciones (legado) → portal §42 (o tipo §9 si el tenant no habilita portal).
 
-### Entrega núcleo
-- Caps `servicios` / `admin.servicios` · menú U/A · modelos `ServiceArea` · `ServiceCatalogItem` · `ServiceRequest`.
-- API `/api/servicios` + `/api/admin/servicios` · seed `seedOla43ForTenant.js` · tests `servicios.test.js`.
-
-### Requisitos (mínimo)
-1. Catálogo de servicios por tenant (ítems inactivos no se ofrecen).
-2. Portal U: buscar → formular → confirmar → número + estados + notif.
-3. Panel A: bandeja, asignación, notas internas, SLA.
-4. Formularios dinámicos por tipo de servicio.
-5. Habilitable por capability/suscriptor.
+### Entrega núcleo + gaps
+- Caps `servicios` / `admin.servicios` · menú U/A · modelos `ServiceArea` · `ServiceCatalogItem` · `ServiceRequest` · `ServiceFeedback`.
+- API `/api/servicios` + `/api/admin/servicios` · seed · tests.
+- Enrutamiento heurístico · CSAT · reportes · audiencia · aprobación §41 · feedback · Jira opcional (`jiraConfig` / env).
 
 ### Criterios DoD
 - [x] U pide y sigue un servicio; A resuelve con SLA básico.
-- [x] Regla de producto documentada vs §9 / §20 (sin duplicar el mismo hecho) — **D43-1**.
+- [x] Regla de producto documentada vs §9 / §20 — **D43-1**.
 - [x] Aislamiento multi-tenant + caps.
+- [x] Enrutamiento · CSAT · reportes · audiencia · §41 · feedback · Jira adapter.
 - [ ] QA smoke / OpenAPI (`42.QA` · `42.DOC`) — postdev.
 
 ## Ola 24 — Definiciones (IMPRESCINDIBLE · paridad por cliente)

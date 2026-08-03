@@ -35,6 +35,7 @@ import {
 } from '../lib/talent.js'
 import { notifyVacancyApplication } from '../services/notifyTalentCulture.js'
 import { searchTenantPeople } from '../lib/peopleSearch.js'
+import { scheduleAwardPoints } from '../lib/pointsRules.js'
 
 const router = Router()
 const ObjectId = mongoose.Types.ObjectId
@@ -457,6 +458,7 @@ router.post('/courses/:id/progress', requireAuth, requireTalentCap('lms'), async
 
     const now = new Date()
     const completed = progress >= 100 || quizPassed
+    const wasCompleted = Boolean(enrollment?.completed)
 
     if (!enrollment) {
       enrollment = new LmsEnrollment({
@@ -482,6 +484,14 @@ router.post('/courses/:id/progress', requireAuth, requireTalentCap('lms'), async
     }
 
     await enrollment.save()
+    if (completed && !wasCompleted) {
+      scheduleAwardPoints({
+        tenant: req.tenant,
+        userId: req.user._id,
+        event: 'course_completed',
+        entityId: course._id,
+      })
+    }
     res.json({ enrollment: serializeEnrollment(enrollment.toObject(), course.toObject()) })
   } catch (e) {
     next(e)
@@ -577,6 +587,13 @@ router.post('/vacancies/:id/apply', requireAuth, requireTalentCap('vacantes'), a
       tenant: req.tenant,
       vacancy: vacancy.toObject(),
       application: application.toObject(),
+    })
+
+    scheduleAwardPoints({
+      tenant: req.tenant,
+      userId: req.user._id,
+      event: 'vacancy_applied',
+      entityId: vacancy._id,
     })
 
     res.status(201).json({ application: serializeApplication(application.toObject()) })

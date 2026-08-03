@@ -63,7 +63,8 @@ const userSchema = new mongoose.Schema(
       email: { type: Boolean, default: true },
       push: { type: Boolean, default: true },
     },
-    /** Cargo / rol visible (plantillas de saludo {{cargo}}) */
+    /** Sede / sucursal del colaborador (elegibilidad de beneficios) */
+    sede: { type: String, default: '', maxlength: 160, index: true },
     cargo: { type: String, default: '', maxlength: 120 },
     /** Cumpleaños (date-only; comparar mes/día UTC) */
     fechaNacimiento: { type: Date, default: null, index: true },

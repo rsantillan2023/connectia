@@ -240,7 +240,7 @@ const personal = reactive({
 })
 
 const layerOptions = [
-  { id: 'CORPORATE', label: 'Corporativo', color: '#0f766e' },
+  { id: 'CORPORATE', label: 'Corporativo', color: 'var(--brand-primary, #0f766e)' },
   { id: 'OUTLOOK', label: 'Outlook', color: '#0078d4' },
   { id: 'GOOGLE', label: 'Google', color: '#ea4335' },
 ]
@@ -555,7 +555,7 @@ onMounted(async () => {
   gap: 0.35rem;
 }
 .ag-gear.on {
-  border-color: #0f766e;
+  border-color: var(--brand-primary, #0f766e);
   background: #f0fdfa;
 }
 .ag-today {
@@ -577,12 +577,12 @@ onMounted(async () => {
   font-size: 0.88rem;
   white-space: pre-wrap;
   line-height: 1.4;
-  color: #134e4a;
+  color: var(--brand-primary, #0f766e);
 }
 .ag-link {
   border: 0;
   background: none;
-  color: #0f766e;
+  color: var(--brand-primary, #0f766e);
   font: inherit;
   font-size: 0.8rem;
   cursor: pointer;
@@ -632,11 +632,11 @@ onMounted(async () => {
   opacity: 0.35;
 }
 .ag-cell.today {
-  border-color: #0f766e;
+  border-color: var(--brand-primary, #0f766e);
 }
 .ag-cell.selected {
   background: #f0fdfa;
-  border-color: #0f766e;
+  border-color: var(--brand-primary, #0f766e);
 }
 .ag-cell.has .ag-cell-num {
   font-weight: 700;
@@ -729,7 +729,7 @@ onMounted(async () => {
 }
 .ag-btn {
   border: 0;
-  background: #0f766e;
+  background: var(--brand-primary, #0f766e);
   color: #fff;
   border-radius: 10px;
   padding: 0.5rem 0.85rem;
@@ -739,8 +739,8 @@ onMounted(async () => {
 }
 .ag-btn.ghost {
   background: #fff;
-  color: #0f766e;
-  border: 1px solid #0f766e;
+  color: var(--brand-primary, #0f766e);
+  border: 1px solid var(--brand-primary, #0f766e);
 }
 .ag-btn:disabled {
   opacity: 0.5;
@@ -775,7 +775,7 @@ onMounted(async () => {
   font-size: 0.8rem;
 }
 .ag-chip.on {
-  border-color: #0f766e;
+  border-color: var(--brand-primary, #0f766e);
   background: #f0fdfa;
 }
 .dot {
@@ -837,7 +837,7 @@ onMounted(async () => {
 }
 .pill.soft {
   background: #ccfbf1;
-  color: #0f766e;
+  color: var(--brand-primary, #0f766e);
 }
 .ag-empty {
   text-align: center;
@@ -854,7 +854,7 @@ onMounted(async () => {
   margin: 0 0 0.4rem;
 }
 .ag-ok {
-  color: #0f766e;
+  color: var(--brand-primary, #0f766e);
   font-size: 0.85rem;
 }
 .ag-muted {

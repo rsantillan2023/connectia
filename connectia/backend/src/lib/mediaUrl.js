@@ -21,6 +21,7 @@ export function serializeBranding(branding) {
       secondary: '#6B3FA0',
       logoUrl: '',
       loginBgUrl: '',
+      pointsBtnDarkenPct: 22,
       splash: {},
     }
   }
@@ -28,6 +29,13 @@ export function serializeBranding(branding) {
   const splash = b.splash && typeof b.splash === 'object' ? { ...b.splash } : {}
   return {
     ...b,
+    primary: b.primary || '#8554C9',
+    secondary: b.secondary || '#6B3FA0',
+    pointsBtnDarkenPct: (() => {
+      const n = Number(b.pointsBtnDarkenPct)
+      if (!Number.isFinite(n)) return 22
+      return Math.min(80, Math.max(0, Math.round(n)))
+    })(),
     logoUrl: toPublicMediaUrl(b.logoUrl || ''),
     loginBgUrl: toPublicMediaUrl(b.loginBgUrl || ''),
     splash: {

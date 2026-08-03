@@ -36,43 +36,50 @@ function onToggle(item, field, event) {
     @click.self="close"
   >
     <div class="admin-fn-modal__card flex max-h-[min(94vh,100%)] w-[min(96vw,100%)] min-h-0 min-w-0 flex-col overflow-hidden rounded-xl shadow-2xl">
-      <div class="admin-fn-modal__head flex max-w-full min-w-0 flex-shrink-0 items-center justify-between gap-4 px-6 py-3">
+      <div class="admin-fn-modal__head flex max-w-full min-w-0 flex-shrink-0 items-center justify-between gap-4 px-6 py-4">
         <div class="min-w-0 flex-1">
-          <h2 class="text-xl font-bold text-white">Mapa del sitio</h2>
-          <p v-if="canEditChrome" class="mt-0.5 text-xs text-white/80">
-            Todo vive acá. Marcá Sidebar o Superior para fijar accesos rápidos.
-          </p>
+          <h2 class="text-2xl font-bold text-white">Mapa del sitio</h2>
         </div>
         <button
           type="button"
-          class="admin-fn-modal__close flex h-10 w-10 items-center justify-center rounded-full text-white transition-colors"
+          class="admin-fn-modal__close flex h-11 w-11 items-center justify-center rounded-full text-white transition-colors"
           title="Cerrar"
           aria-label="Cerrar mapa del sitio"
           @click="close"
         >
-          <i class="fas fa-times text-lg" aria-hidden="true"></i>
+          <i class="fas fa-times text-xl" aria-hidden="true"></i>
         </button>
       </div>
 
-      <div class="admin-fn-modal__body min-h-0 min-w-0 overflow-y-auto overscroll-y-contain p-3 sm:p-4">
+      <div class="admin-fn-modal__body min-h-0 min-w-0 overflow-y-auto overscroll-y-contain p-4 sm:p-5">
         <div
-          class="mx-auto grid w-full gap-2.5"
+          class="mx-auto grid w-full gap-3"
           :class="
             sections.length > 1
-              ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6'
+              ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
               : 'grid-cols-1 max-w-md'
           "
         >
           <div
             v-for="section in sections"
             :key="section.title"
-            class="admin-fn-modal__section flex h-full w-full min-h-0 flex-col overflow-hidden rounded-md border shadow-sm"
+            class="admin-fn-modal__section flex h-full w-full min-h-0 flex-col overflow-hidden rounded-lg border shadow-sm"
           >
-            <div class="admin-fn-modal__section-h flex flex-shrink-0 items-center gap-1.5 px-2 py-1.5 text-[10px] font-semibold leading-tight text-white">
-              <i v-if="section.headerIcon" :class="[section.headerIcon, 'text-[9px]']" aria-hidden="true"></i>
-              {{ section.title }}
+            <div class="admin-fn-modal__section-h flex flex-shrink-0 items-center gap-2 px-3 py-2.5 text-sm font-semibold leading-tight text-white">
+              <i v-if="section.headerIcon" :class="[section.headerIcon, 'text-sm']" aria-hidden="true"></i>
+              <span class="min-w-0 flex-1 truncate">{{ section.title }}</span>
             </div>
-            <div class="admin-fn-modal__section-b min-h-0 flex-1 space-y-0 p-1.5">
+            <div class="admin-fn-modal__section-b min-h-0 flex-1 space-y-0.5 p-2">
+              <div
+                v-if="canEditChrome && section.items.some((i) => i.id)"
+                class="admin-fn-modal__row admin-fn-modal__row--legend"
+              >
+                <span class="min-w-0 flex-1" aria-hidden="true"></span>
+                <div class="admin-fn-modal__pins-legend">
+                  <span title="Side: también en el menú lateral (sidebar)">Side</span>
+                  <span title="Sup: también en el menú superior (header)">Sup</span>
+                </div>
+              </div>
               <div
                 v-for="item in section.items"
                 :key="(item.id || '') + (item.route || '') + item.label"
@@ -84,30 +91,37 @@ function onToggle(item, field, event) {
                   @click="close"
                 >
                   <span
-                    class="flex w-full items-center gap-1.5 rounded px-1.5 py-1 text-[10px] font-medium leading-snug transition-colors"
+                    class="flex w-full items-center gap-2 rounded px-2 py-1.5 text-sm font-medium leading-snug transition-colors"
                   >
-                    <i :class="[item.icon || 'fas fa-angle-right', 'text-[9px]']" aria-hidden="true"></i>
+                    <i :class="[item.icon || 'fas fa-angle-right', 'text-xs']" aria-hidden="true"></i>
                     <span class="min-w-0 truncate">{{ item.label }}</span>
                   </span>
                 </RouterLink>
                 <div v-if="canEditChrome && item.id" class="admin-fn-modal__pins" @click.stop>
-                  <label class="admin-fn-modal__pin" title="También en sidebar">
+                  <label
+                    class="admin-fn-modal__pin"
+                    title="Side: también en el menú lateral (sidebar)"
+                  >
                     <input
                       type="checkbox"
                       :checked="Boolean(item.showInAdminSidebar)"
+                      aria-label="También en el menú lateral (sidebar)"
                       @change="onToggle(item, 'showInAdminSidebar', $event)"
                     />
-                    <span>Side</span>
                   </label>
-                  <label class="admin-fn-modal__pin" title="También en menú superior">
+                  <label
+                    class="admin-fn-modal__pin"
+                    title="Sup: también en el menú superior (header)"
+                  >
                     <input
                       type="checkbox"
                       :checked="Boolean(item.showInAdminHeader)"
+                      aria-label="También en el menú superior (header)"
                       @change="onToggle(item, 'showInAdminHeader', $event)"
                     />
-                    <span>Sup</span>
                   </label>
                 </div>
+                <div v-else-if="canEditChrome" class="admin-fn-modal__pins" aria-hidden="true"></div>
               </div>
             </div>
           </div>
@@ -119,30 +133,31 @@ function onToggle(item, field, event) {
 
 <style scoped>
 .admin-fn-modal {
-  background: color-mix(in srgb, #000 50%, transparent);
+  background: color-mix(in srgb, #000 55%, transparent);
 }
 .admin-fn-modal__card {
-  background: var(--panel);
-  color: var(--ink);
-  border: 1px solid var(--line);
+  background: var(--panel-2, var(--cx-page, #111019));
+  color: var(--ink, var(--cx-text));
+  border: 1px solid var(--line, var(--cx-border));
 }
 .admin-fn-modal__head,
 .admin-fn-modal__section-h {
-  background: var(--brand);
+  background: var(--brand, var(--brand-primary));
 }
 .admin-fn-modal__close {
-  background: rgba(255, 255, 255, 0.25);
+  background: color-mix(in srgb, #fff 22%, transparent);
 }
 .admin-fn-modal__close:hover {
   background: #fff;
-  color: var(--brand);
+  color: var(--brand, var(--brand-primary));
 }
 .admin-fn-modal__section {
-  border-color: var(--line);
+  border-color: var(--line, var(--cx-border));
+  background: var(--panel, var(--cx-surface, #1e1a2b));
   align-self: stretch;
 }
 .admin-fn-modal__section-b {
-  background: color-mix(in srgb, var(--ink) 6%, var(--panel-2));
+  background: var(--panel, var(--cx-surface, #1e1a2b));
 }
 .admin-fn-modal__row {
   display: flex;
@@ -150,18 +165,18 @@ function onToggle(item, field, event) {
   gap: 4px;
 }
 .admin-fn-modal__link span {
-  color: var(--ink-soft);
+  color: var(--ink-soft, var(--cx-muted));
 }
 .admin-fn-modal__link i {
-  width: 0.9rem;
+  width: 1.1rem;
   flex-shrink: 0;
   text-align: center;
-  color: var(--brand-ink);
+  color: var(--brand-ink, var(--brand-primary));
   opacity: 0.9;
 }
 .admin-fn-modal__link:hover span {
-  background: var(--panel);
-  color: var(--ink);
+  background: var(--panel-2, var(--cx-surface-2, #17141f));
+  color: var(--ink, var(--cx-text));
 }
 .admin-fn-modal__link:hover i {
   opacity: 1;
@@ -170,28 +185,45 @@ function onToggle(item, field, event) {
   display: flex;
   flex-shrink: 0;
   gap: 2px;
+  width: 3.25rem;
+  justify-content: flex-end;
+}
+.admin-fn-modal__pins-legend {
+  display: flex;
+  flex-shrink: 0;
+  gap: 2px;
+  width: 3.25rem;
+  justify-content: flex-end;
+}
+.admin-fn-modal__pins-legend span {
+  width: 1.5rem;
+  text-align: center;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--ink-faint, var(--cx-muted));
+  cursor: help;
+}
+.admin-fn-modal__row--legend {
+  min-height: 1.1rem;
+  margin-bottom: 2px;
 }
 .admin-fn-modal__pin {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 1px;
-  padding: 2px 4px;
+  justify-content: center;
+  width: 1.5rem;
+  padding: 2px 0;
   border-radius: 4px;
-  font-size: 8px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--ink-faint);
   cursor: pointer;
   user-select: none;
 }
 .admin-fn-modal__pin:hover {
-  background: var(--panel);
-  color: var(--ink-soft);
+  background: color-mix(in srgb, var(--brand, var(--brand-primary)) 18%, transparent);
 }
 .admin-fn-modal__pin input {
   margin: 0;
-  accent-color: var(--brand);
+  accent-color: var(--brand, var(--brand-primary));
   cursor: pointer;
 }
 </style>

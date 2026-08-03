@@ -2,6 +2,18 @@
  * Helpers puros §34/§35 — espacios, reservas, coworking.
  */
 
+import {
+  resolveOccupancyClass,
+  effectiveUnitCount,
+  occupancyLabel,
+  occupancyShortLabel,
+  isNumberedOccupancy,
+  normalizeUnitCode,
+  isValidUnitCode,
+  buildUnitCodes,
+  unitLabelOf,
+} from './spacesOccupancy.js'
+
 export const RESOURCE_KINDS = [
   'sala',
   'otro',
@@ -76,16 +88,7 @@ export function isGroupKind(kind) {
 
 /** Capacidad efectiva de ocupación concurrente del recurso. */
 export function effectiveCupo(resource) {
-  if (!resource) return 1
-  if (resource.kind === 'zona_cupo') {
-    const n = Number(resource.cupo)
-    return Number.isFinite(n) && n > 0 ? n : 1
-  }
-  if (resource.kind === 'cochera' && resource.cupo != null) {
-    const n = Number(resource.cupo)
-    return Number.isFinite(n) && n > 0 ? n : 1
-  }
-  return 1
+  return effectiveUnitCount(resource)
 }
 
 /**
@@ -241,17 +244,37 @@ export function serializeSite(doc) {
 
 export function serializeResource(doc, extras = {}) {
   if (!doc) return null
-  const site = doc.siteId && typeof doc.siteId === 'object' && doc.siteId._id ? doc.siteId : null
-  const type = doc.typeId && typeof doc.typeId === 'object' && doc.typeId._id ? doc.typeId : null
+  /** Distingue populate de ObjectId (ObjectId también es object y a veces expone ._id). */
+  const asPopulated = (ref, hintKeys = []) => {
+    if (!ref || typeof ref !== 'object') return null
+    if (ref._bsontype === 'ObjectId' || typeof ref.toHexString === 'function') {
+      const hasHint = hintKeys.some((k) => ref[k] != null && ref[k] !== '')
+      if (!hasHint) return null
+    }
+    const id = ref._id ?? ref.id
+    if (id == null) return null
+    const hasMeta = hintKeys.some((k) => k in ref)
+    return hasMeta ? ref : null
+  }
+  const refId = (ref) => {
+    if (ref == null || ref === '') return ''
+    if (typeof ref === 'object') {
+      const id = ref._id ?? ref.id
+      return id != null ? String(id) : ''
+    }
+    return String(ref)
+  }
+  const site = asPopulated(doc.siteId, ['nombre', 'codigo', 'direccion'])
+  const type = asPopulated(doc.typeId, ['label', 'codigo', 'engineKind', 'icon'])
   const attributes = (doc.attributes || []).map((a) => ({
     key: a.key,
     value: a.value || '',
   }))
   return {
     id: String(doc._id),
-    siteId: String(site?._id || doc.siteId),
+    siteId: site ? refId(site) : refId(doc.siteId),
     siteNombre: site?.nombre || extras.siteNombre || '',
-    typeId: type?._id ? String(type._id) : doc.typeId ? String(doc.typeId) : null,
+    typeId: type ? refId(type) : doc.typeId ? refId(doc.typeId) : null,
     typeCodigo: type?.codigo || extras.typeCodigo || '',
     typeLabel: type?.label || extras.typeLabel || '',
     typeIcon: type?.icon || extras.typeIcon || '',
@@ -265,6 +288,14 @@ export function serializeResource(doc, extras = {}) {
     zoneType: doc.zoneType || '',
     capacity: doc.capacity ?? null,
     cupo: doc.cupo ?? null,
+    occupancyClass: resolveOccupancyClass(doc),
+    occupancyLabel: occupancyLabel(resolveOccupancyClass(doc)),
+    occupancyShort: occupancyShortLabel(doc),
+    unitCount: effectiveUnitCount(doc),
+    unitLabel: unitLabelOf(doc),
+    unitPrefix: String(doc.unitPrefix || ''),
+    unitPad: Number(doc.unitPad) || 3,
+    numbered: isNumberedOccupancy(doc),
     effectiveCupo: effectiveCupo(doc),
     equipment: doc.equipment || [],
     attributes,
@@ -282,6 +313,8 @@ export function serializeResource(doc, extras = {}) {
     orden: doc.orden ?? 100,
     available: extras.available,
     occupied: extras.occupied,
+    freeUnits: extras.freeUnits,
+    freeUnitCodes: extras.freeUnitCodes,
     createdAt: doc.createdAt,
     updatedAt: doc.updatedAt,
   }
@@ -301,9 +334,12 @@ export function serializeReservation(doc, extras = {}) {
     kind: doc.kind,
     kindLabel: kindLabel(doc.kind),
     resourceNombre: resource?.nombre || extras.resourceNombre || '',
+    resourceImageUrl: resource?.imageUrl || extras.resourceImageUrl || '',
+    typeIcon: extras.typeIcon || resource?.typeId?.icon || '',
     siteNombre: site?.nombre || extras.siteNombre || '',
     title: doc.title || '',
     motivo: doc.motivo || '',
+    unitCode: doc.unitCode || '',
     startAt: doc.startAt,
     endAt: doc.endAt,
     status: doc.status,
@@ -357,6 +393,12 @@ export function spacesMeta() {
   return {
     kinds: RESOURCE_KINDS.map((id) => ({ id, label: kindLabel(id) })),
     statuses: Object.entries(STATUS_LABELS).map(([id, label]) => ({ id, label })),
+    occupancy: [
+      { id: 'unitario', label: 'Unitario', needsUnits: false, numbered: false },
+      { id: 'unidades_numeradas', label: 'Unidades numeradas', needsUnits: true, numbered: true },
+      { id: 'pool', label: 'Cupo compartido', needsUnits: true, numbered: false },
+      { id: 'aforo', label: 'Aforo / multi-reserva', needsUnits: true, numbered: false },
+    ],
   }
 }
 
@@ -390,6 +432,7 @@ export function evaluateCreateReservation({
   overlappingCount,
   userActiveParkingCount,
   userActiveDeskCount,
+  unitCode,
   now = new Date(),
 }) {
   const range = validateReservationRange({ startAt, endAt, now })
@@ -405,7 +448,18 @@ export function evaluateCreateReservation({
     return { ok: false, error: 'Fuera del horario del recurso' }
   }
 
-  if (!hasFreeSlot({ resource, overlappingCount })) {
+  if (isNumberedOccupancy(resource)) {
+    const code = normalizeUnitCode(unitCode)
+    if (!code) {
+      return { ok: false, error: `Elegí un ${unitLabelOf(resource).toLowerCase()}` }
+    }
+    if (!isValidUnitCode(resource, code)) {
+      return { ok: false, error: `${unitLabelOf(resource)} inválido` }
+    }
+    if ((Number(overlappingCount) || 0) > 0) {
+      return { ok: false, error: `${unitLabelOf(resource)} ${code} no disponible en ese horario` }
+    }
+  } else if (!hasFreeSlot({ resource, overlappingCount })) {
     return { ok: false, error: 'Sin cupo / recurso ocupado en ese horario' }
   }
 
@@ -430,7 +484,11 @@ export function evaluateCreateReservation({
   }
 
   const status = resource.requiresApproval ? 'pending' : 'confirmed'
-  return { ok: true, status }
+  return {
+    ok: true,
+    status,
+    unitCode: isNumberedOccupancy(resource) ? normalizeUnitCode(unitCode) : '',
+  }
 }
 
 /**

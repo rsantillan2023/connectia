@@ -3,17 +3,22 @@ import { requireAuth } from '../middleware/auth.js'
 import { Story } from '../models/Story.js'
 import { audienceFilterForUser, resolveClientIdsForUser } from '../lib/audience.js'
 import { toPublicMediaUrl } from '../lib/mediaUrl.js'
+import { parseStoryDurationSec } from '../lib/storyDuration.js'
+import { scheduleAwardPoints } from '../lib/pointsRules.js'
 
 const router = Router()
 
 function serialize(s, userId) {
   const viewed = Boolean(userId && s.viewers?.get?.(String(userId)))
+  const mediaType = s.mediaType || 'image'
   return {
     id: s._id,
     titulo: s.titulo || '',
     category: s.category || 'general',
     mediaUrl: toPublicMediaUrl(s.mediaUrl),
-    mediaType: s.mediaType || 'image',
+    mediaType,
+    durationSec: parseStoryDurationSec(s.durationSec),
+    audioUrl: mediaType === 'video' ? '' : toPublicMediaUrl(s.audioUrl || ''),
     startsAt: s.startsAt,
     endsAt: s.endsAt,
     order: s.order || 0,
@@ -70,6 +75,12 @@ router.post('/:id/view', requireAuth, async (req, res, next) => {
       s.viewers.set(uid, new Date())
       s.viewCount = (s.viewCount || 0) + 1
       await s.save()
+      scheduleAwardPoints({
+        tenant: req.tenant,
+        userId: req.user._id,
+        event: 'story_viewed',
+        entityId: s._id,
+      })
     }
     res.json({ ok: true, viewed: true, viewCount: s.viewCount })
   } catch (e) {

@@ -41,7 +41,8 @@ export function resolveSplashConfig(branding = {}, tenantNombre = '') {
     subtitle: s.subtitle || branding.splashSubtitle || 'Tu comunidad',
     logoUrl: resolveMediaUrl(s.logoUrl || branding.logoUrl || ''),
     bgColor: s.bgColor || '',
-    bgImageUrl: resolveMediaUrl(s.bgImageUrl || ''),
+    // Si el splash no trae imagen propia, reusa el fondo de la pantalla de ingreso.
+    bgImageUrl: resolveMediaUrl(s.bgImageUrl || branding.loginBgUrl || ''),
     textColor: s.textColor || '',
     showLogo: s.showLogo !== false,
     showTitle: s.showTitle !== false,

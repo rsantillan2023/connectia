@@ -150,8 +150,72 @@ export const MODULE_PACKS = {
   personalizado: null,
 }
 
-/** Alias histórico (pack básico). */
-export const DEFAULT_CAPS = [...MODULE_PACKS.basico]
+/** Default al crear comunidad: suite completa (plataforma + admin comunidad). */
+export const DEFAULT_CAPS = [...MODULE_PACKS.todo]
+
+/**
+ * Menú U → módulo del catálogo comercial.
+ * Sin entrada = ítem transversal (ayuda, perfil, directorio…) y no se oculta por pack.
+ */
+export const USER_MENU_MODULE_BY_KEY = {
+  muro: 'muro',
+  'mis-publicaciones': 'muro',
+  guardados: 'muro',
+  solicitudes: 'solicitudes',
+  licencias: 'licencias',
+  ausencias: 'ausentismos',
+  encuestas: 'encuestas',
+  docs: 'docs',
+  hub: 'hub',
+  beneficios: 'beneficios',
+  'beneficios.earn': 'beneficios.billetera',
+  espacios: 'espacios',
+  oficina: 'espacios.coworking',
+  chat: 'chat',
+  servicios: 'servicios',
+  pedidos: 'pedidos',
+  alarma: 'pedidos',
+}
+
+/**
+ * Capability de catálogo requerida por un ítem del menú U (key/route).
+ * @returns {string|null}
+ */
+export function catalogModuleForUserMenuItem(item) {
+  const key = String(item?.key || '').trim()
+  if (key && USER_MENU_MODULE_BY_KEY[key]) return USER_MENU_MODULE_BY_KEY[key]
+
+  const route = String(item?.route || '')
+    .split('?')[0]
+    .replace(/\/$/, '')
+  if (route === '/muro' || route.startsWith('/muro/') || route === '/guardados') return 'muro'
+  if (route === '/solicitudes' || route.startsWith('/solicitudes/')) return 'solicitudes'
+  if (route === '/licencias' || route.startsWith('/licencias/')) return 'licencias'
+  if (route === '/ausencias' || route.startsWith('/ausencias/')) return 'ausentismos'
+  if (route === '/encuestas' || route.startsWith('/encuestas/')) return 'encuestas'
+  if (route === '/docs' || route.startsWith('/docs/')) return 'docs'
+  if (route === '/accesos' || route.startsWith('/accesos/')) return 'hub'
+  if (route.startsWith('/beneficios')) {
+    if (String(item?.route || '').includes('tab=earn') || key === 'beneficios.earn') {
+      return 'beneficios.billetera'
+    }
+    return 'beneficios'
+  }
+  if (route === '/espacios' || route.startsWith('/espacios/')) return 'espacios'
+  if (route === '/oficina' || route.startsWith('/oficina/')) return 'espacios.coworking'
+  if (route === '/chat' || route.startsWith('/chat/')) return 'chat'
+  if (route === '/servicios' || route.startsWith('/servicios/')) return 'servicios'
+  if (route === '/pedidos' || route.startsWith('/pedidos/') || route === '/alarma') return 'pedidos'
+  return null
+}
+
+/** ¿El ítem del menú U puede mostrarse con las caps activas del tenant/usuario? */
+export function isUserMenuItemAllowed(item, capsSet) {
+  const mod = catalogModuleForUserMenuItem(item)
+  if (!mod || !MODULE_ID_SET.has(mod)) return true
+  if (!capsSet || typeof capsSet.has !== 'function') return true
+  return capsSet.has(mod)
+}
 
 /**
  * Resuelve lista de capabilities a partir de pack + selección opcional.
@@ -172,10 +236,10 @@ export function resolveLicensedCapabilities(opts = {}) {
     return { pack: 'todo', capabilities: [...MODULE_PACKS.todo] }
   }
   if (pack === 'personalizado' || (!pack && incoming.length)) {
-    const caps = sanitizeModuleIds(incoming.length ? incoming : MODULE_PACKS.basico)
-    return { pack: 'personalizado', capabilities: caps.length ? caps : [...MODULE_PACKS.basico] }
+    const caps = sanitizeModuleIds(incoming.length ? incoming : MODULE_PACKS.todo)
+    return { pack: 'personalizado', capabilities: caps.length ? caps : [...MODULE_PACKS.todo] }
   }
-  return { pack: 'basico', capabilities: [...MODULE_PACKS.basico] }
+  return { pack: 'todo', capabilities: [...MODULE_PACKS.todo] }
 }
 
 /** Filtra a ids conocidos del catálogo (conserva orden y unicidad). */

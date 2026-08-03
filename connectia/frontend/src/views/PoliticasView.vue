@@ -100,7 +100,7 @@ onMounted(load)
 }
 .pol-btn {
   border: none;
-  background: #0f766e;
+  background: var(--brand-primary, #0f766e);
   color: #fff;
   border-radius: 12px;
   padding: 0 14px;

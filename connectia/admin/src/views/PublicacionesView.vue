@@ -14,7 +14,7 @@
       <div class="pubs-hero-help">
         <ScreenHelp
           purpose="Es el canal de noticias de la comunidad: lo que publicás acá aparece en el muro móvil. También moderás publicaciones enviadas por miembros, con sugerencias de IA."
-          can-do="Actualizar listado; filtrar (las rechazadas no se ven por defecto); programar publicación por día/hora; ver riesgo IA; aprobar/rechazar UGC; desaprobar una publicada (vuelve a pendiente y sale del muro); crear a mano, con IA, o desde la web; armar newsletter."
+          can-do="Actualizar listado; filtrar por estado, tipo, origen (usuarios / base de conocimiento / admin); programar publicación por día/hora; ver riesgo IA; aprobar/rechazar UGC; desaprobar una publicada (vuelve a pendiente y sale del muro); crear a mano, con IA, o desde la web; armar newsletter."
         />
         <div class="pubs-hero-btns">
           <button
@@ -256,53 +256,70 @@
       </div>
 
       <div class="filters filters-bar">
-        <div class="filters-group filters-left">
-          <button
-            v-for="s in statusFilters"
-            :key="'st-' + String(s.value)"
-            type="button"
-            class="chip chip-sm"
-            :class="{ on: filter === s.value }"
-            @click="setStatusFilter(s.value)"
-          >
-            {{ s.label }}{{ s.value === 'pending_review' && pendingCount ? ` (${pendingCount})` : '' }}
-          </button>
-        </div>
-        <div class="filters-group filters-right">
-          <button
-            v-for="t in tipoFilters"
-            :key="'tp-' + String(t.value)"
-            type="button"
-            class="chip chip-sm"
-            :class="{ on: tipoFilter === t.value }"
-            @click="setTipoFilter(t.value)"
-          >
-            {{ t.label }}
-          </button>
-          <span class="filters-sep" aria-hidden="true"></span>
-          <button
-            v-for="p in pinnedFilters"
-            :key="'pn-' + String(p.value)"
-            type="button"
-            class="chip chip-sm"
-            :class="{ on: pinnedFilter === p.value }"
-            @click="setPinnedFilter(p.value)"
-          >
-            {{ p.label }}
-          </button>
-          <template v-if="filter === 'pending_review' || riskFilter">
-            <span class="filters-sep" aria-hidden="true"></span>
+        <div class="filters-row">
+          <div class="filters-group filters-left">
             <button
-              v-for="r in riskFilters"
-              :key="'rk-' + String(r.value)"
+              v-for="s in statusFilters"
+              :key="'st-' + String(s.value)"
               type="button"
               class="chip chip-sm"
-              :class="{ on: riskFilter === r.value }"
-              @click="setRiskFilter(r.value)"
+              :class="{ on: filter === s.value }"
+              @click="setStatusFilter(s.value)"
             >
-              {{ r.label }}
+              {{ s.label }}{{ s.value === 'pending_review' && pendingCount ? ` (${pendingCount})` : '' }}
             </button>
-          </template>
+          </div>
+          <div class="filters-group filters-right">
+            <button
+              v-for="o in originFilters"
+              :key="'or-' + String(o.value)"
+              type="button"
+              class="chip chip-sm"
+              :class="{ on: originFilter === o.value }"
+              @click="setOriginFilter(o.value)"
+            >
+              {{ o.label }}
+            </button>
+          </div>
+        </div>
+        <div class="filters-row">
+          <div class="filters-group filters-left">
+            <button
+              v-for="t in tipoFilters"
+              :key="'tp-' + String(t.value)"
+              type="button"
+              class="chip chip-sm"
+              :class="{ on: tipoFilter === t.value }"
+              @click="setTipoFilter(t.value)"
+            >
+              {{ t.label }}
+            </button>
+          </div>
+          <div class="filters-group filters-right">
+            <button
+              v-for="p in pinnedFilters"
+              :key="'pn-' + String(p.value)"
+              type="button"
+              class="chip chip-sm"
+              :class="{ on: pinnedFilter === p.value }"
+              @click="setPinnedFilter(p.value)"
+            >
+              {{ p.label }}
+            </button>
+            <template v-if="filter === 'pending_review' || riskFilter">
+              <span class="filters-sep" aria-hidden="true"></span>
+              <button
+                v-for="r in riskFilters"
+                :key="'rk-' + String(r.value)"
+                type="button"
+                class="chip chip-sm"
+                :class="{ on: riskFilter === r.value }"
+                @click="setRiskFilter(r.value)"
+              >
+                {{ r.label }}
+              </button>
+            </template>
+          </div>
         </div>
       </div>
     </div>
@@ -351,6 +368,7 @@
         <div class="row-main">
           <div class="meta">
             <span class="tipo">{{ tipoLabel(p.tipo) }}</span>
+            <span v-if="p.isKnowledge" class="knowledge-tag" title="Biblioteca de conocimiento">Conocimiento</span>
             <span
               v-if="p.origin === 'member' && (analyzingId === p.id || p.moderationAi?.status === 'pending')"
               class="risk-tag pending"
@@ -548,6 +566,7 @@
               </span>
               <strong class="grid-title">{{ p.titulo || 'Sin título' }}</strong>
               <span v-if="p.pinned" class="pin-tag">Fijada</span>
+              <span v-if="p.isKnowledge" class="knowledge-tag" title="Biblioteca de conocimiento">Conocimiento</span>
               <span
                 v-if="p.origin === 'member' && (analyzingId === p.id || p.moderationAi?.status === 'pending')"
                 class="risk-tag pending"
@@ -2576,6 +2595,13 @@ const tipoFilters = [
   { value: 'general', label: 'General' },
 ]
 
+const originFilters = [
+  { value: '', label: 'Origen: todos' },
+  { value: 'member', label: 'De usuarios' },
+  { value: 'knowledge', label: 'Base de conocimiento' },
+  { value: 'admin', label: 'Del admin' },
+]
+
 const pinnedFilters = [
   { value: '', label: 'Fijado: cualquiera' },
   { value: 'true', label: 'Solo fijadas' },
@@ -2826,6 +2852,7 @@ const typeConfigError = ref('')
 const configTipo = ref('noticia')
 const filter = ref('')
 const tipoFilter = ref('')
+const originFilter = ref('')
 const pinnedFilter = ref('')
 const q = ref('')
 const viewMode = ref(localStorage.getItem('cx.pubs.view') || 'list')
@@ -4176,6 +4203,11 @@ async function load() {
     }
     if (filter.value) baseParams.status = filter.value
     if (tipoFilter.value) baseParams.tipo = tipoFilter.value
+    if (originFilter.value === 'member' || originFilter.value === 'admin') {
+      baseParams.origin = originFilter.value
+    } else if (originFilter.value === 'knowledge') {
+      baseParams.isKnowledge = 'true'
+    }
     if (pinnedFilter.value) baseParams.pinned = pinnedFilter.value
     if (riskFilter.value) baseParams.risk = riskFilter.value
     if (q.value.trim()) baseParams.q = q.value.trim()
@@ -4269,6 +4301,11 @@ function setStatusFilter(value) {
 }
 function setTipoFilter(value) {
   tipoFilter.value = value
+  page.value = 1
+  return load()
+}
+function setOriginFilter(value) {
+  originFilter.value = value
   page.value = 1
   return load()
 }
@@ -5766,13 +5803,19 @@ onMounted(async () => {
 .filters { display: flex; flex-wrap: wrap; gap: 8px; }
 .filters-bar {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  flex-direction: column;
+  gap: 8px;
   width: 100%;
   position: relative;
   z-index: 1;
+}
+.filters-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  width: 100%;
 }
 .filters-group {
   display: flex;
@@ -5783,13 +5826,11 @@ onMounted(async () => {
 }
 .filters-left {
   justify-content: flex-start;
-  flex: 1 1 auto;
-  max-width: 100%;
+  margin-right: auto;
 }
 .filters-right {
   justify-content: flex-end;
-  flex: 1 1 auto;
-  max-width: 100%;
+  margin-left: auto;
 }
 .filters-sep {
   width: 1px;
@@ -5810,9 +5851,14 @@ onMounted(async () => {
 }
 .chip.on { background: var(--brand-primary); border-color: var(--brand-primary); color: #fff; }
 @media (max-width: 900px) {
+  .filters-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
   .filters-left,
   .filters-right {
     justify-content: flex-start;
+    margin: 0;
     width: 100%;
   }
 }
@@ -6440,6 +6486,15 @@ onMounted(async () => {
   padding: 2px 8px;
   text-transform: uppercase;
   letter-spacing: 0.02em;
+}
+.knowledge-tag {
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 2px 8px;
+  background: color-mix(in srgb, var(--brand-primary) 14%, transparent);
+  color: var(--brand-primary);
+  letter-spacing: 0.01em;
 }
 .risk-tag[data-risk='low'] {
   background: color-mix(in srgb, #16a34a 16%, transparent);

@@ -48,9 +48,35 @@ export function isDirectAudioFileUrl(url) {
   return Boolean(url && AUDIO_EXT_RE.test(String(url).trim()))
 }
 
+const VIMEO_ID_RE =
+  /(?:vimeo\.com\/(?:channels\/[^/]+\/|groups\/[^/]+\/videos\/|video\/)?|player\.vimeo\.com\/video\/)(\d{6,})/i
+
+export function extractVimeoId(url) {
+  if (!url || typeof url !== 'string') return ''
+  const m = url.trim().match(VIMEO_ID_RE)
+  return m?.[1] || ''
+}
+
+export function normalizeVimeoUrl(url) {
+  const id = extractVimeoId(url)
+  if (!id) return ''
+  return `https://vimeo.com/${id}`
+}
+
+export function isHlsUrl(url) {
+  if (!url || typeof url !== 'string') return false
+  try {
+    const u = new URL(url.trim())
+    if (u.protocol !== 'https:' && u.protocol !== 'http:') return false
+    return /\.m3u8(\?|$)/i.test(u.pathname + u.search)
+  } catch {
+    return false
+  }
+}
+
 /**
  * Arma query de búsqueda según kind.
- * @param {'youtube'|'audio'} kind
+ * @param {'youtube'|'vimeo'|'hls'|'audio'} kind
  * @param {string} query
  */
 export function buildMediaSearchQuery(kind, query) {
@@ -58,6 +84,14 @@ export function buildMediaSearchQuery(kind, query) {
   if (kind === 'youtube') {
     if (/site:\s*youtube/i.test(q) || /youtu\.?be/i.test(q)) return q
     return `${q} site:youtube.com`
+  }
+  if (kind === 'vimeo') {
+    if (/site:\s*vimeo/i.test(q) || /vimeo\.com/i.test(q)) return q
+    return `${q} site:vimeo.com`
+  }
+  if (kind === 'hls') {
+    if (/\.m3u8|filetype:m3u8/i.test(q)) return q
+    return `${q} (m3u8 OR filetype:m3u8 OR "index.m3u8" OR HLS)`
   }
   if (kind === 'audio') {
     if (/filetype:|site:soundcloud|site:archive|\.mp3/i.test(q)) return q
@@ -68,7 +102,7 @@ export function buildMediaSearchQuery(kind, query) {
 
 /**
  * Filtra / enriquece resultados crudos de búsqueda web.
- * @param {'youtube'|'audio'} kind
+ * @param {'youtube'|'vimeo'|'hls'|'audio'} kind
  * @param {Array<object>} items
  */
 export function refineMediaSearchItems(kind, items) {
@@ -93,6 +127,60 @@ export function refineMediaSearchItems(kind, items) {
         kind: 'youtube',
         duration: raw.duration || '',
         channel: raw.channel || raw.channelTitle || '',
+      })
+    }
+    return out
+  }
+
+  if (kind === 'vimeo') {
+    const out = []
+    const seen = new Set()
+    for (const raw of list) {
+      const normalized = normalizeVimeoUrl(raw?.url || '')
+      if (!normalized) continue
+      const id = extractVimeoId(normalized)
+      if (seen.has(id)) continue
+      seen.add(id)
+      out.push({
+        id: raw.id || `vm-${id}`,
+        title: raw.title || 'Video de Vimeo',
+        url: normalized,
+        snippet: raw.snippet || '',
+        imageUrl: raw.imageUrl || '',
+        source: raw.source || 'vimeo.com',
+        provider: raw.provider || 'web',
+        kind: 'vimeo',
+        duration: raw.duration || '',
+        channel: raw.channel || raw.channelTitle || '',
+      })
+    }
+    return out
+  }
+
+  if (kind === 'hls') {
+    const out = []
+    const seen = new Set()
+    for (const raw of list) {
+      const url = String(raw?.url || '').trim()
+      if (!isHlsUrl(url)) continue
+      if (seen.has(url)) continue
+      seen.add(url)
+      let source = 'hls'
+      try {
+        source = new URL(url).hostname.replace(/^www\./, '')
+      } catch {
+        /* ignore */
+      }
+      out.push({
+        id: raw.id || `hls-${out.length}`,
+        title: raw.title || 'Stream HLS',
+        url,
+        snippet: raw.snippet || url,
+        imageUrl: raw.imageUrl || '',
+        source: raw.source || source,
+        provider: raw.provider || 'web',
+        kind: 'hls',
+        directFile: true,
       })
     }
     return out

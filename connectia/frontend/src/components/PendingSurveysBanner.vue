@@ -32,12 +32,14 @@
     <div v-if="showLaunchModal" class="pending-modal-root" role="dialog" aria-modal="true" aria-labelledby="pending-modal-title">
       <button type="button" class="pending-modal-backdrop" aria-label="Cerrar" @click="dismissLaunchModal()" />
       <div class="pending-modal">
-        <h2 id="pending-modal-title" class="pending-modal__title">Tenés algo pendiente</h2>
-        <p class="pending-modal__lead">
-          {{ pendingSurveyCount === 1
-            ? 'Hay una encuesta esperando tu respuesta.'
-            : `Hay ${pendingSurveyCount} encuestas esperando tu respuesta.` }}
-        </p>
+        <div class="pending-modal__head">
+          <h2 id="pending-modal-title" class="pending-modal__title">Tenés algo pendiente</h2>
+          <p class="pending-modal__lead">
+            {{ pendingSurveyCount === 1
+              ? 'Hay una encuesta esperando tu respuesta.'
+              : `Hay ${pendingSurveyCount} encuestas esperando tu respuesta.` }}
+          </p>
+        </div>
         <ul class="pending-modal__list">
           <li v-for="s in pendingSurveys.slice(0, 5)" :key="s.id">
             <RouterLink :to="s.href" class="pending-modal__link" @click="onOpenSurvey(s)">
@@ -158,11 +160,15 @@ onMounted(async () => {
 .pending-modal-root {
   position: fixed;
   inset: 0;
-  z-index: 80;
-  display: grid;
-  place-items: end center;
-  padding: 16px;
-  padding-bottom: max(16px, env(safe-area-inset-bottom));
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding:
+    max(12px, env(safe-area-inset-top))
+    16px
+    max(12px, env(safe-area-inset-bottom));
+  box-sizing: border-box;
 }
 
 .pending-modal-backdrop {
@@ -174,12 +180,22 @@ onMounted(async () => {
 
 .pending-modal {
   position: relative;
+  display: flex;
+  flex-direction: column;
   width: min(420px, 100%);
-  border-radius: 18px 18px 14px 14px;
-  padding: 20px 18px 16px;
+  max-height: min(88dvh, calc(100svh - 24px));
+  margin: 0;
+  padding: 20px 18px 12px;
+  border-radius: 18px;
   background: var(--cx-surface, #fff);
   border: 1px solid var(--cx-border);
   box-shadow: 0 20px 50px rgba(15, 23, 42, 0.28);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.pending-modal__head {
+  flex-shrink: 0;
 }
 
 .pending-modal__title {
@@ -198,13 +214,16 @@ onMounted(async () => {
 
 .pending-modal__list {
   list-style: none;
-  margin: 0 0 16px;
-  padding: 0;
+  margin: 0;
+  padding: 0 0 4px;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 40vh;
-  overflow: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 .pending-modal__link {
@@ -221,23 +240,27 @@ onMounted(async () => {
   font-size: 13px;
   font-weight: 700;
   color: var(--cx-text);
+  overflow-wrap: anywhere;
 }
 
 .pending-modal__desc {
-  display: block;
   margin-top: 2px;
   font-size: 11px;
   color: var(--cx-muted);
   line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .pending-modal__actions {
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
+  margin-top: 12px;
+  padding-top: 4px;
 }
 
 .pending-modal__primary {
@@ -257,6 +280,6 @@ onMounted(async () => {
   background: transparent;
   color: var(--cx-muted);
   font-size: 13px;
-  padding: 8px;
+  padding: 10px;
 }
 </style>

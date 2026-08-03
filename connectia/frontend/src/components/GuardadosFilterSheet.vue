@@ -57,6 +57,41 @@
         </div>
       </fieldset>
 
+      <label class="field">
+        <span>Sección</span>
+        <input
+          v-model="draft.section"
+          type="search"
+          maxlength="80"
+          placeholder="Ej. deporte, cultura…"
+          autocomplete="off"
+          list="posts-section-suggestions"
+        />
+        <datalist id="posts-section-suggestions">
+          <option v-for="s in sectionSuggestions" :key="s" :value="s" />
+        </datalist>
+      </label>
+      <div class="chip-row" role="group" aria-label="Secciones sugeridas">
+        <button
+          type="button"
+          class="chip"
+          :class="{ on: !draft.section }"
+          @click="draft.section = ''"
+        >
+          Todas
+        </button>
+        <button
+          v-for="s in sectionSuggestions"
+          :key="s"
+          type="button"
+          class="chip"
+          :class="{ on: sectionChipOn(s) }"
+          @click="pickSection(s)"
+        >
+          {{ s }}
+        </button>
+      </div>
+
       <div class="actions">
         <button type="button" class="btn-ghost" @click="clear">Limpiar</button>
         <button type="submit" class="btn-primary">Aplicar</button>
@@ -73,11 +108,12 @@ const props = defineProps({
   title: { type: String, default: 'Filtrar publicaciones' },
   hint: {
     type: String,
-    default: 'Buscá por texto o filtrá por tipo y origen de la publicación.',
+    default: 'Buscá por texto o filtrá por tipo, origen y sección de la publicación.',
   },
   q: { type: String, default: '' },
   tipo: { type: String, default: '' },
   origin: { type: String, default: '' },
+  section: { type: String, default: '' },
 })
 
 const emit = defineEmits(['close', 'apply'])
@@ -98,26 +134,39 @@ const origins = [
   { id: 'member', label: 'Comunidad' },
 ]
 
+const sectionSuggestions = ['deporte', 'internacional', 'moda', 'cultura', 'empresa', 'beneficio', 'aviso']
+
 const draft = reactive({
   q: props.q,
   tipo: props.tipo,
   origin: props.origin,
+  section: props.section,
 })
 
 watch(
-  () => [props.q, props.tipo, props.origin],
-  ([q, tipo, origin]) => {
+  () => [props.q, props.tipo, props.origin, props.section],
+  ([q, tipo, origin, section]) => {
     draft.q = q || ''
     draft.tipo = tipo || ''
     draft.origin = origin || ''
+    draft.section = section || ''
   },
 )
+
+function sectionChipOn(s) {
+  return String(draft.section || '').trim().toLowerCase() === String(s).toLowerCase()
+}
+
+function pickSection(s) {
+  draft.section = sectionChipOn(s) ? '' : s
+}
 
 function apply() {
   emit('apply', {
     q: String(draft.q || '').trim(),
     tipo: draft.tipo || '',
     origin: draft.origin || '',
+    section: String(draft.section || '').trim(),
   })
   emit('close')
 }
@@ -126,7 +175,8 @@ function clear() {
   draft.q = ''
   draft.tipo = ''
   draft.origin = ''
-  emit('apply', { q: '', tipo: '', origin: '' })
+  draft.section = ''
+  emit('apply', { q: '', tipo: '', origin: '', section: '' })
   emit('close')
 }
 </script>

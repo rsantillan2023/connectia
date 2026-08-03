@@ -89,6 +89,13 @@ export function nextArgentinaHoliday(from = new Date()) {
   }
 }
 
+/** true si `from` cae en un feriado nacional AR conocido. */
+export function isArgentinaHoliday(from = new Date()) {
+  const key = ymd(new Date(from.getFullYear(), from.getMonth(), from.getDate()))
+  const year = from.getFullYear()
+  return holidaysForYear(year).some((h) => h.date === key)
+}
+
 /** Detecta si el prompt pide info de feriado */
 export function promptWantsHoliday(text = '') {
   return /feriad|asueto|no\s+laborable|próximo\s+feriad|proximo\s+feriad/i.test(String(text))

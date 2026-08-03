@@ -144,7 +144,8 @@ export const MODULE_PACKS = {
   todo: MODULE_CATALOG.filter((m) => m.packs.includes('todo')).map((m) => m.id),
 }
 
-export const DEFAULT_CAPS = [...MODULE_PACKS.basico]
+/** Default al crear comunidad: suite completa. */
+export const DEFAULT_CAPS = [...MODULE_PACKS.todo]
 
 export const PACK_OPTIONS = [
   {
@@ -169,7 +170,7 @@ export function resolvePackSelection(pack, selectedIds) {
   if (pack === 'todo') return [...MODULE_PACKS.todo]
   const known = new Set(MODULE_CATALOG.map((m) => m.id))
   const picked = (selectedIds || []).filter((id) => known.has(id))
-  return picked.length ? picked : [...MODULE_PACKS.basico]
+  return picked.length ? picked : [...MODULE_PACKS.todo]
 }
 
 export function detectPack(licensedIds) {

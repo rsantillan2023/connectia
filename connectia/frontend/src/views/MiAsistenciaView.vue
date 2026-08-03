@@ -599,7 +599,7 @@ watch(tab, (t) => {
 .att-link {
   background: none;
   border: 0;
-  color: #0f766e;
+  color: var(--brand-primary, #0f766e);
   font-weight: 600;
   text-decoration: underline;
   cursor: pointer;
@@ -631,7 +631,7 @@ watch(tab, (t) => {
   font-size: 0.85rem;
 }
 .att-tabs button.on {
-  background: var(--brand, #0f766e);
+  background: var(--brand-primary, #0f766e);
   color: #fff;
   border-color: transparent;
 }
@@ -657,7 +657,7 @@ watch(tab, (t) => {
 }
 .att-estado {
   text-transform: capitalize;
-  color: #0f766e;
+  color: var(--brand-primary, #0f766e);
   font-weight: 600;
 }
 .att-estado[data-geo='out_of_range'],
@@ -691,7 +691,7 @@ watch(tab, (t) => {
   margin-top: 0.65rem;
 }
 .att-primary {
-  background: var(--brand, #0f766e);
+  background: var(--brand-primary, #0f766e);
   color: #fff;
   border: 0;
   border-radius: 0.65rem;

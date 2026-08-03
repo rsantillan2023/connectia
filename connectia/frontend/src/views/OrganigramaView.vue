@@ -184,7 +184,7 @@ onMounted(load)
   cursor: pointer;
 }
 .org-toggle button.on {
-  background: #0f172a;
+  background: var(--brand-primary, #0f766e);
   color: #fff;
 }
 .org-search-wrap {
@@ -297,7 +297,7 @@ onMounted(load)
 .sheet-link {
   display: inline-block;
   margin-top: 1rem;
-  color: #0f766e;
+  color: var(--brand-primary, #0f766e);
   font-weight: 600;
   text-decoration: none;
 }

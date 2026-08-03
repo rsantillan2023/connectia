@@ -69,6 +69,19 @@ En Connectia el pack es **`NR.GRIDO`** (`pack.grido`). Incluye AD, menú `appMob
 | 1.10 | Seed + smoke Claro | Datos demo + checklist smoke del pack | S | NR | ✗ |
 | 1.11 | UAT Claro firmada | Owner de negocio firma paridad | — | gate go-live | ✗ |
 
+### Pack Claro · Beneficios / partners (grupo D — backlog ola 24)
+
+Pendiente de implementación en esta ola (no en núcleo genérico de §18):
+
+| # | Tema | Notas | Estado |
+|---|------|-------|--------|
+| D.1 | Catálogo YoClaro / partners Claro | URLs y audiencias del pack; capability `pack.claro` + `beneficios.partners` | ✗ |
+| D.2 | Home / speech / cards Emp 17 | UI operador Claro sobre catálogo genérico | ✗ |
+| D.3 | Deep links muro → beneficio Claro | Publicaciones tipo beneficio con deep-link al ficha | ✗ |
+| D.4 | Seed + smoke pack Claro beneficios | Datos demo + checklist NR | ✗ |
+
+> **Fuera de ola 24 (grupo C — no hacer acá):** PSP, retiro bancario real, KYC, efectivo, multi-moneda. Eso sigue diferido a Ola 40 CAPRICHO / billetera bancaria.
+
 **Checklist legacy (referencia):**
 
 - [ ] ✗ Colaborador Claro autentica con Azure AD (PWA) y Admin con OAuth2 PKCE

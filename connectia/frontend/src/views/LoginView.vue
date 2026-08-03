@@ -33,7 +33,7 @@
           <span class="text-xs font-semibold uppercase tracking-wide cx-muted">Código</span>
           <input
             v-model="otpCode"
-            class="mt-1 w-full rounded-xl border px-3 py-2.5 outline-none focus:ring-2 focus:ring-teal-600/30 cx-input tracking-widest text-center text-lg"
+            class="mt-1 w-full rounded-xl border px-3 py-2.5 outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--brand-primary)_30%,transparent)] cx-input tracking-widest text-center text-lg"
             inputmode="numeric"
             autocomplete="one-time-code"
             maxlength="8"
@@ -106,7 +106,7 @@
             <div class="mt-1 flex gap-2">
               <input
                 v-model="empCodigo"
-                class="flex-1 rounded-xl border px-3 py-2.5 outline-none focus:ring-2 focus:ring-teal-600/30 cx-input"
+                class="flex-1 rounded-xl border px-3 py-2.5 outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--brand-primary)_30%,transparent)] cx-input"
                 placeholder="DEMO"
                 autocomplete="organization"
               />
@@ -124,7 +124,7 @@
             <span class="text-xs font-semibold uppercase tracking-wide cx-muted">{{ mode === 'id' ? 'ID / legajo' : 'Usuario' }}</span>
             <input
               v-model="usuario"
-              class="mt-1 w-full rounded-xl border px-3 py-2.5 outline-none focus:ring-2 focus:ring-teal-600/30 cx-input"
+              class="mt-1 w-full rounded-xl border px-3 py-2.5 outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--brand-primary)_30%,transparent)] cx-input"
               :placeholder="mode === 'id' ? '1001' : 'demo'"
               autocomplete="username"
             />
@@ -134,7 +134,7 @@
             <input
               v-model="password"
               type="password"
-              class="mt-1 w-full rounded-xl border px-3 py-2.5 outline-none focus:ring-2 focus:ring-teal-600/30 cx-input"
+              class="mt-1 w-full rounded-xl border px-3 py-2.5 outline-none focus:ring-2 focus:ring-[color-mix(in_srgb,var(--brand-primary)_30%,transparent)] cx-input"
               autocomplete="current-password"
             />
           </label>

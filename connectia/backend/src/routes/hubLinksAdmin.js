@@ -21,12 +21,13 @@ import {
   HUB_AI_GUIDE,
   planHubOpsFromPrompt,
   applyHubOps,
+  suggestHubDestinationFromPrompt,
 } from '../services/hubAi.js'
 
 const router = Router()
-const MAX_QUICK_PER_CATEGORY = 3
+const MAX_QUICK_PER_CATEGORY = 48
 
-/** Máximo 3 accesos rápidos (featured) por grupo. */
+/** Tope blando de accesos rápidos (featured) por grupo; en app se scrollean. */
 async function assertQuickSlotAvailable(tenantId, category, { excludeId = null, enabling = true } = {}) {
   if (!enabling) return null
   const filter = {
@@ -172,7 +173,7 @@ router.get('/ai-guide', requireAuth, requireCapability('admin.hub'), (_req, res)
 
 /**
  * Planifica cambios como operador (sin aplicar).
- * Body: { prompt }
+ * Body: { prompt, intent?: 'edit'|'create' }
  */
 router.post('/ai-plan', requireAuth, requireCapability('admin.hub'), async (req, res, next) => {
   try {
@@ -185,6 +186,7 @@ router.post('/ai-plan', requireAuth, requireCapability('admin.hub'), async (req,
     const branding = req.tenant?.branding || {}
     const plan = await planHubOpsFromPrompt({
       prompt: req.body?.prompt,
+      intent: req.body?.intent === 'create' ? 'create' : 'edit',
       categories: categories.map((c) => serializeCategory(c)),
       links: items.map((l) => serializeLink(l, null, { resolveSize: false })),
       brandName: req.tenant?.nombre || '',
@@ -199,7 +201,7 @@ router.post('/ai-plan', requireAuth, requireCapability('admin.hub'), async (req,
 
 /**
  * Aplica un plan (ops) o planifica+aplica si viene prompt y apply=true.
- * Body: { ops } | { prompt, apply: true }
+ * Body: { ops } | { prompt, apply: true, intent?: 'edit'|'create' }
  */
 router.post('/ai-apply', requireAuth, requireCapability('admin.hub'), async (req, res, next) => {
   try {
@@ -216,6 +218,7 @@ router.post('/ai-apply', requireAuth, requireCapability('admin.hub'), async (req
       const branding = req.tenant?.branding || {}
       plan = await planHubOpsFromPrompt({
         prompt: req.body.prompt,
+        intent: req.body?.intent === 'create' ? 'create' : 'edit',
         categories: categories.map((c) => serializeCategory(c)),
         links: items.map((l) => serializeLink(l, null, { resolveSize: false })),
         brandName: req.tenant?.nombre || '',
@@ -249,6 +252,59 @@ router.post('/ai-apply', requireAuth, requireCapability('admin.hub'), async (req
       items: items.map((l) => serializeLink(l, null, { resolveSize: false })),
       categories: categories.map((c) => serializeCategory(c, counts[c.nombre] || 0)),
     })
+  } catch (e) {
+    if (e.status) return res.status(e.status).json({ error: e.message })
+    next(e)
+  }
+})
+
+/**
+ * Sugiere / completa el destino de un enlace (sin guardar).
+ * Body: { prompt, draft?: { titulo, kind, target, ... } }
+ */
+router.post('/ai-suggest-destination', requireAuth, requireCapability('admin.hub'), async (req, res, next) => {
+  try {
+    const tenantId = req.tenant._id
+    const [requestTypes, surveys, documents, posts] = await Promise.all([
+      RequestType.find({ tenantId, activo: true }).sort({ orden: 1, nombre: 1 }).select('nombre key area').lean(),
+      Survey.find({ tenantId, status: { $in: ['published', 'draft', 'closed'] } })
+        .sort({ updatedAt: -1 })
+        .limit(100)
+        .select('titulo status')
+        .lean(),
+      DocItem.find({ tenantId, status: { $ne: 'archived' } })
+        .sort({ updatedAt: -1 })
+        .limit(100)
+        .select('titulo category status')
+        .lean(),
+      Post.find({ tenantId, status: { $in: ['published', 'draft'] } })
+        .sort({ updatedAt: -1 })
+        .limit(100)
+        .select('titulo status')
+        .lean(),
+    ])
+    const catalog = {
+      requestTypes: requestTypes.map((t) => ({
+        id: String(t._id),
+        nombre: t.nombre,
+        key: t.key,
+        area: t.area || '',
+      })),
+      surveys: surveys.map((s) => ({ id: String(s._id), titulo: s.titulo, status: s.status })),
+      documents: documents.map((d) => ({
+        id: String(d._id),
+        titulo: d.titulo,
+        category: d.category || '',
+      })),
+      posts: posts.map((p) => ({ id: String(p._id), titulo: p.titulo, status: p.status })),
+    }
+    const suggestion = await suggestHubDestinationFromPrompt({
+      prompt: req.body?.prompt,
+      draft: req.body?.draft && typeof req.body.draft === 'object' ? req.body.draft : {},
+      catalog,
+      brandName: req.tenant?.nombre || '',
+    })
+    res.json(suggestion)
   } catch (e) {
     if (e.status) return res.status(e.status).json({ error: e.message })
     next(e)

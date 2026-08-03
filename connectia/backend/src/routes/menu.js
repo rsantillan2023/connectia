@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { requireAuth, isFullAdmin } from '../middleware/auth.js'
 import { MenuItem } from '../models/MenuItem.js'
 import { capabilityForMenuKey } from '../constants/adminCapabilities.js'
+import { isUserMenuItemAllowed } from '../constants/moduleCatalog.js'
 import { ensureOla15MenuItems } from '../lib/ensureOla15Menu.js'
 import { ensureOla17MenuItems } from '../lib/ensureOla17Menu.js'
 import { ensureOla18MenuItems } from '../lib/ensureOla18Menu.js'
@@ -13,6 +14,7 @@ import { ensureOla26MenuItems } from '../lib/ensureOla26Menu.js'
 import { ensureOla25MenuItems } from '../lib/ensureOla25Menu.js'
 import { ensureOla28MenuItems } from '../lib/ensureOla28Menu.js'
 import { ensureAdminChromePins } from '../lib/ensureAdminChromePins.js'
+import { serializeBranding } from '../lib/mediaUrl.js'
 
 const router = Router()
 
@@ -53,6 +55,9 @@ router.get('/', requireAuth, async (req, res, next) => {
         if (item.key === 'admin.home') return true
       }
 
+      // Canal U: módulos del catálogo inactivos no aparecen en el menú lateral
+      if (channel === 'u' && !isUserMenuItemAllowed(item, caps)) return false
+
       if (needCaps.length && !fullAdmin && !needCaps.some((c) => caps.has(c))) return false
       return true
     })
@@ -61,7 +66,7 @@ router.get('/', requireAuth, async (req, res, next) => {
     res.json({
       allowDesktop: req.tenant.allowDesktop,
       menuVersion: req.tenant.menuVersion || 1,
-      branding: req.tenant.branding,
+      branding: serializeBranding(req.tenant.branding),
       items: filtered.map((i) => ({
         id: String(i._id),
         key: i.key,

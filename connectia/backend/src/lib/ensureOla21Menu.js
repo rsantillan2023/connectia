@@ -14,14 +14,6 @@ export const OLA21_MENU_ITEMS = [
     channel: 'u',
   },
   {
-    key: 'oficina',
-    label: 'Oficina',
-    route: '/oficina',
-    icon: 'grid',
-    order: 54,
-    channel: 'u',
-  },
-  {
     key: 'admin.reservas',
     label: 'Reserva de espacios',
     route: '/reservas',
@@ -36,6 +28,12 @@ export const OLA21_MENU_ITEMS = [
  * @param {import('mongoose').Types.ObjectId|string} tenantId
  */
 export async function ensureOla21MenuItems(tenantId) {
+  // Oficina queda oculta: mismo motor vía /espacios
+  await MenuItem.updateMany(
+    { tenantId, $or: [{ key: 'oficina' }, { route: '/oficina' }] },
+    { $set: { activo: false } },
+  )
+
   for (const item of OLA21_MENU_ITEMS) {
     const existing = await MenuItem.findOne({ tenantId, key: item.key })
     if (existing) {

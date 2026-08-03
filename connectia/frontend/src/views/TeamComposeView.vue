@@ -307,14 +307,14 @@ onMounted(async () => {
 .link { border: 0; background: #f1f5f9; border-radius: 8px; padding: 0.4rem 0.7rem; }
 .hint { color: #64748b; font-size: 0.85rem; }
 .err { color: #b91c1c; }
-.ok { color: #0f766e; font-size: 0.85rem; }
+.ok { color: var(--brand-primary, #0f766e); font-size: 0.85rem; }
 .inp { width: 100%; padding: 0.55rem; border: 1px solid #e2e8f0; border-radius: 8px; font: inherit; box-sizing: border-box; }
 label { display: grid; gap: 0.3rem; font-size: 0.9rem; margin: 0.75rem 0; }
 .types { display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.75rem 0; }
 .type { border: 1px solid #e2e8f0; background: #fff; border-radius: 999px; padding: 0.35rem 0.7rem; font-size: 0.8rem; }
-.type.on { background: #0f766e; color: #fff; border-color: #0f766e; }
+.type.on { background: var(--brand-primary, #0f766e); color: #fff; border-color: var(--brand-primary, #0f766e); }
 .form { display: grid; gap: 0.55rem; }
 .chk { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; }
-.primary { border: 0; background: #0f766e; color: #fff; border-radius: 10px; padding: 0.7rem; }
+.primary { border: 0; background: var(--brand-primary, #0f766e); color: #fff; border-radius: 10px; padding: 0.7rem; }
 .pre { background: #f8fafc; padding: 0.75rem; border-radius: 8px; font-size: 0.75rem; overflow: auto; }
 </style>

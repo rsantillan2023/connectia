@@ -184,6 +184,7 @@ router.post('/', requireAuth, requireCapability('admin.encuestas'), async (req, 
       tenantId: req.tenant._id,
       titulo: String(body.titulo).trim().slice(0, 160),
       descripcion: String(body.descripcion || '').slice(0, 4000),
+      imageUrl: String(body.imageUrl || '').trim().slice(0, 500),
       status,
       questions,
       version: 1,
@@ -216,6 +217,7 @@ router.patch('/:id', requireAuth, requireCapability('admin.encuestas'), async (r
     const wasPublished = doc.status === 'published'
     if (body.titulo != null) doc.titulo = String(body.titulo).trim().slice(0, 160)
     if (body.descripcion != null) doc.descripcion = String(body.descripcion).slice(0, 4000)
+    if (body.imageUrl !== undefined) doc.imageUrl = String(body.imageUrl || '').trim().slice(0, 500)
     if (body.questions) {
       doc.questions = normalizeQuestions(body.questions)
       doc.version = (doc.version || 1) + 1

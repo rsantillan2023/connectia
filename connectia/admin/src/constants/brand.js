@@ -8,6 +8,8 @@ export const PRODUCT_SECONDARY = '#6B3FA0'
 export const PRODUCT_INK = '#1A1A1A'
 /** Wordmark SVG (SOOFT blanco + CONNECTYX violeta) — fondos oscuros. */
 export const PRODUCT_LOGO_SVG = '/branding/connectyx/connectyx-mark.svg'
+/** Wordmark todo blanco — headers / fondos de color de marca. */
+export const PRODUCT_LOGO_ON_BRAND = '/branding/connectyx/connectyx-mark-on-brand.svg'
 /** Wordmark para fondos claros (SOOFT oscuro + CONNECTYX violeta) — sin caja de color. */
 export const PRODUCT_LOGO_LIGHT = '/branding/connectyx/connectyx-mark-on-light.svg'
 export const PRODUCT_ICON = '/branding/connectyx/icon1921.png'

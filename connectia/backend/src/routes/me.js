@@ -19,6 +19,7 @@ import {
 } from '../lib/profileFields.js'
 import { recordActivity, reqMeta, serializeActivity } from '../lib/activityLog.js'
 import { fetchPeopleCareProfile, patchOwnLegajo } from '../lib/peopleCare.js'
+import { scheduleAwardPoints, startOfUtcDay } from '../lib/pointsRules.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const UPLOAD_DIR = path.resolve(__dirname, '../../uploads/avatars')
@@ -213,6 +214,12 @@ router.patch('/', requireAuth, async (req, res, next) => {
       userId: user._id,
       action: 'profile_update',
       ...meta,
+    })
+    scheduleAwardPoints({
+      tenant: req.tenant,
+      userId: user._id,
+      event: 'profile_updated',
+      entityId: startOfUtcDay().toISOString().slice(0, 10),
     })
     res.json(out)
   } catch (e) {

@@ -48,7 +48,7 @@ export const DEFAULT_RESOURCE_TYPES = [
     icon: 'desk',
     engineKind: 'puesto',
     attributeKeys: ['monitor', 'accesible'],
-    showInUserCatalog: false,
+    showInUserCatalog: true,
     showInOffice: true,
     system: true,
     orden: 30,
@@ -59,7 +59,7 @@ export const DEFAULT_RESOURCE_TYPES = [
     icon: 'zone',
     engineKind: 'zona_cupo',
     attributeKeys: ['wifi', 'accesible'],
-    showInUserCatalog: false,
+    showInUserCatalog: true,
     showInOffice: true,
     system: true,
     orden: 40,
@@ -226,4 +226,19 @@ export function serializeAttributeDef(doc) {
     activo: doc.activo !== false,
     orden: doc.orden ?? 100,
   }
+}
+
+/** Icono por defecto según motor de reserva. */
+export function defaultIconForEngine(engineKind) {
+  const map = {
+    sala: 'meeting',
+    cochera: 'parking',
+    puesto: 'desk',
+    zona_cupo: 'zone',
+    activo: 'box',
+    hora_libre: 'clock',
+    grupo: 'group',
+    otro: 'building',
+  }
+  return map[engineKind] || 'box'
 }

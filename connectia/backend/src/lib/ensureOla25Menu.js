@@ -16,7 +16,7 @@ export const OLA25_MENU_ITEMS = [
   },
   {
     key: 'alarma',
-    label: 'Reportes',
+    label: 'Reportar Incidente',
     route: '/alarma',
     icon: 'alert',
     order: 55,
@@ -44,6 +44,10 @@ export async function ensureOla25MenuItems(tenantId) {
         dirty = true
       }
       if (item.key === 'admin.pedidos' && existing.label !== item.label) {
+        existing.label = item.label
+        dirty = true
+      }
+      if (item.key === 'alarma' && existing.label !== item.label) {
         existing.label = item.label
         dirty = true
       }

@@ -181,6 +181,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '../services/api'
+import { resolveCssColor } from '../utils/applyBrandingCssVars'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 
@@ -218,7 +219,7 @@ function markBroken(id) {
 
 function avatarBg(item) {
   if (showImage(item)) return { background: '#e2e8f0' }
-  return { background: item?.color || '#0f766e' }
+  return { background: item?.color || 'var(--brand-primary, #0f766e)' }
 }
 
 const chips = computed(() => {
@@ -368,13 +369,14 @@ function ensureMap() {
   }
   markersLayer.clearLayers()
   const bounds = []
+  const brand = resolveCssColor('--brand-primary')
   for (const it of mapItems.value) {
     if (it.lat == null || it.lng == null) continue
     const m = L.circleMarker([it.lat, it.lng], {
       radius: 9,
       color: '#fff',
       weight: 2,
-      fillColor: it.color || '#0f766e',
+      fillColor: it.color || brand,
       fillOpacity: 0.95,
     })
     m.bindPopup(`<strong>${escapeHtml(it.nombre)}</strong><br/>${escapeHtml(it.categoria || '')}`)
@@ -483,7 +485,7 @@ watch([q, activeChip], () => {
   color: var(--cx-muted, #64748b);
 }
 .dir-view-toggle button.on {
-  background: #0f766e;
+  background: var(--brand-primary, #0f766e);
   color: #fff;
 }
 .dir-search-wrap {
@@ -537,8 +539,8 @@ watch([q, activeChip], () => {
   color: #334155;
 }
 .chip.on {
-  background: #115e59;
-  border-color: #115e59;
+  background: var(--brand-primary, #0f766e);
+  border-color: var(--brand-primary, #0f766e);
   color: #fff;
 }
 .chip-n {
@@ -810,8 +812,8 @@ watch([q, activeChip], () => {
   cursor: pointer;
 }
 .act.primary {
-  background: #0f766e;
-  border-color: #0f766e;
+  background: var(--brand-primary, #0f766e);
+  border-color: var(--brand-primary, #0f766e);
   color: #fff;
 }
 .sheet-dl {

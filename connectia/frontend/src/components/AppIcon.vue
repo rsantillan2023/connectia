@@ -151,6 +151,22 @@
       <path d="M8 3v4M16 3v4" />
       <path d="M8 14h2M12 14h2M16 14h2M8 17h2M12 17h2" />
     </template>
+    <template v-else-if="name === 'clock'">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5.5l3.5 2" />
+    </template>
+    <template v-else-if="name === 'alert'">
+      <path d="M12 3 2.5 20h19L12 3z" />
+      <path d="M12 10v5" />
+      <circle cx="12" cy="17.5" r="0.9" fill="currentColor" stroke="none" />
+    </template>
+    <template v-else-if="name === 'wifi-off'">
+      <path d="M2 2l20 20" />
+      <path d="M8.5 16.5a5 5 0 0 1 7 0" />
+      <path d="M5 13a9 9 0 0 1 3.2-2.3M16.8 10.2A9 9 0 0 1 19 13" />
+      <path d="M2.5 9.5a14 14 0 0 1 5.3-3.1M16.2 5.5A14 14 0 0 1 21.5 9.5" />
+      <circle cx="12" cy="19.5" r="1" fill="currentColor" stroke="none" />
+    </template>
     <template v-else>
       <circle cx="12" cy="12" r="3" />
     </template>

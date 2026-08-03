@@ -84,6 +84,14 @@ async function seedTenantMenus(tenantId) {
     { key: 'hub', label: 'Enlaces', route: '/accesos', icon: 'grid', order: 50, channel: 'u' },
     { key: 'directorio', label: 'Directorio', route: '/directorio', icon: 'grid', order: 58, channel: 'u' },
     { key: 'beneficios', label: 'Beneficios', route: '/beneficios', icon: 'gift', order: 59, channel: 'u' },
+    {
+      key: 'beneficios.earn',
+      label: 'Cómo sumar puntos',
+      route: '/beneficios?tab=earn',
+      icon: 'sparkles',
+      order: 59.1,
+      channel: 'u',
+    },
     { key: 'admin.home', label: 'Dashboard', route: '/', icon: 'home', order: 10, channel: 'a' },
     { key: 'admin.tenants', label: 'Comunidad', route: '/comunidad', icon: 'building', order: 50, channel: 'a' },
     { key: 'admin.menu', label: 'Menú dinámico', route: '/menu', icon: 'menu', order: 55, channel: 'a' },
@@ -93,7 +101,7 @@ async function seedTenantMenus(tenantId) {
     { key: 'admin.surveys', label: 'Encuestas', route: '/encuestas', icon: 'clipboard', order: 45, channel: 'a' },
     { key: 'admin.docs', label: 'Documentos', route: '/documentos', icon: 'file', order: 46, channel: 'a' },
     { key: 'admin.directorio', label: 'Datos útiles', route: '/directorio', icon: 'grid', order: 46.2, channel: 'a' },
-    { key: 'admin.beneficios', label: 'Beneficios y billetera', route: '/beneficios', icon: 'gift', order: 46.3, channel: 'a' },
+    { key: 'admin.beneficios', label: 'Beneficios', route: '/beneficios', icon: 'gift', order: 46.3, channel: 'a' },
     { key: 'admin.hub', label: 'Enlaces', route: '/accesos', icon: 'grid', order: 47, channel: 'a' },
   ]
   for (const item of menuSeed) {
@@ -108,6 +116,16 @@ async function seedTenantMenus(tenantId) {
   await seedBenefitsForTenant(tenantId, { brandName: 'la empresa' })
   const { seedStoriesForTenant } = await import('../lib/storiesSeed.js')
   await seedStoriesForTenant(tenantId, { brandName: 'la empresa', variant: 'default' })
+  const { Tenant } = await import('../models/Tenant.js')
+  const tenantDoc = await Tenant.findById(tenantId)
+  if (tenantDoc) {
+    const { seedServiciosForTenant } = await import('../lib/serviciosSeed.js')
+    await seedServiciosForTenant(tenantDoc, {
+      force: true,
+      brandName: tenantDoc.nombre || 'la empresa',
+      variant: 'default',
+    })
+  }
 }
 
 /** Comunidad del admin logueado (tenant admin; plataforma también puede leer la suya) */
@@ -286,6 +304,12 @@ router.patch('/me', requireAuth, requireCapability('admin.comunidad'), async (re
       if (b.secondary) t.branding.secondary = b.secondary
       if (typeof b.logoUrl === 'string') t.branding.logoUrl = b.logoUrl
       if (typeof b.loginBgUrl === 'string') t.branding.loginBgUrl = b.loginBgUrl
+      if (b.pointsBtnDarkenPct !== undefined && b.pointsBtnDarkenPct !== null) {
+        const n = Number(b.pointsBtnDarkenPct)
+        if (Number.isFinite(n)) {
+          t.branding.pointsBtnDarkenPct = Math.min(80, Math.max(0, Math.round(n)))
+        }
+      }
       if (typeof b.splashTitle === 'string') t.branding.splashTitle = b.splashTitle
       if (typeof b.splashSubtitle === 'string') t.branding.splashSubtitle = b.splashSubtitle
       if (b.splashDurationSec !== undefined && b.splashDurationSec !== null) {

@@ -309,7 +309,7 @@ onMounted(async () => {
 .sup-head { display: flex; align-items: center; gap: 0.5rem; }
 .sup-head h1 { flex: 1; margin: 0; font-size: 1.2rem; }
 .link, .btn { border: 0; background: #f1f5f9; border-radius: 8px; padding: 0.4rem 0.7rem; }
-.link.on { background: #0f766e; color: #fff; }
+.link.on { background: var(--brand-primary, #0f766e); color: #fff; }
 .filters { margin: 0.75rem 0; display: grid; gap: 0.4rem; }
 .inp, select { width: 100%; padding: 0.5rem; border-radius: 8px; border: 1px solid #e2e8f0; font: inherit; box-sizing: border-box; }
 .bulk-bar {
@@ -327,14 +327,14 @@ onMounted(async () => {
 .bulk-actions .danger { background: #7f1d1d; }
 .list { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.5rem; }
 .list li { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 0.85rem; cursor: pointer; }
-.list li.selected { border-color: #0d9488; background: #f0fdfa; }
+.list li.selected { border-color: var(--brand-primary, #0d9488); background: color-mix(in srgb, var(--brand-primary, #0d9488) 8%, #fff); }
 .row { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
 .row strong { flex: 1; }
 .badge { font-size: 0.75rem; background: #eef2ff; color: #3730a3; padding: 0.15rem 0.45rem; border-radius: 999px; }
 .muted { color: #64748b; font-size: 0.85rem; margin: 0.25rem 0 0; }
 .empty { text-align: center; padding: 1.5rem; }
 .sup-err { color: #b91c1c; }
-.ok { color: #0f766e; font-size: 0.85rem; }
+.ok { color: var(--brand-primary, #0f766e); font-size: 0.85rem; }
 .sheet-backdrop {
   position: fixed; inset: 0; background: rgba(15, 23, 42, 0.45);
   display: flex; align-items: flex-end; justify-content: center; z-index: 40;
@@ -346,6 +346,6 @@ onMounted(async () => {
 .sheet h2 { margin: 0; font-size: 1.05rem; }
 .sheet label { display: grid; gap: 0.3rem; font-size: 0.9rem; }
 .sheet-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.35rem; }
-.primary { background: #0f766e; color: #fff; border: 0; border-radius: 10px; padding: 0.55rem 0.9rem; }
+.primary { background: var(--brand-primary, #0f766e); color: #fff; border: 0; border-radius: 10px; padding: 0.55rem 0.9rem; }
 .hint { margin: 0; font-size: 0.8rem; color: #64748b; }
 </style>

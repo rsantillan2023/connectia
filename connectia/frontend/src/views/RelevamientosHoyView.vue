@@ -113,6 +113,6 @@ h1 { margin: 0; font-size: 1.35rem; }
 .chev { font-size: 1.4rem; opacity: 0.45; }
 .empty { opacity: 0.65; }
 .error { color: #b91c1c; }
-.btn { margin-top: 1rem; width: 100%; padding: 0.75rem; border-radius: 12px; border: none; background: var(--c-primary, #0d6e6e); color: #fff; font: inherit; cursor: pointer; }
-.link { background: none; border: none; color: var(--c-primary, #0d6e6e); text-decoration: underline; cursor: pointer; font: inherit; padding: 0; }
+.btn { margin-top: 1rem; width: 100%; padding: 0.75rem; border-radius: 12px; border: none; background: var(--brand-primary, #0d6e6e); color: #fff; font: inherit; cursor: pointer; }
+.link { background: none; border: none; color: var(--brand-primary, #0d6e6e); text-decoration: underline; cursor: pointer; font: inherit; padding: 0; }
 </style>

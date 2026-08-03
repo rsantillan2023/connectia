@@ -1,4 +1,5 @@
 import { Router } from 'express'
+import mongoose from 'mongoose'
 import { requireAuth, hasCapability } from '../middleware/auth.js'
 import { TvDevice, TvPairingSession, TvPlaylist } from '../models/Tv.js'
 import { Tenant } from '../models/Tenant.js'
@@ -9,9 +10,13 @@ import {
   generateDeviceCredential,
   hashDeviceCredential,
   tenantHasTvCap,
-  buildFeedManifest,
   serializeDevice,
+  defaultChannelConfig,
+  normalizeChannelConfig,
+  scrubRickrollPlaylistItems,
 } from '../lib/tvLive.js'
+import { userMatchesAudience } from '../lib/audience.js'
+import { resolveTvFeedManifest } from '../lib/tvFeed.js'
 
 const router = Router()
 
@@ -104,12 +109,38 @@ router.get('/pairing/:sessionId/status', async (req, res, next) => {
   }
 })
 
+/** U: canales activos visibles para este usuario (para elegir al emparejar). */
+router.get('/playlists', requireAuth, requireUserTvCap, async (req, res, next) => {
+  try {
+    const list = await TvPlaylist.find({ tenantId: req.tenant._id, activo: true })
+      .sort({ name: 1 })
+      .limit(100)
+      .lean()
+    const items = list
+      .filter((p) => userMatchesAudience(req.user, p.audience || { mode: 'all' }))
+      .map((p) => ({
+        id: String(p._id),
+        name: p.name,
+        fallbackText: p.fallbackText || '',
+      }))
+    res.json({ items })
+  } catch (e) {
+    next(e)
+  }
+})
+
 /** U: confirma código y vincula dispositivo al tenant. */
 router.post('/pairing/confirm', requireAuth, requireUserTvCap, async (req, res, next) => {
   try {
     const code = String(req.body?.code || '').replace(/\D/g, '').padStart(6, '0').slice(-6)
-    const locationLabel = String(req.body?.locationLabel || '').slice(0, 200)
-    const name = String(req.body?.name || '').slice(0, 120)
+    const locationLabel = String(req.body?.locationLabel || '').trim().slice(0, 200)
+    const name = String(req.body?.name || '').trim().slice(0, 120)
+    const playlistId = String(req.body?.playlistId || '').trim()
+    if (!name) return res.status(400).json({ error: 'Indicá un nombre para la pantalla' })
+    if (!locationLabel) return res.status(400).json({ error: 'Indicá la ubicación de la pantalla' })
+    if (!playlistId || !mongoose.isValidObjectId(playlistId)) {
+      return res.status(400).json({ error: 'Elegí un canal para esta pantalla' })
+    }
 
     const session = await TvPairingSession.findOne({ code, status: 'pending' })
     if (!session) return res.status(404).json({ error: 'Código inválido o ya usado' })
@@ -125,28 +156,41 @@ router.post('/pairing/confirm', requireAuth, requireUserTvCap, async (req, res, 
     }
     session.attempts += 1
 
-    const credential = generateDeviceCredential()
-    let playlist = await TvPlaylist.findOne({ tenantId: req.tenant._id, activo: true }).sort({
-      updatedAt: -1,
+    let playlist = await TvPlaylist.findOne({
+      _id: playlistId,
+      tenantId: req.tenant._id,
+      activo: true,
     })
     if (!playlist) {
-      playlist = await TvPlaylist.create({
-        tenantId: req.tenant._id,
-        name: 'Playlist sede',
-        items: [
-          {
-            type: 'text',
-            text: `Bienvenidos a ${req.tenant.nombre || 'la comunidad'}`,
-            durationSec: 20,
-            order: 0,
-          },
-        ],
-      })
+      return res.status(400).json({ error: 'Canal no disponible o inactivo' })
+    }
+    if (!userMatchesAudience(req.user, playlist.audience || { mode: 'all' })) {
+      return res.status(403).json({ error: 'No tenés permiso para asignar este canal' })
+    }
+
+    const credential = generateDeviceCredential()
+    const scrubbed = scrubRickrollPlaylistItems(playlist.items)
+    const needsChannel = !playlist.channel || playlist.channel.wallEnabled == null
+    if (scrubbed.dirty || needsChannel) {
+      playlist.channel = normalizeChannelConfig(
+        { ...defaultChannelConfig(req.tenant.nombre), ...(playlist.channel?.toObject?.() || playlist.channel || {}) },
+        req.tenant.nombre,
+      )
+      if (scrubbed.dirty) {
+        playlist.items = scrubbed.items
+        if (playlist.name === 'Playlist sede' || playlist.name === 'Playlist demo sede') {
+          playlist.name = 'Canal sede'
+        }
+      }
+      playlist.version = (playlist.version || 1) + 1
+      playlist.fallbackText =
+        playlist.fallbackText || `${req.tenant.nombre || 'Connectia'} · pantalla en espera`
+      await playlist.save()
     }
 
     const device = await TvDevice.create({
       tenantId: req.tenant._id,
-      name: name || session.deviceName || 'Pantalla TV',
+      name,
       locationLabel,
       fingerprint: session.fingerprint || '',
       credentialHash: hashDeviceCredential(credential),
@@ -166,6 +210,7 @@ router.post('/pairing/confirm', requireAuth, requireUserTvCap, async (req, res, 
     res.json({
       ok: true,
       device: serializeDevice(device),
+      playlist: { id: String(playlist._id), name: playlist.name },
       tenantName: req.tenant.nombre,
     })
   } catch (e) {
@@ -175,10 +220,31 @@ router.post('/pairing/confirm', requireAuth, requireUserTvCap, async (req, res, 
 
 router.get('/feed', requireTvDevice, async (req, res, next) => {
   try {
-    const playlist = req.tvDevice.playlistId
-      ? await TvPlaylist.findOne({ _id: req.tvDevice.playlistId, tenantId: req.tenant._id })
+    let playlist = req.tvDevice.playlistId
+      ? await TvPlaylist.findOne({
+          _id: req.tvDevice.playlistId,
+          tenantId: req.tenant._id,
+          activo: true,
+        })
       : null
-    const manifest = buildFeedManifest(playlist, req.tvDevice, req.tenant)
+    if (playlist) {
+      let dirty = false
+      const scrubbed = scrubRickrollPlaylistItems(playlist.items)
+      if (scrubbed.dirty) {
+        playlist.items = scrubbed.items
+        playlist.version = (playlist.version || 1) + 1
+        dirty = true
+      }
+      if (!playlist.channel || playlist.channel.welcomeText == null || playlist.channel.wallEnabled == null) {
+        playlist.channel = normalizeChannelConfig(
+          { ...defaultChannelConfig(req.tenant.nombre), ...(playlist.channel?.toObject?.() || playlist.channel || {}) },
+          req.tenant.nombre,
+        )
+        dirty = true
+      }
+      if (dirty) await playlist.save()
+    }
+    const manifest = await resolveTvFeedManifest(playlist, req.tvDevice, req.tenant)
     const ifNone = req.headers['if-none-match']
     if (ifNone && ifNone === manifest.etag) {
       return res.status(304).end()
@@ -205,6 +271,49 @@ router.post('/heartbeat', requireTvDevice, async (req, res, next) => {
 
 router.get('/me', requireTvDevice, (req, res) => {
   res.json({ device: serializeDevice(req.tvDevice), tenantName: req.tenant.nombre })
+})
+
+/** TV: la propia pantalla se da de baja (sin login de usuario). */
+router.post('/me/unlink', requireTvDevice, async (req, res, next) => {
+  try {
+    const device = req.tvDevice
+    device.status = 'revoked'
+    device.credentialHash = `revoked:${device._id}:${Date.now()}`
+    await device.save()
+    res.json({ ok: true })
+  } catch (e) {
+    next(e)
+  }
+})
+
+/** U: pantallas vinculadas a la comunidad. */
+router.get('/devices', requireAuth, requireUserTvCap, async (req, res, next) => {
+  try {
+    const list = await TvDevice.find({ tenantId: req.tenant._id, status: 'active' })
+      .sort({ updatedAt: -1 })
+      .limit(100)
+    res.json({ items: list.map(serializeDevice) })
+  } catch (e) {
+    next(e)
+  }
+})
+
+/** U: desvincula una TV (invalida credencial; la pantalla vuelve a pedir código). */
+router.post('/devices/:id/unlink', requireAuth, requireUserTvCap, async (req, res, next) => {
+  try {
+    const device = await TvDevice.findOne({
+      _id: req.params.id,
+      tenantId: req.tenant._id,
+      status: 'active',
+    })
+    if (!device) return res.status(404).json({ error: 'Pantalla no encontrada' })
+    device.status = 'revoked'
+    device.credentialHash = `revoked:${device._id}:${Date.now()}`
+    await device.save()
+    res.json({ ok: true, device: serializeDevice(device) })
+  } catch (e) {
+    next(e)
+  }
 })
 
 export default router

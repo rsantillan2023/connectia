@@ -30,7 +30,7 @@ appNotificationSchema.index(
   {
     unique: true,
     partialFilterExpression: {
-      kind: { $in: ['survey_pending', 'post_published'] },
+      kind: { $in: ['survey_pending', 'post_published', 'space.reminder'] },
       refId: { $type: 'objectId' },
     },
   },

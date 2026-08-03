@@ -98,12 +98,12 @@ const initials = computed(() =>
   color: #64748b;
 }
 .meta .area {
-  color: #0f766e;
+  color: var(--brand-primary, #0f766e);
 }
 .badge {
   font-size: 0.7rem;
   font-weight: 700;
-  color: #0f766e;
+  color: var(--brand-primary, #0f766e);
   background: #ccfbf1;
   border-radius: 999px;
   padding: 0.15rem 0.45rem;

@@ -485,6 +485,45 @@
                 </div>
               </div>
             </div>
+
+            <div class="field">
+              <label for="pointsBtnDarkenPct">Oscuridad del botón «Hola» (muro)</label>
+              <p class="hint">
+                Respecto al color del header. 0% = mismo color; más alto = más oscuro. Valor actual de referencia: 22%.
+              </p>
+              <div class="color-line" style="align-items: center; gap: 12px">
+                <input
+                  id="pointsBtnDarkenPct"
+                  v-model.number="form.branding.pointsBtnDarkenPct"
+                  type="range"
+                  min="0"
+                  max="60"
+                  step="1"
+                  class="range"
+                  style="flex: 1"
+                />
+                <input
+                  v-model.number="form.branding.pointsBtnDarkenPct"
+                  type="number"
+                  min="0"
+                  max="60"
+                  class="input mono"
+                  style="width: 4.5rem"
+                />
+                <span class="hint" style="margin: 0">%</span>
+              </div>
+              <div
+                class="preset-live"
+                style="margin-top: 0.65rem"
+                :style="{
+                  background: `color-mix(in srgb, ${form.branding.primary || '#0f766e'} ${100 - Number(form.branding.pointsBtnDarkenPct || 0)}%, #000)`,
+                  color: '#fff',
+                }"
+              >
+                <span>Vista previa · Hola Martín</span>
+                <small>{{ Number(form.branding.pointsBtnDarkenPct) || 0 }}% más oscuro</small>
+              </div>
+            </div>
           </section>
 
           <!-- Splash -->
@@ -631,12 +670,15 @@
 
             <div class="field">
               <label for="splashBgImageUrl">Imagen de fondo del splash (URL)</label>
-              <p class="hint">Opcional. Se muestra con un velo oscuro para leer el texto.</p>
+              <p class="hint">
+                Opcional. Se muestra con un velo oscuro para leer el texto. Si está vacío, usa el
+                fondo de la pantalla de ingreso (Logo y fondo).
+              </p>
               <input
                 id="splashBgImageUrl"
                 v-model="form.branding.splash.bgImageUrl"
                 class="input"
-                placeholder="https://…"
+                placeholder="https://… (vacío = mismo que login)"
               />
             </div>
 
@@ -781,6 +823,7 @@ const SECTION_INFO = {
     points: [
       'El logo aparece en la pantalla de login y en el encabezado de la app.',
       'El fondo de ingreso es la imagen detrás del formulario de usuario/contraseña.',
+      'Ese mismo fondo se usa en el splash si no configurás una imagen propia en Splash.',
       'Podés subir un archivo (PNG, JPG, SVG, etc.) o pegar una URL.',
       'Si dejás el fondo vacío, la app usa un fondo suave por defecto.',
     ],
@@ -850,6 +893,7 @@ const SECTION_INFO = {
       'Podés mostrarla antes del login, después del login, o en ambos momentos.',
       'Configurás duración, título, subtítulo, logo propio, colores e imagen de fondo.',
       'Si el logo del splash está vacío, usa el logo general de la comunidad.',
+      'Si la imagen de fondo del splash está vacía, usa el fondo de la pantalla de ingreso.',
       'Duración 0 desactiva el splash aunque los checks estén activos.',
     ],
     tip: 'Mantenele 1–3 segundos: alcanza para reforzar marca sin demorar el acceso.',
@@ -1154,6 +1198,10 @@ onMounted(async () => {
       secondary: data.tenant.branding?.secondary || 'var(--brand-secondary)',
       logoUrl: data.tenant.branding?.logoUrl || '',
       loginBgUrl: data.tenant.branding?.loginBgUrl || '',
+      pointsBtnDarkenPct:
+        data.tenant.branding?.pointsBtnDarkenPct == null
+          ? 22
+          : Number(data.tenant.branding.pointsBtnDarkenPct),
       splash: normalizeSplash(data.tenant.branding),
     },
   }

@@ -25,16 +25,19 @@ import {
   toDateKey,
   attributesFromEquipment,
 } from '../lib/spaces.js'
+import { normalizeOccupancyFields } from '../lib/spacesOccupancy.js'
 import {
   serializeResourceType,
   serializeAttributeDef,
   normalizeTypeCodigo,
   normalizeAttributeKey,
   normalizeAttributes,
+  defaultIconForEngine,
 } from '../lib/spacesCatalog.js'
 import { seedSpacesForTenant, seedSpaceCatalogForTenant } from '../lib/spacesSeed.js'
 import { OLA21_MENU_ITEMS } from '../lib/ensureOla21Menu.js'
-import { notifyReservationDecision } from '../services/notifySpaces.js'
+import { notifyReservationDecision, notifyReservationCancelled } from '../services/notifySpaces.js'
+import { spacesAiConfigured, draftSpaceResourceFromPrompt } from '../services/spacesAi.js'
 
 const router = Router()
 const ObjectId = mongoose.Types.ObjectId
@@ -48,6 +51,210 @@ async function getOrCreatePolicy(tenantId) {
   }
   return doc
 }
+
+router.get('/ai-status', async (_req, res) => {
+  res.json({ configured: spacesAiConfigured() })
+})
+
+/**
+ * POST /ai-draft
+ * Body: { prompt }
+ * Devuelve borrador centrado en el recurso (+ sede/tipo/atributos/policy opcionales).
+ */
+router.post('/ai-draft', async (req, res, next) => {
+  try {
+    const prompt = String(req.body?.prompt || '').trim()
+    if (!prompt) return res.status(400).json({ error: 'Describí el recurso a crear' })
+    await seedSpaceCatalogForTenant(req.tenant._id)
+    const [sites, types, attributes] = await Promise.all([
+      SpaceSite.find({ tenantId: req.tenant._id }).sort({ orden: 1, nombre: 1 }).lean(),
+      SpaceResourceType.find({ tenantId: req.tenant._id }).sort({ orden: 1, label: 1 }).lean(),
+      SpaceAttributeDef.find({ tenantId: req.tenant._id }).sort({ orden: 1, label: 1 }).lean(),
+    ])
+    const draft = await draftSpaceResourceFromPrompt(prompt, {
+      brandName: req.tenant.nombre || 'Comunidad',
+      existingSites: sites.map((s) => ({ id: String(s._id), nombre: s.nombre, codigo: s.codigo })),
+      existingTypes: types.map(serializeResourceType),
+      existingAttributes: attributes.map(serializeAttributeDef),
+    })
+    res.json({ draft, configured: spacesAiConfigured(), kinds: RESOURCE_KINDS })
+  } catch (e) {
+    next(e)
+  }
+})
+
+/**
+ * Resuelve o crea sede / tipo / atributos y luego el recurso.
+ * Body: { resource, site?, type?, attributes?, policyPatch? }
+ */
+async function composeSpaceResource(tenantId, body = {}) {
+  await seedSpaceCatalogForTenant(tenantId)
+  const created = { site: false, type: false, attributes: [], policy: false }
+
+  // ── Atributos nuevos ──
+  for (const a of Array.isArray(body.attributes) ? body.attributes : []) {
+    const key = normalizeAttributeKey(a?.key || a?.label)
+    if (!key) continue
+    let doc = await SpaceAttributeDef.findOne({ tenantId, key })
+    if (!doc) {
+      doc = await SpaceAttributeDef.create({
+        tenantId,
+        key,
+        label: String(a.label || key).trim().slice(0, 80) || key,
+        valueType: ['flag', 'text', 'enum'].includes(a.valueType) ? a.valueType : 'flag',
+        options: Array.isArray(a.options) ? a.options.map(String).slice(0, 20) : [],
+        activo: a.activo !== false,
+        orden: Number(a.orden) || 100,
+      })
+      created.attributes.push(key)
+    }
+  }
+
+  // ── Sede ──
+  let siteId = body.resource?.siteId || body.siteId || null
+  if (siteId && ObjectId.isValid(siteId)) {
+    const site = await SpaceSite.findOne({ _id: siteId, tenantId })
+    if (!site) {
+      const err = new Error('Sede no encontrada')
+      err.status = 404
+      throw err
+    }
+  } else if (body.site?.nombre) {
+    const codigo = normalizeTypeCodigo(body.site.codigo || body.site.nombre)
+    let site = codigo ? await SpaceSite.findOne({ tenantId, codigo }) : null
+    if (!site) {
+      site = await SpaceSite.findOne({
+        tenantId,
+        nombre: new RegExp(`^${String(body.site.nombre).trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i'),
+      })
+    }
+    if (!site) {
+      site = await SpaceSite.create({
+        tenantId,
+        nombre: String(body.site.nombre).trim().slice(0, 120),
+        codigo,
+        direccion: String(body.site.direccion || '').slice(0, 200),
+        aforoMax: body.site.aforoMax == null || body.site.aforoMax === '' ? null : Number(body.site.aforoMax),
+        whoIsHereEnabled: !!body.site.whoIsHereEnabled,
+        activo: body.site.activo !== false,
+        orden: Number(body.site.orden) || 100,
+      })
+      created.site = true
+    }
+    siteId = site._id
+  }
+  if (!siteId) {
+    const err = new Error('Indicá una sede existente o datos de sede nueva')
+    err.status = 400
+    throw err
+  }
+
+  // ── Tipo ──
+  const resourceBody = { ...(body.resource || {}) }
+  let typeDoc = null
+  if (resourceBody.typeId && ObjectId.isValid(resourceBody.typeId)) {
+    typeDoc = await SpaceResourceType.findOne({ _id: resourceBody.typeId, tenantId })
+  }
+  if (!typeDoc && body.type?.codigo) {
+    const codigo = normalizeTypeCodigo(body.type.codigo || body.type.label)
+    typeDoc = await SpaceResourceType.findOne({ tenantId, codigo })
+    if (!typeDoc) {
+      const engineKind = RESOURCE_KINDS.includes(body.type.engineKind)
+        ? body.type.engineKind
+        : resourceBody.kind || 'activo'
+      if (!RESOURCE_KINDS.includes(engineKind)) {
+        const err = new Error('Motor de reserva inválido')
+        err.status = 400
+        throw err
+      }
+      typeDoc = await SpaceResourceType.create({
+        tenantId,
+        codigo,
+        label: String(body.type.label || codigo).trim().slice(0, 80),
+        icon: String(body.type.icon || defaultIconForEngine(engineKind)).slice(0, 40),
+        descripcion: String(body.type.descripcion || '').slice(0, 400),
+        engineKind,
+        attributeKeys: (body.type.attributeKeys || []).map(normalizeAttributeKey).filter(Boolean),
+        exigePatenteDefault: !!body.type.exigePatenteDefault,
+        requiresApprovalDefault: !!body.type.requiresApprovalDefault,
+        diaCompletoDefault: !!body.type.diaCompletoDefault,
+        showInUserCatalog: body.type.showInUserCatalog !== false,
+        showInOffice: !!body.type.showInOffice,
+        system: false,
+        activo: body.type.activo !== false,
+        orden: Number(body.type.orden) || 100,
+      })
+      created.type = true
+    }
+  }
+  if (!typeDoc && (resourceBody.typeCodigo || resourceBody.kind)) {
+    const payloadProbe = resourcePayload({ ...resourceBody, siteId })
+    typeDoc = await resolveTypeForResource(tenantId, resourceBody, payloadProbe)
+  }
+  if (!typeDoc) {
+    const err = new Error('Indicá un tipo existente o datos de tipo nuevo')
+    err.status = 400
+    throw err
+  }
+
+  // ── Políticas (parche global opcional) ──
+  if (body.policyPatch && typeof body.policyPatch === 'object') {
+    const doc = await getOrCreatePolicy(tenantId)
+    const b = body.policyPatch
+    if (b.maxSimultaneousParking != null) doc.maxSimultaneousParking = Number(b.maxSimultaneousParking) || 1
+    if (b.maxSimultaneousDesk != null) doc.maxSimultaneousDesk = Number(b.maxSimultaneousDesk) || 1
+    if (b.maxOfficeDaysPerWeek != null) doc.maxOfficeDaysPerWeek = Number(b.maxOfficeDaysPerWeek) || 0
+    if (b.cancelMinutesBefore != null) doc.cancelMinutesBefore = Number(b.cancelMinutesBefore) || 0
+    if (b.checkInGraceMinutes != null) doc.checkInGraceMinutes = Number(b.checkInGraceMinutes) || 0
+    await doc.save()
+    created.policy = true
+  }
+
+  // ── Recurso ──
+  const nombre = String(resourceBody.nombre || '').trim()
+  if (!nombre) {
+    const err = new Error('Nombre del recurso requerido')
+    err.status = 400
+    throw err
+  }
+  const payload = resourcePayload({
+    ...resourceBody,
+    siteId,
+    typeId: typeDoc._id,
+    kind: typeDoc.engineKind,
+  })
+  payload.typeId = typeDoc._id
+  payload.kind = typeDoc.engineKind
+  if (resourceBody.exigePatente === undefined) payload.exigePatente = !!typeDoc.exigePatenteDefault
+  if (resourceBody.requiresApproval === undefined) payload.requiresApproval = !!typeDoc.requiresApprovalDefault
+  if (resourceBody.diaCompleto === undefined) payload.diaCompleto = !!typeDoc.diaCompletoDefault
+  if (!payload.attributes?.length && payload.equipment?.length) {
+    payload.attributes = attributesFromEquipment(payload.equipment, payload.accessible)
+  }
+
+  const resource = await SpaceResource.create({
+    tenantId,
+    ...payload,
+    audience: payload.audience || normalizeAudience({ mode: 'all' }),
+    horario: payload.horario || { days: [1, 2, 3, 4, 5], open: '08:00', close: '20:00' },
+  })
+  const populated = await SpaceResource.findById(resource._id)
+    .populate('siteId', 'nombre')
+    .populate('typeId', 'codigo label icon engineKind')
+    .lean()
+
+  return { item: serializeResource(populated), created }
+}
+
+router.post('/resources/compose', async (req, res, next) => {
+  try {
+    const result = await composeSpaceResource(req.tenant._id, req.body || {})
+    res.status(201).json(result)
+  } catch (e) {
+    if (e.status) return res.status(e.status).json({ error: e.message })
+    next(e)
+  }
+})
 
 /** GET /api/admin/spaces/meta */
 router.get('/meta', async (req, res) => {
@@ -228,6 +435,11 @@ function resourcePayload(body, { partial = false } = {}) {
     zoneType: (v) => v || '',
     capacity: (v) => (v == null || v === '' ? null : Number(v)),
     cupo: (v) => (v == null || v === '' ? null : Number(v)),
+    occupancyClass: (v) => v,
+    unitCount: (v) => (v == null || v === '' ? null : Number(v)),
+    unitLabel: (v) => String(v || '').slice(0, 40),
+    unitPrefix: (v) => String(v || '').slice(0, 12),
+    unitPad: (v) => (v == null || v === '' ? null : Number(v)),
     equipment: (v) => (Array.isArray(v) ? v.map(String).slice(0, 40) : []),
     attributes: (v) => normalizeAttributes(v),
     vehicleTypes: (v) => (Array.isArray(v) ? v.map(String).slice(0, 20) : []),
@@ -247,6 +459,25 @@ function resourcePayload(body, { partial = false } = {}) {
     if (!partial || b[k] !== undefined) {
       if (b[k] !== undefined || !partial) out[k] = fn(b[k])
     }
+  }
+
+  const occKeys = ['occupancyClass', 'unitCount', 'unitLabel', 'unitPrefix', 'unitPad', 'cupo']
+  const touchOcc = !partial || occKeys.some((k) => b[k] !== undefined)
+  if (touchOcc) {
+    const occ = normalizeOccupancyFields(
+      {
+        occupancyClass: out.occupancyClass ?? b.occupancyClass,
+        unitCount: out.unitCount ?? b.unitCount,
+        unitLabel: out.unitLabel ?? b.unitLabel,
+        unitPrefix: out.unitPrefix ?? b.unitPrefix,
+        unitPad: out.unitPad ?? b.unitPad,
+        cupo: out.cupo ?? b.cupo,
+        capacity: out.capacity ?? b.capacity,
+        kind: out.kind || b.kind,
+      },
+      { kind: out.kind || b.kind },
+    )
+    Object.assign(out, occ)
   }
   return out
 }
@@ -301,6 +532,22 @@ router.post('/resources', async (req, res, next) => {
         error: typeDoc ? 'Tipo sin motor válido' : 'Elegí un tipo de recurso',
       })
     }
+    Object.assign(
+      payload,
+      normalizeOccupancyFields(
+        {
+          occupancyClass: b.occupancyClass ?? payload.occupancyClass,
+          unitCount: b.unitCount ?? payload.unitCount,
+          unitLabel: b.unitLabel ?? payload.unitLabel,
+          unitPrefix: b.unitPrefix ?? payload.unitPrefix,
+          unitPad: b.unitPad ?? payload.unitPad,
+          cupo: b.cupo ?? payload.cupo,
+          capacity: payload.capacity,
+          kind: payload.kind,
+        },
+        { kind: payload.kind },
+      ),
+    )
     if (!payload.attributes?.length && payload.equipment?.length) {
       payload.attributes = attributesFromEquipment(payload.equipment, payload.accessible)
     }
@@ -339,13 +586,65 @@ router.patch('/resources/:id', async (req, res, next) => {
     if (payload.kind && !RESOURCE_KINDS.includes(payload.kind)) {
       return res.status(400).json({ error: 'Tipo de motor inválido' })
     }
+
+    const wasActive = resource.activo !== false
+    const willDisable = payload.activo === false && wasActive
+    const cancelReservations = willDisable && !!req.body?.cancelReservations
+
     Object.assign(resource, payload)
     await resource.save()
+
+    let cancelledCount = 0
+    if (cancelReservations) {
+      const now = new Date()
+      const reason = String(
+        req.body?.cancelReason || 'Activo deshabilitado por administración',
+      ).slice(0, 400)
+      const result = await Reservation.updateMany(
+        {
+          tenantId: req.tenant._id,
+          resourceId: resource._id,
+          status: { $in: ACTIVE_RESERVATION_STATUSES },
+          endAt: { $gte: now },
+        },
+        {
+          $set: {
+            status: 'cancelled',
+            cancelledAt: now,
+            cancelReason: reason,
+          },
+        },
+      )
+      cancelledCount = result.modifiedCount || result.nModified || 0
+
+      if (cancelledCount > 0) {
+        const tenant = await Tenant.findById(req.tenant._id).lean()
+        const toNotify = await Reservation.find({
+          tenantId: req.tenant._id,
+          resourceId: resource._id,
+          status: 'cancelled',
+          cancelledAt: now,
+        })
+          .limit(50)
+          .lean()
+        for (const reservation of toNotify) {
+          try {
+            await notifyReservationCancelled(tenant, reservation, resource.nombre)
+          } catch {
+            /* no bloquear deshabilitación */
+          }
+        }
+      }
+    }
+
     const populated = await SpaceResource.findById(resource._id)
       .populate('siteId', 'nombre')
       .populate('typeId', 'codigo label icon engineKind')
       .lean()
-    res.json({ item: serializeResource(populated) })
+    res.json({
+      item: serializeResource(populated),
+      cancelledCount,
+    })
   } catch (e) {
     next(e)
   }
@@ -380,7 +679,7 @@ router.post('/types', async (req, res, next) => {
       tenantId: req.tenant._id,
       codigo,
       label,
-      icon: String(b.icon || 'box').slice(0, 40),
+      icon: String(b.icon || defaultIconForEngine(engineKind)).slice(0, 40),
       descripcion: String(b.descripcion || '').slice(0, 400),
       engineKind,
       attributeKeys: (b.attributeKeys || []).map(normalizeAttributeKey).filter(Boolean),
@@ -405,7 +704,7 @@ router.patch('/types/:id', async (req, res, next) => {
     if (!doc) return res.status(404).json({ error: 'Tipo no encontrado' })
     const b = req.body || {}
     if (b.label !== undefined) doc.label = String(b.label).trim().slice(0, 80)
-    if (b.icon !== undefined) doc.icon = String(b.icon || 'box').slice(0, 40)
+    if (b.icon !== undefined) doc.icon = String(b.icon || defaultIconForEngine(doc.engineKind)).slice(0, 40)
     if (b.descripcion !== undefined) doc.descripcion = String(b.descripcion || '').slice(0, 400)
     if (b.engineKind !== undefined) {
       if (!RESOURCE_KINDS.includes(b.engineKind)) {
@@ -497,9 +796,22 @@ router.patch('/attributes/:id', async (req, res, next) => {
 router.get('/reservations', async (req, res, next) => {
   try {
     const filter = { tenantId: req.tenant._id }
-    if (req.query.status) filter.status = req.query.status
+    if (req.query.status) {
+      const statuses = String(req.query.status)
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+      filter.status = statuses.length === 1 ? statuses[0] : { $in: statuses }
+    }
     if (req.query.kind) filter.kind = req.query.kind
     if (req.query.siteId && ObjectId.isValid(req.query.siteId)) filter.siteId = req.query.siteId
+    if (req.query.resourceId && ObjectId.isValid(req.query.resourceId)) {
+      filter.resourceId = req.query.resourceId
+    }
+    if (req.query.activeOnly === '1') {
+      filter.status = { $in: ACTIVE_RESERVATION_STATUSES }
+      filter.endAt = { $gte: new Date() }
+    }
     if (req.query.from || req.query.to) {
       filter.startAt = {}
       if (req.query.from) filter.startAt.$gte = new Date(req.query.from)
@@ -519,6 +831,7 @@ router.get('/reservations', async (req, res, next) => {
           userName: r.userId?.name || r.userId?.nombre || '',
         }),
       ),
+      count: items.length,
     })
   } catch (e) {
     next(e)

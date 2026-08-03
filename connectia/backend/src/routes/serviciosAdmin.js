@@ -3,18 +3,24 @@ import { requireAuth, requireCapability, hasCapability } from '../middleware/aut
 import { ServiceArea } from '../models/ServiceArea.js'
 import { ServiceCatalogItem } from '../models/ServiceCatalogItem.js'
 import { ServiceRequest } from '../models/ServiceRequest.js'
+import { ServiceFeedback } from '../models/ServiceFeedback.js'
 import { User } from '../models/User.js'
 import {
   canTransitionServicio,
   serializeArea,
   serializeCatalogItem,
   serializeRequest,
+  serializeFeedback,
   buildHistoryEntry,
   normalizeFields,
+  normalizeKeywords,
+  normalizeAudience,
   isSlaBreached,
+  aggregateServiciosReport,
 } from '../lib/servicios.js'
 import { activateOla43ForTenant } from '../lib/ensureOla43Menu.js'
 import { notifyServicioStatusChanged } from '../services/notifyServicios.js'
+import { resolveReportWindow } from '../lib/reportsMetrics.js'
 
 const router = Router()
 
@@ -55,6 +61,76 @@ router.get('/meta', async (req, res, next) => {
         label: [u.nombre, u.apellido].filter(Boolean).join(' ') || u.usuario,
       })),
     })
+  } catch (e) {
+    next(e)
+  }
+})
+
+/* ── Reportes ── */
+router.get('/reportes', async (req, res, next) => {
+  try {
+    const window = resolveReportWindow(req.query)
+    const list = await ServiceRequest.find({
+      tenantId: req.tenant._id,
+      createdAt: { $gte: window.from, $lte: window.to },
+    })
+      .select('status areaId catalogItemId slaDueAt slaBreached status csat')
+      .lean()
+    const areas = await ServiceArea.find({ tenantId: req.tenant._id }).select('name').lean()
+    const cats = await ServiceCatalogItem.find({ tenantId: req.tenant._id })
+      .select('label')
+      .lean()
+    const areaNames = Object.fromEntries(areas.map((a) => [String(a._id), a.name]))
+    const catNames = Object.fromEntries(cats.map((c) => [String(c._id), c.label]))
+    const agg = aggregateServiciosReport(list)
+    const byAreaNamed = {}
+    for (const [k, v] of Object.entries(agg.byArea)) {
+      byAreaNamed[areaNames[k] || k] = v
+    }
+    const byCatalogNamed = {}
+    for (const [k, v] of Object.entries(agg.byCatalog)) {
+      byCatalogNamed[catNames[k] || k] = v
+    }
+    res.json({
+      window: { from: window.from.toISOString(), to: window.to.toISOString() },
+      totals: {
+        ...agg,
+        byArea: byAreaNamed,
+        byCatalog: byCatalogNamed,
+      },
+    })
+  } catch (e) {
+    next(e)
+  }
+})
+
+/* ── Feedback ── */
+router.get('/feedback', async (req, res, next) => {
+  try {
+    const status = String(req.query.status || '').trim()
+    const q = { tenantId: req.tenant._id }
+    if (['pendiente', 'revisado', 'descartado'].includes(status)) q.status = status
+    const list = await ServiceFeedback.find(q).sort({ createdAt: -1 }).limit(200)
+    res.json({ items: list.map(serializeFeedback) })
+  } catch (e) {
+    next(e)
+  }
+})
+
+router.patch('/feedback/:id', async (req, res, next) => {
+  try {
+    const doc = await ServiceFeedback.findOne({
+      _id: req.params.id,
+      tenantId: req.tenant._id,
+    })
+    if (!doc) return res.status(404).json({ error: 'Feedback no encontrado' })
+    const body = req.body || {}
+    if (body.status && ['pendiente', 'revisado', 'descartado'].includes(body.status)) {
+      doc.status = body.status
+    }
+    if (body.adminNote != null) doc.adminNote = String(body.adminNote).slice(0, 1000)
+    await doc.save()
+    res.json({ item: serializeFeedback(doc) })
   } catch (e) {
     next(e)
   }
@@ -128,6 +204,21 @@ router.get('/items', async (req, res, next) => {
   }
 })
 
+function catalogPayload(body) {
+  return {
+    label: String(body.label || '').trim().slice(0, 200),
+    description: String(body.description || '').slice(0, 1000),
+    keywords: normalizeKeywords(body.keywords),
+    active: body.active !== false,
+    order: Number(body.order) || 0,
+    slaMinutes: Math.max(0, Number(body.slaMinutes) || 0),
+    fields: normalizeFields(body.fields),
+    audience: normalizeAudience(body.audience || { mode: 'all' }),
+    requireApproval: !!body.requireApproval,
+    createJiraIssue: !!body.createJiraIssue,
+  }
+}
+
 router.post('/items', async (req, res, next) => {
   try {
     const body = req.body || {}
@@ -139,15 +230,12 @@ router.post('/items', async (req, res, next) => {
       tenantId: req.tenant._id,
     })
     if (!area) return res.status(400).json({ error: 'Área inexistente' })
+    const payload = catalogPayload(body)
     const doc = await ServiceCatalogItem.create({
       tenantId: req.tenant._id,
       areaId: area._id,
-      label: label.slice(0, 200),
-      description: String(body.description || '').slice(0, 1000),
-      active: body.active !== false,
-      order: Number(body.order) || 0,
-      slaMinutes: Math.max(0, Number(body.slaMinutes) || 0),
-      fields: normalizeFields(body.fields),
+      ...payload,
+      label,
     })
     res.status(201).json({ item: serializeCatalogItem(doc) })
   } catch (e) {
@@ -179,6 +267,10 @@ router.patch('/items/:id', async (req, res, next) => {
     if (body.order != null) doc.order = Number(body.order) || 0
     if (body.slaMinutes != null) doc.slaMinutes = Math.max(0, Number(body.slaMinutes) || 0)
     if (body.fields != null) doc.fields = normalizeFields(body.fields)
+    if (body.keywords != null) doc.keywords = normalizeKeywords(body.keywords)
+    if (body.audience != null) doc.audience = normalizeAudience(body.audience)
+    if (body.requireApproval != null) doc.requireApproval = !!body.requireApproval
+    if (body.createJiraIssue != null) doc.createJiraIssue = !!body.createJiraIssue
     await doc.save()
     res.json({ item: serializeCatalogItem(doc) })
   } catch (e) {
@@ -207,7 +299,6 @@ router.get('/', async (req, res, next) => {
     const areaMap = Object.fromEntries(areas.map((a) => [String(a._id), a]))
     const itemMap = Object.fromEntries(items.map((i) => [String(i._id), i]))
 
-    // Persistir breach si aplica (best-effort)
     const now = new Date()
     for (const r of list) {
       if (!r.slaBreached && isSlaBreached(r, now)) {
@@ -264,7 +355,9 @@ router.patch('/:id', async (req, res, next) => {
 
     if (body.status != null && body.status !== doc.status) {
       if (!canTransitionServicio(doc.status, body.status)) {
-        return res.status(400).json({ error: `Transición inválida: ${doc.status} → ${body.status}` })
+        return res
+          .status(400)
+          .json({ error: `Transición inválida: ${doc.status} → ${body.status}` })
       }
       const from = doc.status
       doc.status = body.status

@@ -128,8 +128,26 @@ const spaceResourceSchema = new mongoose.Schema(
       default: '',
     },
     capacity: { type: Number, default: null },
-    /** Cupo concurrente (zona_cupo o zona de cocheras). null = 1 (plaza nominada). */
+    /** Cupo concurrente legacy (zona_cupo / cochera / pool). null = 1. */
     cupo: { type: Number, default: null },
+    /**
+     * Cómo se ocupa el activo (independiente del tipo/motor):
+     * unitario | unidades_numeradas | pool | aforo
+     */
+    occupancyClass: {
+      type: String,
+      enum: ['unitario', 'unidades_numeradas', 'pool', 'aforo'],
+      default: 'unitario',
+      index: true,
+    },
+    /** Cantidad de unidades/cupos (cajones, butacas, aforo…). */
+    unitCount: { type: Number, default: 1, min: 1, max: 5000 },
+    /** Etiqueta de unidad: Cajón, Butaca, Lugar… */
+    unitLabel: { type: String, default: '', maxlength: 40 },
+    /** Prefijo de códigos numerados: L-, B-, etc. */
+    unitPrefix: { type: String, default: '', maxlength: 12 },
+    /** Padding numérico: 3 → 001 */
+    unitPad: { type: Number, default: 3, min: 1, max: 6 },
     equipment: { type: [String], default: [] },
     /** Atributos del catálogo: [{ key, value }] — value '' = flag presente. */
     attributes: {
@@ -164,6 +182,7 @@ const spaceResourceSchema = new mongoose.Schema(
 spaceResourceSchema.index({ tenantId: 1, kind: 1, activo: 1, orden: 1 })
 spaceResourceSchema.index({ tenantId: 1, siteId: 1, kind: 1, activo: 1 })
 spaceResourceSchema.index({ tenantId: 1, typeId: 1, activo: 1 })
+spaceResourceSchema.index({ tenantId: 1, occupancyClass: 1, activo: 1 })
 spaceResourceSchema.index({ tenantId: 1, 'attributes.key': 1 })
 
 export const SpaceResource = mongoose.model('SpaceResource', spaceResourceSchema)
@@ -223,9 +242,13 @@ const reservationSchema = new mongoose.Schema(
     },
     plate: { type: String, default: '', maxlength: 20 },
     vehicleType: { type: String, default: '', maxlength: 40 },
+    /** Código de subunidad (cajón L-012, butaca B-03…) — solo occupancyClass=unidades_numeradas */
+    unitCode: { type: String, default: '', maxlength: 40, index: true },
     attendees: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     checkedInAt: { type: Date, default: null },
     checkedOutAt: { type: Date, default: null },
+    /** Aviso ~10 min antes del inicio (scheduler) */
+    reminderSentAt: { type: Date, default: null },
     approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     approvedAt: { type: Date, default: null },
     rejectReason: { type: String, default: '', maxlength: 400 },
@@ -237,8 +260,10 @@ const reservationSchema = new mongoose.Schema(
 )
 
 reservationSchema.index({ tenantId: 1, resourceId: 1, startAt: 1, endAt: 1 })
+reservationSchema.index({ tenantId: 1, resourceId: 1, unitCode: 1, startAt: 1, endAt: 1 })
 reservationSchema.index({ tenantId: 1, userId: 1, startAt: -1 })
 reservationSchema.index({ tenantId: 1, status: 1, startAt: 1 })
+reservationSchema.index({ status: 1, reminderSentAt: 1, startAt: 1 })
 
 export const Reservation = mongoose.model('Reservation', reservationSchema)
 export const RESERVATION_ACTIVE_STATUSES = ACTIVE_STATUSES

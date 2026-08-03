@@ -194,7 +194,7 @@ onUnmounted(() => stopFlush())
   margin-bottom: 0.75rem;
   font-size: 0.9rem;
 }
-.sup-ai-note { color: #0f766e; font-size: 0.75rem; margin: 0.35rem 0; }
+.sup-ai-note { color: var(--brand-primary, #0f766e); font-size: 0.75rem; margin: 0.35rem 0; }
 .sup-prio { margin: 0.35rem 0 0; padding-left: 1.1rem; font-size: 0.85rem; }
 .sup-grid { display: grid; gap: 0.75rem; }
 .sup-card {

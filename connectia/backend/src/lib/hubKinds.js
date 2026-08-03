@@ -114,15 +114,33 @@ export function openModeForKind(kind) {
 
 /** Contexto de plantillas {{usuario}}, {{email}}, {{puntos}}, etc. */
 export function buildTemplateContext(user, tenant, extras = {}) {
-  const nombre = [user?.nombre, user?.apellido].filter(Boolean).join(' ').trim()
+  const primerNombre = String(user?.nombre || '').trim()
+  const apellido = String(user?.apellido || '').trim()
+  const nombre = [primerNombre, apellido].filter(Boolean).join(' ').trim()
+  const iniciales = [primerNombre, apellido]
+    .filter(Boolean)
+    .map((p) => p.charAt(0).toUpperCase())
+    .join('')
+    .slice(0, 3)
   const puntos = extras.puntos != null ? Number(extras.puntos) : extras.balance != null ? Number(extras.balance) : 0
   const pts = Number.isFinite(puntos) ? Math.max(0, Math.floor(puntos)) : 0
+  const tz = tenant?.timezone || 'America/Argentina/Buenos_Aires'
   return {
     usuario: user?.usuario || '',
     legajo: user?.idExterno || user?.usuario || '',
     idExterno: user?.idExterno || '',
-    nombre: nombre || user?.nombre || '',
+    nombre: nombre || primerNombre || '',
+    primer_nombre: primerNombre,
+    apellido,
+    iniciales,
     email: user?.email || '',
+    telefono: user?.telefono || '',
+    dni: user?.dni || '',
+    cuil: user?.cuil || '',
+    cargo: user?.cargo || '',
+    sede: user?.sede || '',
+    fecha_ingreso: formatTemplateDate(user?.fechaIngreso, tz),
+    fecha_hoy: formatTemplateDate(new Date(), tz),
     userId: user?._id ? String(user._id) : user?.id ? String(user.id) : '',
     empCodigo: tenant?.empCodigo || '',
     tenant: tenant?.nombre || tenant?.empCodigo || '',
@@ -131,6 +149,22 @@ export function buildTemplateContext(user, tenant, extras = {}) {
     _puntosNum: pts,
     _user: user,
     _tenant: tenant,
+  }
+}
+
+function formatTemplateDate(value, timeZone = 'America/Argentina/Buenos_Aires') {
+  if (!value) return ''
+  const date = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  try {
+    return new Intl.DateTimeFormat('es-AR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      timeZone,
+    }).format(date)
+  } catch {
+    return date.toISOString().slice(0, 10)
   }
 }
 

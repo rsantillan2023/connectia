@@ -64,8 +64,21 @@
       <tbody>
         <tr v-for="s in items" :key="s.id">
           <td>
-            <strong>{{ s.titulo }}</strong>
-            <p class="sub">{{ s.questionCount }} pregunta(s)</p>
+            <div class="title-cell">
+              <button
+                v-if="s.imageUrl"
+                type="button"
+                class="thumb-btn"
+                title="Vista previa"
+                @click="openPreview(s)"
+              >
+                <img :src="s.imageUrl" alt="" class="thumb" />
+              </button>
+              <div>
+                <strong>{{ s.titulo }}</strong>
+                <p class="sub">{{ s.questionCount }} pregunta(s)</p>
+              </div>
+            </div>
           </td>
           <td><span class="pill" :data-st="s.status">{{ statusLabel(s.status) }}</span></td>
           <td>{{ audienceLabel(s.audience) }}</td>
@@ -82,6 +95,7 @@
             </div>
           </td>
           <td class="actions">
+            <button type="button" class="btn-ghost" @click="openPreview(s)">Vista previa</button>
             <button type="button" class="btn-ghost" @click="openStats(s)">Estadísticas</button>
             <button type="button" class="btn-ghost" @click="showResults(s)">Resultados</button>
             <button
@@ -168,10 +182,25 @@
 
     <!-- Editor -->
     <div v-if="draft" class="sheet" @click.self="draft = null">
-      <form class="panel editor" @submit.prevent="save">
-        <h2>{{ draft.id ? 'Editar encuesta' : 'Nueva encuesta' }}</h2>
+      <form class="panel editor survey-editor" @submit.prevent="save">
+        <header class="editor-head">
+          <h2>{{ draft.id ? 'Editar encuesta' : 'Nueva encuesta' }}</h2>
+          <button type="button" class="btn-ghost icon-x" aria-label="Cerrar" @click="draft = null">×</button>
+        </header>
+        <div class="editor-body">
         <label>Título<input v-model="draft.titulo" required class="input" /></label>
         <label>Descripción<textarea v-model="draft.descripcion" rows="2" class="input" /></label>
+        <label>Imagen de portada
+          <div class="row">
+            <input v-model="draft.imageUrl" class="input" placeholder="URL o subí un archivo" />
+            <label class="btn-ghost file-btn">
+              Subir
+              <input type="file" accept="image/*" hidden @change="onImageFile" />
+            </label>
+          </div>
+          <img v-if="draft.imageUrl" :src="draft.imageUrl" alt="" class="preview" />
+          <p class="hint">Se muestra en la app (lista, detalle y muro) y en el listado admin.</p>
+        </label>
         <label>Estado
           <select v-model="draft.status" class="input">
             <option value="draft">Borrador (no visible)</option>
@@ -269,12 +298,52 @@
             <button type="button" class="btn-ghost danger" @click="draft.questions.splice(i, 1)">Quitar</button>
           </div>
         </div>
-        <div class="footer">
-          <button type="button" class="btn-ghost" @click="draft = null">Cancelar</button>
-          <button type="submit" class="btn-primary" :disabled="saving">{{ saving ? 'Guardando…' : 'Guardar' }}</button>
         </div>
-        <p v-if="formError" class="err">{{ formError }}</p>
+        <div class="editor-foot">
+          <p v-if="formError" class="err">{{ formError }}</p>
+          <div class="footer">
+            <button type="button" class="btn-ghost" @click="draft = null">Cancelar</button>
+            <button type="button" class="btn-ghost" @click="previewDraft">Vista previa</button>
+            <button type="submit" class="btn-primary" :disabled="saving">{{ saving ? 'Guardando…' : 'Guardar' }}</button>
+          </div>
+        </div>
       </form>
+    </div>
+
+    <!-- Vista previa como en la app -->
+    <div v-if="preview" class="sheet sheet--preview" @click.self="closePreview">
+      <div class="preview-modal" role="dialog" aria-modal="true" aria-labelledby="survey-preview-title">
+        <header class="preview-modal__head">
+          <div>
+            <h2 id="survey-preview-title">Vista previa</h2>
+            <p>Así lo ve el miembro en el celular</p>
+          </div>
+          <button type="button" class="btn-ghost icon-x" aria-label="Cerrar" @click="closePreview">×</button>
+        </header>
+        <div class="preview-modal__body">
+          <p v-if="previewLoading" class="hint">Cargando…</p>
+          <p v-else-if="previewError" class="err">{{ previewError }}</p>
+          <MobileSurveyPreview
+            v-else
+            :survey="preview"
+            :type-meta="questionTypeMeta"
+            compact
+            label=""
+            note=""
+          />
+        </div>
+        <footer class="preview-modal__foot">
+          <button type="button" class="btn-ghost" @click="closePreview">Cerrar</button>
+          <button
+            v-if="previewSourceId && !draft"
+            type="button"
+            class="btn-primary"
+            @click="editFromPreview"
+          >
+            Editar
+          </button>
+        </footer>
+      </div>
     </div>
 
     <!-- Estadísticas de participación (no resultados de contenido) -->
@@ -584,10 +653,15 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import api from '../services/api'
 import ScreenHelp from '../components/ScreenHelp.vue'
+import MobileSurveyPreview from '../components/MobileSurveyPreview.vue'
 import { downloadAiReport } from '../utils/surveyAnalysisExport'
 
 const items = ref([])
 const draft = ref(null)
+const preview = ref(null)
+const previewLoading = ref(false)
+const previewError = ref('')
+const previewSourceId = ref('')
 const results = ref(null)
 const stats = ref(null)
 const statsRefreshing = ref(false)
@@ -850,6 +924,7 @@ function openNew() {
   draft.value = {
     titulo: '',
     descripcion: '',
+    imageUrl: '',
     status: 'draft',
     purpose: 'general',
     anonymous: false,
@@ -879,6 +954,7 @@ async function runAiCreate() {
     draft.value = {
       titulo: d.titulo || '',
       descripcion: d.descripcion || '',
+      imageUrl: '',
       status: 'draft',
       purpose: 'general',
       anonymous: Boolean(d.anonymous),
@@ -917,6 +993,7 @@ async function edit(s) {
       id: survey.id,
       titulo: survey.titulo,
       descripcion: survey.descripcion,
+      imageUrl: survey.imageUrl || '',
       status: survey.status,
       purpose: survey.purpose || 'general',
       anonymous: Boolean(survey.anonymous),
@@ -945,6 +1022,95 @@ function addQ() {
   })
 }
 
+async function onImageFile(e) {
+  const file = e.target.files?.[0]
+  if (!file || !draft.value) return
+  try {
+    const fd = new FormData()
+    fd.append('file', file)
+    const { data } = await api.post('/admin/surveys/upload', fd)
+    draft.value.imageUrl = data.url || data.urls?.[0] || ''
+  } catch (err) {
+    formError.value = err.response?.data?.error || 'No se pudo subir la imagen'
+  } finally {
+    e.target.value = ''
+  }
+}
+
+function closePreview() {
+  preview.value = null
+  previewError.value = ''
+  previewLoading.value = false
+  previewSourceId.value = ''
+}
+
+function draftAsPreviewSurvey() {
+  const d = draft.value
+  if (!d) return null
+  return {
+    titulo: d.titulo || 'Sin título',
+    descripcion: d.descripcion || '',
+    imageUrl: d.imageUrl || '',
+    anonymous: Boolean(d.anonymous),
+    endsAt: fromLocalInput(d.endsAtLocal),
+    questions: packQuestions(),
+  }
+}
+
+function previewDraft() {
+  if (!draft.value) return
+  if (!String(draft.value.titulo || '').trim()) {
+    formError.value = 'Poné un título para poder previsualizar'
+    return
+  }
+  previewError.value = ''
+  previewSourceId.value = draft.value.id || ''
+  preview.value = draftAsPreviewSurvey()
+}
+
+async function openPreview(s) {
+  if (!s?.id) return
+  previewLoading.value = true
+  previewError.value = ''
+  previewSourceId.value = s.id
+  preview.value = {
+    titulo: s.titulo,
+    descripcion: s.descripcion || '',
+    imageUrl: s.imageUrl || '',
+    anonymous: Boolean(s.anonymous),
+    endsAt: s.endsAt,
+    questions: [],
+  }
+  try {
+    const { data } = await api.get(`/admin/surveys/${s.id}`)
+    const survey = data.survey
+    if (Array.isArray(data.questionTypeMeta) && data.questionTypeMeta.length) {
+      questionTypeMeta.value = data.questionTypeMeta
+    }
+    preview.value = {
+      titulo: survey.titulo,
+      descripcion: survey.descripcion || '',
+      imageUrl: survey.imageUrl || '',
+      anonymous: Boolean(survey.anonymous),
+      endsAt: survey.endsAt,
+      questions: survey.questions || [],
+    }
+  } catch (e) {
+    previewError.value = e.response?.data?.error || e.message
+  } finally {
+    previewLoading.value = false
+  }
+}
+
+async function editFromPreview() {
+  const id = previewSourceId.value
+  closePreview()
+  if (!id) return
+  const row = items.value.find((x) => x.id === id)
+  if (row) await edit(row)
+  else await edit({ id })
+}
+
 function packQuestions() {
   return (draft.value.questions || []).map((q) => ({
     id: q.id,
@@ -966,6 +1132,7 @@ async function save() {
     const body = {
       titulo: draft.value.titulo,
       descripcion: draft.value.descripcion,
+      imageUrl: draft.value.imageUrl || '',
       status: draft.value.status,
       purpose: draft.value.purpose || 'general',
       anonymous: Boolean(draft.value.anonymous),
@@ -1204,6 +1371,104 @@ onMounted(async () => {
 .table { width: 100%; border-collapse: collapse; background: var(--panel); border-radius: 12px; overflow: hidden; }
 .table th, .table td { text-align: left; padding: 12px; border-bottom: 1px solid var(--line); font-size: 0.9rem; vertical-align: middle; }
 .sub { margin: 4px 0 0; font-size: 0.75rem; color: var(--ink-soft); font-weight: 400; }
+.title-cell { display: flex; align-items: center; gap: 10px; }
+.thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--panel-2);
+  display: block;
+}
+.thumb-btn {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 10px;
+  line-height: 0;
+}
+.thumb-btn:hover .thumb {
+  outline: 2px solid color-mix(in srgb, var(--brand-primary) 45%, transparent);
+  outline-offset: 1px;
+}
+.row { display: flex; gap: 8px; align-items: center; }
+.row > .input { flex: 1; min-width: 0; }
+.row > .file-btn { flex-shrink: 0; }
+.preview {
+  margin-top: 0.4rem;
+  max-height: 120px;
+  border-radius: 0.5rem;
+  object-fit: cover;
+  display: block;
+}
+.file-btn {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.preview-panel {
+  max-width: 420px;
+  width: min(100%, 420px);
+}
+.preview-body {
+  display: flex;
+  justify-content: center;
+  padding: 4px 0 8px;
+}
+.sheet--preview {
+  padding: 20px 12px;
+  align-items: center;
+}
+.preview-modal {
+  width: min(400px, calc(100vw - 24px));
+  max-height: min(78vh, 640px);
+  background: var(--panel);
+  border-radius: 16px;
+  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.28);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.preview-modal__head {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--line);
+}
+.preview-modal__head h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+.preview-modal__head p {
+  margin: 3px 0 0;
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+}
+.preview-modal__body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px 14px;
+  display: flex;
+  justify-content: center;
+  background: var(--panel-2, #f8fafc);
+}
+.preview-modal__foot {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 14px 14px;
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+}
 .actions { display: flex; gap: 6px; flex-wrap: wrap; max-width: 420px; justify-content: flex-end; }
 .pill {
   display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 3px 8px; border-radius: 999px;
@@ -1222,18 +1487,81 @@ onMounted(async () => {
   display: block; height: 100%; background: var(--primary, var(--brand-primary)); border-radius: 999px;
 }
 .part-bar.lg { height: 10px; margin-top: 8px; }
-.sheet { position: fixed; inset: 0; background: color-mix(in srgb, var(--ink) 45%, transparent); display: grid; place-items: center; z-index: 40; padding: 12px; }
-.panel { width: min(640px, 100%); max-height: 90vh; overflow: auto; background: var(--panel); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 10px; }
-.panel.wide { width: min(820px, 100%); }
+.sheet {
+  position: fixed;
+  inset: 0;
+  background: color-mix(in srgb, var(--ink) 45%, transparent);
+  display: grid;
+  place-items: center;
+  z-index: 40;
+  padding: 24px 16px;
+  box-sizing: border-box;
+}
+.panel {
+  width: min(560px, 100%);
+  max-height: min(82vh, 720px);
+  overflow: auto;
+  background: var(--panel);
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.28);
+}
+.panel.wide { width: min(720px, 100%); }
 .panel.editor {
-  width: min(1100px, 100%);
-  height: min(92vh, 980px);
-  max-height: 92vh;
-  padding: 24px 28px;
+  width: min(720px, calc(100vw - 48px));
+  max-height: min(82vh, 760px);
+}
+.survey-editor {
+  width: min(640px, calc(100vw - 48px));
+  height: auto;
+  max-height: min(82vh, 760px);
+  padding: 0;
+  overflow: hidden;
+  gap: 0;
+}
+.editor-head {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.editor-head h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+.icon-x {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  font-size: 1.35rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.editor-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.editor-foot {
+  flex-shrink: 0;
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+  display: grid;
+  gap: 8px;
 }
 @media (min-width: 900px) {
   .panel.editor .audience-picks { grid-template-columns: 1fr 1fr; }
-  .panel.editor .qs { flex: 1; min-height: 0; }
 }
 .input { width: 100%; box-sizing: border-box; border: 1px solid var(--line-2); border-radius: 8px; padding: 8px 10px; font: inherit; margin-top: 4px; }
 label { display: flex; flex-direction: column; font-size: 0.85rem; font-weight: 600; }
@@ -1255,7 +1583,20 @@ label { display: flex; flex-direction: column; font-size: 0.85rem; font-weight: 
 .res-q.nested { padding: 8px 0 8px 8px; border-left: 3px solid color-mix(in srgb, var(--primary, var(--brand-primary)) 35%, var(--line)); }
 .check { flex-direction: row; align-items: center; gap: 8px; font-weight: 500; }
 .hint { margin: 0; font-size: 0.78rem; font-weight: 400; color: var(--ink-soft); }
-.footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 0;
+  position: relative;
+  z-index: 1;
+}
+.footer .btn-primary,
+.footer .btn-ghost {
+  flex: 0 0 auto;
+  position: relative;
+}
 .btn-primary, .btn-ghost { border-radius: 10px; padding: 8px 12px; font-weight: 600; cursor: pointer; border: 1px solid var(--line-2); background: var(--panel); }
 .btn-primary { background: var(--primary, var(--brand-primary)); color: #fff; border-color: transparent; }
 .btn-ghost.danger { color: var(--bad); }

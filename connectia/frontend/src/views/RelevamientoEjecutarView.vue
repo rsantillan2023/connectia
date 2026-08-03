@@ -184,7 +184,7 @@ onMounted(load)
 
 <style scoped>
 .page { padding: 1rem 1rem 5rem; max-width: 560px; margin: 0 auto; }
-.back { background: none; border: none; color: var(--c-primary, #0d6e6e); cursor: pointer; font: inherit; padding: 0; margin-bottom: 0.5rem; }
+.back { background: none; border: none; color: var(--brand-primary, #0d6e6e); cursor: pointer; font: inherit; padding: 0; margin-bottom: 0.5rem; }
 h1 { margin: 0; font-size: 1.25rem; }
 .sub { margin: 0.2rem 0 1rem; opacity: 0.7; font-size: 0.9rem; }
 .form { display: grid; gap: 1rem; }
@@ -192,9 +192,9 @@ h1 { margin: 0; font-size: 1.25rem; }
 .field label { font-size: 0.95rem; }
 .row { display: flex; gap: 0.5rem; }
 .row button { flex: 1; padding: 0.65rem; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--c-border, #ccc) 70%, transparent); background: transparent; cursor: pointer; font: inherit; }
-.row button.on { background: var(--c-primary, #0d6e6e); color: #fff; border-color: transparent; }
+.row button.on { background: var(--brand-primary, #0d6e6e); color: #fff; border-color: transparent; }
 input, select, textarea { font: inherit; padding: 0.55rem 0.65rem; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--c-border, #ccc) 70%, transparent); background: transparent; color: inherit; }
-.btn { margin-top: 0.5rem; width: 100%; padding: 0.85rem; border-radius: 12px; border: none; background: var(--c-primary, #0d6e6e); color: #fff; font: inherit; cursor: pointer; }
+.btn { margin-top: 0.5rem; width: 100%; padding: 0.85rem; border-radius: 12px; border: none; background: var(--brand-primary, #0d6e6e); color: #fff; font: inherit; cursor: pointer; }
 .btn:disabled { opacity: 0.55; }
 .btn-ghost { padding: 0.55rem 0.75rem; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--c-border, #ccc) 70%, transparent); background: transparent; font: inherit; cursor: pointer; }
 .hint { margin: 0; font-size: 0.8rem; opacity: 0.7; }

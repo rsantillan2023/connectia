@@ -53,7 +53,7 @@ onMounted(load)
 .back {
   border: none;
   background: transparent;
-  color: var(--brand, #0f766e);
+  color: var(--brand-primary, #0f766e);
   font-weight: 600;
   padding: 0;
   margin-bottom: 12px;
@@ -61,7 +61,7 @@ onMounted(load)
 .cat {
   font-size: 0.75rem;
   text-transform: uppercase;
-  color: var(--brand, #0f766e);
+  color: var(--brand-primary, #0f766e);
 }
 h1 {
   font-size: 1.35rem;
@@ -79,8 +79,8 @@ h1 {
   margin-top: 18px;
 }
 .tags span {
-  background: #0f766e14;
-  color: var(--brand, #0f766e);
+  background: color-mix(in srgb, var(--brand-primary, #0f766e) 14%, transparent);
+  color: var(--brand-primary, #0f766e);
   border-radius: 999px;
   padding: 4px 10px;
   font-size: 0.78rem;

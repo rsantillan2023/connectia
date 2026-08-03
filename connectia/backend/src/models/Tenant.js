@@ -31,6 +31,11 @@ const tenantSchema = new mongoose.Schema(
         showTitle: { type: Boolean, default: true },
         showSubtitle: { type: Boolean, default: true },
       },
+      /**
+       * Oscuridad del botón «Hola {nombre}» / puntos del muro vs color del header.
+       * 0 = mismo color que el header; 100 = negro. Default ~22.
+       */
+      pointsBtnDarkenPct: { type: Number, default: 22, min: 0, max: 80 },
     },
     /** light | dark | system — política de tema (§2 branding) */
     themeMode: { type: String, enum: ['light', 'dark', 'system'], default: 'system' },
@@ -107,6 +112,11 @@ const tenantSchema = new mongoose.Schema(
      * Se normaliza con normalizeLicenciasConfig().
      */
     licenciasConfig: { type: mongoose.Schema.Types.Mixed, default: undefined },
+    /**
+     * Beneficios §18: nombres visibles de tipología por comunidad.
+     * { offerTypes: { informativo: { label, hint }, canjeable: …, … } }
+     */
+    benefitsConfig: { type: mongoose.Schema.Types.Mixed, default: undefined },
     /**
      * Resumen de onboarding / seed al alta (plataforma).
      * Guarda perfil IA, accesos demo y mensaje listo para enviar al cliente.

@@ -232,6 +232,11 @@
 - **Emp60 labels fuera** de esta ola → **24** `NR.EMP60` + **39**.
 - Spec: [`CONNECTIA-OLA25-SPEC.md`](./CONNECTIA-OLA25-SPEC.md). `41.M3` Alarma↔Pedido cerrado; §9 vs Portal → D43-1.
 
+### Reciente (2026-07-30 · Ola 43 gaps cerrados)
+
+- Enrutamiento heurístico · CSAT · reportes · audiencia · workflow `servicios` · feedback · Jira adapter.
+- Gaps producto ola 43 = —. Postdev: QA/OpenAPI.
+
 ### Reciente (2026-07-30 · Ola 43 Portal de servicios)
 
 - Núcleo MVP: `ServiceArea` · `ServiceCatalogItem` · `ServiceRequest` + caps `servicios` / `admin.servicios`.

@@ -12,12 +12,33 @@
       </span>
     </div>
 
-    <HubQuickStrip compact surface="muro" class="feed-hub" />
+    <HubQuickStrip compact surface="muro" class="feed-hub" @loaded="onHubLoaded" />
 
-    <RouterLink v-if="liveBadge" to="/en-vivo" class="live-banner">
-      <span class="live-dot" aria-hidden="true" />
-      LIVE · {{ liveBadge.title }}
-    </RouterLink>
+    <!-- Franja del color del header solo si hay botón de puntos a caballo (sin beneficios no hace falta). -->
+    <div
+      v-if="hubHasLinks && !hubOpen && showPtsBridge"
+      class="muro-hub-spacer"
+      aria-hidden="true"
+    />
+
+    <div v-if="showPtsBridge" class="muro-pts-bridge" :class="{ solo: !hubHasLinks }">
+      <PointsHero bridge @open="goPointsEarn" />
+    </div>
+
+    <div v-if="liveCount > 0 && !liveBannerDismissed" class="live-banner">
+      <RouterLink to="/en-vivo" class="live-banner-link">
+        <span class="live-dot" aria-hidden="true" />
+        Ver emisiones en vivo
+      </RouterLink>
+      <button
+        type="button"
+        class="live-banner-close"
+        aria-label="Cerrar"
+        @click="dismissLiveBanner"
+      >
+        ×
+      </button>
+    </div>
 
     <StoriesRail ref="storiesRail" />
 
@@ -77,8 +98,27 @@
       <button type="button" class="filter-clear" @click="clearFilters">Quitar filtros</button>
     </p>
 
-    <p v-if="error" class="feed-banner">{{ error }}</p>
+    <p v-if="error && items.length" class="feed-banner">{{ error }}</p>
     <div v-if="loading && !items.length && !refreshing" class="feed-empty">Cargando novedades…</div>
+
+    <FeedEmptyState
+      v-else-if="!loading && !items.length && loadIssue"
+      :kind="loadIssue.kind"
+      :title="loadIssue.title"
+      :text="loadIssue.text"
+      @retry="load(true)"
+    />
+    <FeedEmptyState
+      v-else-if="!loading && !items.length"
+      kind="empty"
+      icon="inbox"
+      :title="filtersActive ? 'Sin resultados' : 'Todavía no hay novedades'"
+      :text="
+        filtersActive
+          ? 'No hay publicaciones que coincidan con el filtro.'
+          : 'Cuando haya información en el muro, va a aparecer acá.'
+      "
+    />
 
     <NovedadesCarousel
       v-if="viewMode === 'carousel' && items.length"
@@ -88,14 +128,14 @@
       @need-more="load(false)"
     />
 
-    <template v-if="viewMode === 'carousel'">
+    <template v-if="viewMode === 'carousel' && !(!items.length && loadIssue)">
       <MuroStripSection
         title="Beneficios"
         tone="beneficio"
         default-kicker="Beneficio"
-        empty-text="No hay beneficios por ahora."
+        collapsible
+        collapse-key="cx.muro.strip.beneficios"
         :items="beneficioCards"
-        :loading="beneficiosLoading"
         @see-all="router.push('/beneficios')"
         @open="openBeneficio"
       />
@@ -103,49 +143,53 @@
         title="Agenda"
         tone="agenda"
         default-kicker="Evento"
-        empty-text="No hay eventos próximos."
+        collapsible
+        collapse-key="cx.muro.strip.agenda"
         :items="agendaCards"
-        :loading="agendaLoading"
         @see-all="router.push('/agenda')"
         @open="openAgenda"
       />
       <MuroStripSection
-        title="Mis solicitudes"
+        title="Solicitudes y aprobaciones"
         tone="solicitud"
-        default-kicker="Solicitud"
-        empty-text="Todavía no tenés solicitudes."
-        :items="solicitudCards"
-        :loading="solicitudesLoading"
-        @see-all="router.push('/solicitudes')"
-        @open="openSolicitud"
+        default-kicker="Pendiente"
+        default-icon="inbox"
+        variant="tiles"
+        collapsible
+        collapse-key="cx.muro.strip.solicitudes"
+        :items="procesoCards"
+        @see-all="seeAllProcesos"
+        @open="openProceso"
       />
       <MuroStripSection
         title="Encuestas"
         tone="encuesta"
         default-kicker="Encuesta"
-        empty-text="No hay encuestas abiertas."
+        collapsible
+        collapse-key="cx.muro.strip.encuestas"
         :items="encuestaCards"
-        :loading="encuestasLoading"
         @see-all="router.push('/encuestas')"
         @open="openEncuesta"
       />
       <MuroStripSection
         title="Avisos"
         tone="aviso"
+        variant="pager"
         default-kicker="Aviso"
-        empty-text="No hay avisos por ahora."
+        collapsible
+        collapse-key="cx.muro.strip.avisos"
         :items="avisoCards"
-        :loading="avisosLoading"
         @see-all="router.push('/avisos')"
         @open="openAviso"
       />
       <MuroStripSection
         title="Chat"
         tone="chat"
+        variant="avatars"
         default-kicker="Chat"
-        empty-text="Todavía no tenés conversaciones."
+        collapsible
+        collapse-key="cx.muro.strip.chat"
         :items="chatCards"
-        :loading="chatsLoading"
         @see-all="router.push('/chat')"
         @open="openChat"
       />
@@ -197,23 +241,6 @@
       </PostCard>
     </template>
 
-    <div v-if="viewMode === 'list' && !loading && !items.length" class="feed-empty">
-      {{
-        filtersActive
-          ? 'No hay novedades que coincidan con el filtro.'
-          : 'Todavía no hay publicaciones en tu muro.'
-      }}
-    </div>
-    <p
-      v-else-if="viewMode === 'carousel' && !loading && !items.length"
-      class="carousel-empty"
-    >
-      {{
-        filtersActive
-          ? 'No hay novedades que coincidan con el filtro.'
-          : 'Todavía no hay novedades.'
-      }}
-    </p>
     <div v-if="viewMode === 'list'" ref="sentinel" class="feed-sentinel">
       <span v-if="loadingMore">Cargando más…</span>
     </div>
@@ -236,6 +263,7 @@
       :q="filters.q"
       :tipo="filters.tipo"
       :origin="filters.origin"
+      :section="filters.section"
       @close="filterOpen = false"
       @apply="applyFilters"
     />
@@ -255,14 +283,19 @@ import GuardadosFilterSheet from '../components/GuardadosFilterSheet.vue'
 import NovedadesCarousel from '../components/NovedadesCarousel.vue'
 import MuroStripSection from '../components/MuroStripSection.vue'
 import StoriesRail from '../components/StoriesRail.vue'
+import PointsHero from '../components/PointsHero.vue'
 import ReactionBar from '../components/ReactionBar.vue'
 import { usePullToRefresh } from '../composables/usePullToRefresh'
 import { useAuthStore } from '../stores/auth'
 import { useNotifBadge } from '../composables/useNotifBadge'
 import { useChatBadge } from '../composables/useChatBadge'
+import { useMuroHubStrip } from '../composables/useMuroHubStrip'
 import { mediaKind, resolveMediaUrl } from '../utils/media'
+import { describeLoadError, friendlyErrorMessage } from '../utils/networkError'
+import FeedEmptyState from '../components/FeedEmptyState.vue'
 
 const VIEW_KEY = 'cx.muro.novedadesView'
+const LIVE_BANNER_DISMISS_KEY = 'cx.muro.live_banner_dismiss'
 const TIPO_LABELS = {
   noticia: 'Noticia',
   aviso: 'Aviso',
@@ -288,7 +321,37 @@ const { setUnread: setNotifUnread, unreadCount: notifUnread } = useNotifBadge()
 const { refreshBadge: refreshChatBadge } = useChatBadge()
 
 const items = ref([])
-const liveBadge = ref(null)
+const liveCount = ref(0)
+const loadIssue = ref(null)
+const liveBannerDismissed = ref(
+  typeof sessionStorage !== 'undefined' && sessionStorage.getItem(LIVE_BANNER_DISMISS_KEY) === '1',
+)
+
+function dismissLiveBanner() {
+  liveBannerDismissed.value = true
+  try {
+    sessionStorage.setItem(LIVE_BANNER_DISMISS_KEY, '1')
+  } catch {
+    /* ignore */
+  }
+}
+/** Hay franja de enlaces en el muro (si no, el botón de puntos no sube bajo el header). */
+const hubHasLinks = ref(false)
+const { expanded: hubOpen, setHasLinks } = useMuroHubStrip()
+
+/** Misma regla que PointsHero: sin beneficios no reservar spacer/puente (caso 3). */
+const showPtsBridge = computed(() => {
+  const u = auth.user?.capabilities || []
+  const tCaps = auth.tenant?.capabilities || []
+  const caps = [...new Set([...u, ...tCaps])]
+  return caps.includes('beneficios.billetera') || caps.includes('beneficios')
+})
+
+function onHubLoaded(payload) {
+  const has = Boolean(payload?.hasLinks ?? payload?.categories?.length)
+  hubHasLinks.value = has
+  setHasLinks(has)
+}
 const page = ref(1)
 const total = ref(0)
 const loading = ref(true)
@@ -305,17 +368,12 @@ const filters = reactive({ q: '', tipo: '', origin: '', section: '', knowledge: 
 const storiesRail = ref(null)
 const viewMode = ref(readViewMode())
 const avisos = ref([])
-const avisosLoading = ref(false)
 const chats = ref([])
-const chatsLoading = ref(false)
 const beneficios = ref([])
-const beneficiosLoading = ref(false)
 const agenda = ref([])
-const agendaLoading = ref(false)
 const solicitudes = ref([])
-const solicitudesLoading = ref(false)
+const aprobaciones = ref([])
 const encuestas = ref([])
-const encuestasLoading = ref(false)
 let observer
 let stripsLoaded = false
 
@@ -374,30 +432,58 @@ const avisoCards = computed(() =>
     title: n.title || 'Aviso',
     subtitle: n.body || '',
     unread: !n.readAt,
-    kicker: n.readAt ? 'Aviso' : 'Sin leer',
+    kicker: 'Aviso',
     tone: 'aviso',
     icon: 'bell',
     raw: n,
   })),
 )
 
-const chatCards = computed(() =>
-  chats.value.map((c) => ({
-    id: c.id,
-    title: c.title || 'Chat',
-    subtitle: c.lastMessagePreview || 'Sin mensajes',
-    unread: Boolean(c.unread),
-    kicker: c.kind === 'group' ? 'Grupo' : 'Chat',
-    tone: 'chat',
-    icon: 'chat',
-    raw: c,
-  })),
-)
+const chatCards = computed(() => {
+  const meId = String(auth.user?.id || auth.user?._id || '')
+  const list = [...chats.value].sort((a, b) => {
+    const ua = Number(Boolean(a.unread))
+    const ub = Number(Boolean(b.unread))
+    if (ub !== ua) return ub - ua
+    return new Date(b.lastMessageAt || 0) - new Date(a.lastMessageAt || 0)
+  })
+  return list.slice(0, 16).map((c) => {
+    const peers = (c.participants || []).filter((p) => String(p?.id || '') !== meId)
+    const peer = peers.find((p) => p?.nombre || p?.displayName || p?.usuario) || peers[0]
+    const nombre = String(peer?.nombre || '').trim()
+    const apellido = String(peer?.apellido || '').trim()
+    let nameLines = []
+    if (c.kind === 'direct' && (nombre || apellido)) {
+      nameLines = [nombre, apellido].filter(Boolean)
+    } else {
+      const full = String(c.title || peer?.displayName || peer?.usuario || 'Chat').trim()
+      const parts = full.split(/\s+/).filter(Boolean)
+      nameLines = parts.length >= 2 ? [parts[0], parts.slice(1).join(' ')] : [full || 'Chat']
+    }
+    const name = nameLines.join(' ') || 'Chat'
+    const initials = nameLines
+      .slice(0, 2)
+      .map((w) => w[0])
+      .join('')
+      .toUpperCase() || '?'
+    return {
+      id: c.id,
+      title: name,
+      nameLines: nameLines.slice(0, 2),
+      initials,
+      imageUrl: resolveMediaUrl(c.avatarUrl || peer?.avatarUrl || ''),
+      unread: Boolean(c.unread),
+      unreadCount: Number(c.unreadCount) || (c.unread ? 1 : 0),
+      tone: 'chat',
+      raw: c,
+    }
+  })
+})
 
 const beneficioCards = computed(() =>
   beneficios.value.map((b) => ({
     id: b.id,
-    title: b.titulo || 'Beneficio',
+    title: b.displayTitle || b.nombreComercial || b.titulo || 'Beneficio',
     subtitle: b.costoPuntos
       ? `${b.costoPuntos} pts${b.kindLabel ? ` · ${b.kindLabel}` : ''}`
       : b.kindLabel || b.descripcion || '',
@@ -420,19 +506,83 @@ const agendaCards = computed(() =>
   })),
 )
 
+const SOLICITUD_STATUS_ICONS = {
+  abierta: 'inbox',
+  en_proceso: 'sparkles',
+  a_completar: 'alert',
+  en_espera: 'clock',
+  escalada: 'alert',
+  resuelta: 'check',
+  cerrada: 'check',
+  cancelada: 'close',
+}
+
+const APROBACION_STATUS_ICONS = {
+  pendiente: 'clock',
+  en_curso: 'sparkles',
+  aprobado: 'check',
+  rechazado: 'close',
+  cancelado: 'close',
+}
+
+const APROBACION_STATUS_LABELS = {
+  pendiente: 'Pendiente',
+  en_curso: 'En curso',
+  aprobado: 'Aprobado',
+  rechazado: 'Rechazado',
+  cancelado: 'Cancelado',
+}
+
 const solicitudCards = computed(() =>
-  solicitudes.value.map((r) => ({
-    id: r.id,
-    title: r.titulo || r.codigo || 'Solicitud',
-    subtitle: [r.estadoLabel || r.estado, r.tipoNombre].filter(Boolean).join(' · '),
-    unread: Boolean(r.needsCompletion),
-    kicker: r.codigo || 'Solicitud',
-    tone: 'solicitud',
-    icon: 'inbox',
-    imageUrl: stripImageUrl(r.mediaUrl, r.imageUrl, r.coverUrl),
-    raw: r,
-  })),
+  solicitudes.value.map((r) => {
+    const statusKey = String(r.estado || '').trim()
+    return {
+      id: `sol-${r.id}`,
+      kind: 'solicitud',
+      title: r.titulo || r.codigo || 'Solicitud',
+      subtitle: [r.estadoLabel || r.estado, r.tipoNombre].filter(Boolean).join(' · '),
+      unread: Boolean(r.needsCompletion),
+      kicker: r.codigo || 'Solicitud',
+      tone: 'solicitud',
+      icon: 'inbox',
+      typeLabel: r.tipoNombre || r.tipo?.nombre || 'Solicitud',
+      typeIcon: 'clipboard',
+      statusKey,
+      statusLabel: r.estadoLabel || r.estado || '',
+      statusIcon: SOLICITUD_STATUS_ICONS[statusKey] || 'inbox',
+      imageUrl: stripImageUrl(r.mediaUrl, r.imageUrl, r.coverUrl),
+      raw: r,
+    }
+  }),
 )
+
+const aprobacionCards = computed(() =>
+  aprobaciones.value.map((a) => {
+    const statusKey = String(a.status || '').trim()
+    const typeLabel = a.origen?.moduleLabel || a.definitionName || 'Aprobación'
+    return {
+      id: `apr-${a.id}`,
+      kind: 'aprobacion',
+      title: a.origen?.titulo || a.definitionName || 'Aprobación pendiente',
+      subtitle: [a.solicitanteName, a.currentStep?.nombre].filter(Boolean).join(' · '),
+      unread: Boolean(a.canDecide),
+      kicker: 'Aprobación',
+      tone: 'solicitud',
+      icon: 'check',
+      typeLabel,
+      typeIcon: 'check',
+      statusKey,
+      statusLabel: a.canDecide
+        ? 'Para aprobar'
+        : APROBACION_STATUS_LABELS[statusKey] || a.status || 'Pendiente',
+      statusIcon: a.canDecide ? 'alert' : APROBACION_STATUS_ICONS[statusKey] || 'check',
+      raw: a,
+    }
+  }),
+)
+
+/** Aprobaciones primero (acción), luego solicitudes. */
+const procesoCards = computed(() => [...aprobacionCards.value, ...solicitudCards.value].slice(0, 16))
 
 const encuestaCards = computed(() => {
   const sorted = [...encuestas.value].sort((a, b) => Number(Boolean(a.answered)) - Number(Boolean(b.answered)))
@@ -518,8 +668,11 @@ function openPost(p) {
   if (p?.id) router.push(`/muro/${p.id}`)
 }
 
+function goPointsEarn() {
+  router.push('/beneficios')
+}
+
 async function loadAvisos() {
-  avisosLoading.value = true
   try {
     const { data } = await api.get('/notifications', {
       params: { page: 1, limit: 12, status: 'all' },
@@ -529,13 +682,10 @@ async function loadAvisos() {
     if (data?.unreadCount != null) setNotifUnread(Number(data.unreadCount) || 0)
   } catch {
     avisos.value = []
-  } finally {
-    avisosLoading.value = false
   }
 }
 
 async function loadChats() {
-  chatsLoading.value = true
   try {
     const { data } = await api.get('/chats', {
       headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
@@ -544,13 +694,10 @@ async function loadChats() {
     await refreshChatBadge()
   } catch {
     chats.value = []
-  } finally {
-    chatsLoading.value = false
   }
 }
 
 async function loadBeneficios() {
-  beneficiosLoading.value = true
   try {
     const { data } = await api.get('/benefits', {
       headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
@@ -558,13 +705,10 @@ async function loadBeneficios() {
     beneficios.value = Array.isArray(data?.items) ? data.items.slice(0, 12) : []
   } catch {
     beneficios.value = []
-  } finally {
-    beneficiosLoading.value = false
   }
 }
 
 async function loadAgenda() {
-  agendaLoading.value = true
   try {
     const from = new Date()
     from.setHours(0, 0, 0, 0)
@@ -581,27 +725,38 @@ async function loadAgenda() {
     agenda.value = Array.isArray(data?.items) ? data.items.slice(0, 12) : []
   } catch {
     agenda.value = []
-  } finally {
-    agendaLoading.value = false
   }
 }
 
-async function loadSolicitudes() {
-  solicitudesLoading.value = true
+async function loadProcesos() {
   try {
-    const { data } = await api.get('/requests', {
-      headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
-    })
-    solicitudes.value = Array.isArray(data?.items) ? data.items.slice(0, 12) : []
+    const [solRes, aprRes] = await Promise.allSettled([
+      api.get('/requests', {
+        headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+      }),
+      api.get('/approvals', {
+        params: { scope: 'mine', page: 1, limit: 12 },
+        headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+      }),
+    ])
+    solicitudes.value =
+      solRes.status === 'fulfilled' && Array.isArray(solRes.value?.data?.items)
+        ? solRes.value.data.items.slice(0, 12)
+        : []
+    const aprItems =
+      aprRes.status === 'fulfilled' && Array.isArray(aprRes.value?.data?.items)
+        ? aprRes.value.data.items
+        : []
+    // Priorizar las que el usuario puede decidir; si no hay flag, traer las abiertas
+    const pending = aprItems.filter((a) => a.canDecide || ['pendiente', 'en_curso'].includes(a.status))
+    aprobaciones.value = (pending.length ? pending : aprItems).slice(0, 12)
   } catch {
     solicitudes.value = []
-  } finally {
-    solicitudesLoading.value = false
+    aprobaciones.value = []
   }
 }
 
 async function loadEncuestas() {
-  encuestasLoading.value = true
   try {
     const { data } = await api.get('/surveys', {
       headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
@@ -609,8 +764,6 @@ async function loadEncuestas() {
     encuestas.value = Array.isArray(data?.items) ? data.items.slice(0, 12) : []
   } catch {
     encuestas.value = []
-  } finally {
-    encuestasLoading.value = false
   }
 }
 
@@ -620,7 +773,7 @@ async function loadStrips({ force = false } = {}) {
   await Promise.all([
     loadBeneficios(),
     loadAgenda(),
-    loadSolicitudes(),
+    loadProcesos(),
     loadEncuestas(),
     loadAvisos(),
     loadChats(),
@@ -670,7 +823,28 @@ function openAgenda(card) {
   router.push('/agenda')
 }
 
-function openSolicitud(card) {
+function seeAllProcesos() {
+  if (aprobacionCards.value.length && !solicitudCards.value.length) {
+    router.push('/aprobaciones')
+    return
+  }
+  if (solicitudCards.value.length && !aprobacionCards.value.length) {
+    router.push('/solicitudes')
+    return
+  }
+  router.push('/aprobaciones')
+}
+
+function openProceso(card) {
+  if (card?.kind === 'aprobacion') {
+    const a = card?.raw || card
+    if (a?.origen?.deepLink && String(a.origen.deepLink).startsWith('/') && a.origen.deepLink !== '/aprobaciones') {
+      router.push(a.origen.deepLink)
+      return
+    }
+    router.push('/aprobaciones')
+    return
+  }
   const r = card?.raw || card
   if (r?.id) router.push(`/solicitudes/${r.id}`)
   else router.push('/solicitudes')
@@ -684,6 +858,7 @@ function openEncuesta(card) {
 
 async function load(reset, { keepList = false } = {}) {
   error.value = ''
+  if (reset && !keepList) loadIssue.value = null
   if (reset) {
     page.value = 1
     // En pull-to-refresh no ocultamos la lista (evita parpadeo)
@@ -715,12 +890,15 @@ async function load(reset, { keepList = false } = {}) {
     total.value = data.total || 0
     hasMore.value = items.value.length < total.value
     if (next.length) page.value += 1
+    loadIssue.value = null
   } catch (e) {
-    error.value =
-      e.response?.status === 401
-        ? 'Sesión inválida. Cerrá sesión e ingresá de nuevo.'
-        : e.response?.data?.error || 'No se pudo cargar el muro.'
-    if (reset && !keepList) items.value = []
+    const issue = describeLoadError(e, 'No se pudo cargar el muro.')
+    if (reset && !keepList) {
+      loadIssue.value = issue
+      items.value = []
+    } else {
+      error.value = issue.text
+    }
   } finally {
     loading.value = false
     loadingMore.value = false
@@ -733,7 +911,7 @@ async function react(p, key) {
     const idx = items.value.findIndex((x) => x.id === p.id)
     if (idx >= 0 && data.post) items.value[idx] = data.post
   } catch (e) {
-    error.value = e.response?.data?.error || 'No se pudo reaccionar'
+    error.value = friendlyErrorMessage(e, 'No se pudo reaccionar')
   }
 }
 
@@ -743,7 +921,7 @@ async function toggleSave(p) {
     const idx = items.value.findIndex((x) => x.id === p.id)
     if (idx >= 0 && data.post) items.value[idx] = data.post
   } catch (e) {
-    error.value = e.response?.data?.error || 'No se pudo guardar'
+    error.value = friendlyErrorMessage(e, 'No se pudo guardar')
   }
 }
 
@@ -762,7 +940,7 @@ async function confirmHide() {
     total.value = Math.max(0, total.value - 1)
     hideTarget.value = null
   } catch (e) {
-    error.value = e.response?.data?.error || 'No se pudo ocultar la publicación'
+    error.value = friendlyErrorMessage(e, 'No se pudo ocultar la publicación')
   } finally {
     hiding.value = false
   }
@@ -802,10 +980,11 @@ onMounted(() => {
   api
     .get('/live/active')
     .then(({ data }) => {
-      liveBadge.value = data.liveNow || null
+      const n = Array.isArray(data?.items) ? data.items.length : data?.liveNow ? 1 : 0
+      liveCount.value = n
     })
     .catch(() => {
-      liveBadge.value = null
+      liveCount.value = 0
     })
   const root = document.querySelector('.u-main')
   observer = new IntersectionObserver(
@@ -862,20 +1041,71 @@ onBeforeUnmount(() => observer?.disconnect())
   }
 }
 .feed-hub {
+  position: relative;
+  z-index: 1;
   margin: 0;
+  overflow: visible;
+}
+.muro-hub-spacer {
+  height: 44px;
+  margin: 0;
+  background: var(--brand-primary, #0f766e);
+  pointer-events: none;
+}
+.muro-pts-bridge {
+  position: relative;
+  z-index: 5;
+  margin: -28px 16px 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.muro-pts-bridge.solo {
+  margin: 12px 16px 8px;
+}
+.muro-pts-bridge :deep(.pts-hero) {
+  pointer-events: auto;
+  position: relative;
+  width: 100%;
+  max-width: 100%;
 }
 .live-banner {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   margin: 8px 16px 0;
-  padding: 10px 12px;
+  padding: 4px 4px 4px 12px;
   border-radius: 12px;
   background: #fef2f2;
   color: #991b1b;
   font-weight: 700;
   font-size: 0.92rem;
+}
+.live-banner-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  padding: 6px 0;
+  color: inherit;
   text-decoration: none;
+}
+.live-banner-close {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #991b1b;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.live-banner-close:hover {
+  background: rgba(153, 27, 27, 0.08);
 }
 .live-dot {
   width: 8px;

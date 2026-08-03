@@ -37,6 +37,13 @@ import {
   normalizeAttributeKey,
 } from '../lib/spacesCatalog.js'
 import { seedSpaceCatalogForTenant } from '../lib/spacesSeed.js'
+import { scheduleAwardPoints } from '../lib/pointsRules.js'
+import {
+  isNumberedOccupancy,
+  buildUnitCodes,
+  normalizeUnitCode,
+  effectiveUnitCount,
+} from '../lib/spacesOccupancy.js'
 import {
   notifyReservationCreated,
   notifyReservationCancelled,
@@ -61,7 +68,15 @@ function tenantCaps(tenant) {
   }
 }
 
-async function countOverlaps({ tenantId, resourceId, startAt, endAt, excludeId, bufferMin = 0 }) {
+async function countOverlaps({
+  tenantId,
+  resourceId,
+  startAt,
+  endAt,
+  excludeId,
+  bufferMin = 0,
+  unitCode,
+}) {
   const start = new Date(startAt)
   const end = new Date(endAt)
   const padMs = (Number(bufferMin) || 0) * 60_000
@@ -72,8 +87,26 @@ async function countOverlaps({ tenantId, resourceId, startAt, endAt, excludeId, 
     startAt: { $lt: new Date(end.getTime() + padMs) },
     endAt: { $gt: start },
   }
+  if (unitCode) q.unitCode = String(unitCode).trim().toUpperCase()
   if (excludeId) q._id = { $ne: excludeId }
   return Reservation.countDocuments(q)
+}
+
+async function listOccupiedUnitCodes({ tenantId, resourceId, startAt, endAt, bufferMin = 0 }) {
+  const start = new Date(startAt)
+  const end = new Date(endAt)
+  const padMs = (Number(bufferMin) || 0) * 60_000
+  const rows = await Reservation.find({
+    tenantId,
+    resourceId,
+    status: { $in: ACTIVE_RESERVATION_STATUSES },
+    unitCode: { $ne: '' },
+    startAt: { $lt: new Date(end.getTime() + padMs) },
+    endAt: { $gt: start },
+  })
+    .select('unitCode')
+    .lean()
+  return [...new Set(rows.map((r) => String(r.unitCode || '').toUpperCase()).filter(Boolean))]
 }
 
 async function countUserActiveByKinds({ tenantId, userId, kinds, startAt, endAt, excludeId }) {
@@ -252,6 +285,10 @@ router.get('/availability', requireAuth, async (req, res, next) => {
       resources = resources.filter((r) => resourceHasAttributes(r, attrKeys))
     }
 
+    if (req.query.resourceId && ObjectId.isValid(req.query.resourceId)) {
+      resources = resources.filter((r) => String(r._id) === String(req.query.resourceId))
+    }
+
     const resourceIds = resources.map((r) => r._id)
     const reservations = resourceIds.length
       ? await Reservation.find({
@@ -261,7 +298,7 @@ router.get('/availability', requireAuth, async (req, res, next) => {
           startAt: { $lt: end },
           endAt: { $gt: start },
         })
-          .select('resourceId startAt endAt status')
+          .select('resourceId startAt endAt status unitCode')
           .lean()
       : []
 
@@ -277,10 +314,21 @@ router.get('/availability', requireAuth, async (req, res, next) => {
         rangesOverlap(start, end, rv.startAt, rv.endAt, resource.bufferMin || 0),
       )
       const occupied = overlaps.length
-      const cupo = serializeResource(resource).effectiveCupo
+      const cupo = effectiveUnitCount(resource)
+      let freeUnitCodes
+      let freeUnits = Math.max(0, cupo - occupied)
+      if (isNumberedOccupancy(resource)) {
+        const taken = new Set(
+          overlaps.map((rv) => String(rv.unitCode || '').toUpperCase()).filter(Boolean),
+        )
+        freeUnitCodes = buildUnitCodes(resource).filter((c) => !taken.has(c))
+        freeUnits = freeUnitCodes.length
+      }
       return serializeResource(resource, {
         occupied,
-        available: occupied < cupo,
+        available: freeUnits > 0,
+        freeUnits,
+        freeUnitCodes,
       })
     })
 
@@ -290,27 +338,44 @@ router.get('/availability', requireAuth, async (req, res, next) => {
   }
 })
 
-/** GET /api/spaces/reservations/mine */
+/** GET /api/spaces/reservations/mine?scope=active|past  (upcoming=1 ≡ active) */
 router.get('/reservations/mine', requireAuth, async (req, res, next) => {
   try {
     const status = req.query.status
     const kind = req.query.kind
+    const scopeRaw = String(req.query.scope || '').toLowerCase()
+    const scope =
+      scopeRaw === 'past' || req.query.past === '1'
+        ? 'past'
+        : scopeRaw === 'active' || req.query.upcoming === '1'
+          ? 'active'
+          : 'active'
     const filter = { tenantId: req.tenant._id, userId: req.user._id }
     if (status) filter.status = status
     if (kind) filter.kind = kind
-    if (req.query.upcoming === '1') {
-      filter.endAt = { $gte: new Date() }
+    const now = new Date()
+    if (scope === 'past') {
+      filter.$or = [
+        { endAt: { $lt: now } },
+        { status: { $in: ['cancelled', 'rejected', 'completed', 'no_show'] } },
+      ]
+    } else {
+      filter.endAt = { $gte: now }
       filter.status = { $in: [...ACTIVE_RESERVATION_STATUSES, 'pending'] }
     }
 
     const items = await Reservation.find(filter)
-      .populate('resourceId', 'nombre kind')
+      .populate({
+        path: 'resourceId',
+        select: 'nombre kind imageUrl typeId',
+        populate: { path: 'typeId', select: 'codigo label icon' },
+      })
       .populate('siteId', 'nombre')
-      .sort({ startAt: 1 })
+      .sort(scope === 'past' ? { startAt: -1 } : { startAt: 1 })
       .limit(100)
       .lean()
 
-    res.json({ items: items.map((r) => serializeReservation(r)) })
+    res.json({ items: items.map((r) => serializeReservation(r)), scope })
   } catch (e) {
     next(e)
   }
@@ -329,6 +394,7 @@ router.post('/reservations', requireAuth, async (req, res, next) => {
       vehicleType,
       attendees,
       linkOfficeDay,
+      unitCode,
     } = req.body || {}
 
     if (!resourceId || !ObjectId.isValid(resourceId)) {
@@ -346,12 +412,15 @@ router.post('/reservations', requireAuth, async (req, res, next) => {
     }
 
     const policy = await getPolicy(req.tenant._id)
+    const wantedUnit = isNumberedOccupancy(resource) ? normalizeUnitCode(unitCode) : ''
+
     const overlappingCount = await countOverlaps({
       tenantId: req.tenant._id,
       resourceId: resource._id,
       startAt,
       endAt,
       bufferMin: resource.bufferMin,
+      unitCode: wantedUnit || undefined,
     })
 
     const userActiveParkingCount = isParkingKind(resource.kind)
@@ -384,6 +453,7 @@ router.post('/reservations', requireAuth, async (req, res, next) => {
       overlappingCount,
       userActiveParkingCount,
       userActiveDeskCount,
+      unitCode: wantedUnit,
     })
 
     if (!evalResult.ok) {
@@ -397,8 +467,13 @@ router.post('/reservations', requireAuth, async (req, res, next) => {
       startAt,
       endAt,
       bufferMin: resource.bufferMin,
+      unitCode: wantedUnit || undefined,
     })
-    if (raceCount >= serializeResource(resource).effectiveCupo) {
+    if (wantedUnit) {
+      if (raceCount > 0) {
+        return res.status(409).json({ error: 'Unidad ocupada en ese horario' })
+      }
+    } else if (raceCount >= effectiveUnitCount(resource)) {
       return res.status(409).json({ error: 'Sin cupo / recurso ocupado en ese horario' })
     }
 
@@ -415,6 +490,7 @@ router.post('/reservations', requireAuth, async (req, res, next) => {
       status: evalResult.status,
       plate: isParkingKind(resource.kind) ? normalizePlate(plate) : '',
       vehicleType: vehicleType || '',
+      unitCode: evalResult.unitCode || '',
       attendees: Array.isArray(attendees)
         ? attendees.filter((id) => ObjectId.isValid(id)).slice(0, 50)
         : [],
@@ -442,8 +518,19 @@ router.post('/reservations', requireAuth, async (req, res, next) => {
 
     await notifyReservationCreated(req.tenant, reservation, resource.nombre)
 
+    scheduleAwardPoints({
+      tenant: req.tenant,
+      userId: req.user._id,
+      event: 'space_reservation_created',
+      entityId: reservation._id,
+    })
+
     const populated = await Reservation.findById(reservation._id)
-      .populate('resourceId', 'nombre kind')
+      .populate({
+        path: 'resourceId',
+        select: 'nombre kind imageUrl typeId',
+        populate: { path: 'typeId', select: 'codigo label icon' },
+      })
       .populate('siteId', 'nombre')
       .lean()
 
@@ -496,6 +583,13 @@ router.post('/reservations/:id/check-in', requireAuth, async (req, res, next) =>
     reservation.status = 'checked_in'
     reservation.checkedInAt = new Date()
     await reservation.save()
+    scheduleAwardPoints({
+      tenant: req.tenant,
+      userId: req.user._id,
+      event: 'space_checkin',
+      entityId: reservation._id,
+      meta: { kind: 'reservation' },
+    })
     res.json({ item: serializeReservation(reservation.toObject()) })
   } catch (e) {
     next(e)
@@ -634,6 +728,13 @@ router.post('/office-days/:id/check-in', requireAuth, async (req, res, next) => 
     day.status = 'checked_in'
     day.checkedInAt = new Date()
     await day.save()
+    scheduleAwardPoints({
+      tenant: req.tenant,
+      userId: req.user._id,
+      event: 'space_checkin',
+      entityId: day._id,
+      meta: { kind: 'office_day' },
+    })
     res.json({ item: serializeOfficeDay(day.toObject()) })
   } catch (e) {
     next(e)

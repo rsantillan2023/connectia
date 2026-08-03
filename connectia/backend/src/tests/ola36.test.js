@@ -38,3 +38,31 @@ test('hub templates puntos + conditional', () => {
   const low = applyTemplates('{{si_puntos_gt:20:alto}}', buildTemplateContext({}, {}, { puntos: 5 }))
   assert.equal(low, '')
 })
+
+test('hub templates profile fields', () => {
+  const ctx = buildTemplateContext(
+    {
+      nombre: 'Juan',
+      apellido: 'Pérez',
+      telefono: '1155555555',
+      dni: '30111222',
+      cuil: '20-30111222-3',
+      cargo: 'Analista',
+      sede: 'CABA',
+      fechaIngreso: new Date('2020-03-15T12:00:00.000Z'),
+    },
+    { empCodigo: 'DEMO', timezone: 'UTC' },
+  )
+  assert.equal(ctx.primer_nombre, 'Juan')
+  assert.equal(ctx.apellido, 'Pérez')
+  assert.equal(ctx.iniciales, 'JP')
+  assert.equal(ctx.telefono, '1155555555')
+  assert.equal(ctx.dni, '30111222')
+  assert.equal(ctx.cuil, '20-30111222-3')
+  assert.equal(ctx.cargo, 'Analista')
+  assert.equal(ctx.sede, 'CABA')
+  assert.equal(ctx.fecha_ingreso, '15/03/2020')
+  assert.match(ctx.fecha_hoy, /^\d{2}\/\d{2}\/\d{4}$/)
+  const copy = applyTemplates('Hola {{primer_nombre}} ({{iniciales}}) · {{cargo}} · {{sede}}', ctx)
+  assert.equal(copy, 'Hola Juan (JP) · Analista · CABA')
+})

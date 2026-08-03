@@ -298,8 +298,8 @@ watch(
   cursor: pointer;
 }
 .kind-tab.on {
-  background: #0f766e;
-  border-color: #0f766e;
+  background: var(--brand-primary, #0f766e);
+  border-color: var(--brand-primary, #0f766e);
   color: #fff;
 }
 .card {
@@ -322,7 +322,7 @@ watch(
   margin: 0;
   font-size: 0.75rem;
   font-weight: 700;
-  color: #0f766e;
+  color: var(--brand-primary, #0f766e);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -344,11 +344,11 @@ watch(
 .progress span {
   display: block;
   height: 100%;
-  background: #0f766e;
+  background: var(--brand-primary, #0f766e);
 }
 .next-step {
-  border: 1px solid #99f6e4;
-  background: #f0fdfa;
+  border: 1px solid color-mix(in srgb, var(--brand-primary, #0f766e) 35%, transparent);
+  background: color-mix(in srgb, var(--brand-primary, #0f766e) 8%, #fff);
   border-radius: 12px;
   padding: 0.85rem;
   margin-bottom: 0.75rem;
@@ -357,7 +357,7 @@ watch(
   margin: 0 0 0.25rem;
   font-size: 0.75rem;
   font-weight: 700;
-  color: #0f766e;
+  color: var(--brand-primary, #0f766e);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -435,7 +435,7 @@ watch(
   align-items: center;
   border-radius: 8px;
   padding: 0.4rem 0.75rem;
-  background: #0f172a;
+  background: var(--brand-primary, #0f766e);
   color: #fff;
   border: none;
   text-decoration: none;

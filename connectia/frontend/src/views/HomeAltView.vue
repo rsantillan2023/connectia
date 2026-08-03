@@ -62,7 +62,7 @@ const greet = computed(() => {
 })
 
 function goPoints() {
-  router.push({ path: '/beneficios', query: { tab: 'earn' } })
+  router.push('/beneficios')
 }
 
 function preferClassic() {

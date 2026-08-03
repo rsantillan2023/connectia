@@ -112,7 +112,7 @@ onMounted(load)
 .back {
   border: none;
   background: transparent;
-  color: #0f766e;
+  color: var(--brand-primary, #0f766e);
   font-weight: 600;
   padding: 0;
   margin-bottom: 12px;
@@ -121,7 +121,7 @@ onMounted(load)
 .cat {
   font-size: 0.75rem;
   text-transform: uppercase;
-  color: #0f766e;
+  color: var(--brand-primary, #0f766e);
 }
 h1 {
   font-size: 1.35rem;
@@ -165,7 +165,7 @@ h1 {
 .ack-btn {
   width: 100%;
   border: none;
-  background: #0f766e;
+  background: var(--brand-primary, #0f766e);
   color: #fff;
   border-radius: 12px;
   padding: 12px;

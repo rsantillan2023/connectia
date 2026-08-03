@@ -279,6 +279,14 @@ const menuSeed = [
   { key: 'docs', label: 'Mis documentos', route: '/docs', icon: 'file', order: 40, channel: 'u' },
   { key: 'directorio', label: 'Directorio', route: '/directorio', icon: 'grid', order: 41, channel: 'u' },
   { key: 'beneficios', label: 'Beneficios', route: '/beneficios', icon: 'gift', order: 42, channel: 'u' },
+  {
+    key: 'beneficios.earn',
+    label: 'Cómo sumar puntos',
+    route: '/beneficios?tab=earn',
+    icon: 'sparkles',
+    order: 42.1,
+    channel: 'u',
+  },
   { key: 'mi-legajo', label: 'Mi legajo', route: '/mi-legajo', icon: 'file', order: 42, channel: 'u' },
   { key: 'bienvenida', label: 'Tu ingreso', route: '/bienvenida', icon: 'sparkles', order: 43, channel: 'u' },
   { key: 'ayuda', label: 'Ayuda', route: '/ayuda', icon: 'help', order: 45, channel: 'u' },
@@ -308,7 +316,7 @@ const menuSeed = [
   { key: 'admin.kb', label: 'Base de conocimientos', route: '/asistente-kb', icon: 'sparkles', order: 45.9, channel: 'a' },
   { key: 'admin.docs', label: 'Documentos', route: '/documentos', icon: 'file', order: 46, channel: 'a' },
   { key: 'admin.directorio', label: 'Datos útiles', route: '/directorio', icon: 'grid', order: 46.2, channel: 'a' },
-  { key: 'admin.beneficios', label: 'Beneficios y billetera', route: '/beneficios', icon: 'gift', order: 46.3, channel: 'a' },
+  { key: 'admin.beneficios', label: 'Beneficios', route: '/beneficios', icon: 'gift', order: 46.3, channel: 'a' },
   { key: 'admin.ayuda', label: 'Ayuda', route: '/ayuda', icon: 'help', order: 46.5, channel: 'a' },
   { key: 'admin.politicas', label: 'Políticas y cumplimiento', route: '/politicas', icon: 'shield', order: 46.7, channel: 'a' },
   { key: 'admin.hub', label: 'Enlaces', route: '/accesos', icon: 'grid', order: 47, channel: 'a' },
@@ -747,6 +755,11 @@ if (reqCount === 0) {
 }
 
 // —— Ola 5: encuesta + docs + hub ——
+const SURVEY_IMG_CLIMA =
+  'https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200&q=80'
+const SURVEY_IMG_ONBOARD =
+  'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=1200&q=80'
+
 const surveyCount = await Survey.countDocuments({ tenantId: tenant._id })
 if (surveyCount === 0) {
   const invitedCount = await User.countDocuments({ tenantId: tenant._id, activo: true })
@@ -754,6 +767,7 @@ if (surveyCount === 0) {
     tenantId: tenant._id,
     titulo: 'Clima laboral — pulse check',
     descripcion: 'Encuesta corta de ejemplo (Ola 5). Respondé con sinceridad.',
+    imageUrl: SURVEY_IMG_CLIMA,
     status: 'published',
     publishedAt: new Date(),
     version: 1,
@@ -805,7 +819,14 @@ if (surveyCount === 0) {
   })
   console.log('Encuesta DEMO creada')
 } else {
-  console.log(`Encuestas DEMO ya existen (${surveyCount})`)
+  const clima = await Survey.findOne({ tenantId: tenant._id, titulo: 'Clima laboral — pulse check' })
+  if (clima && !clima.imageUrl) {
+    clima.imageUrl = SURVEY_IMG_CLIMA
+    await clima.save()
+    console.log('Encuesta DEMO: portada clima actualizada')
+  } else {
+    console.log(`Encuestas DEMO ya existen (${surveyCount})`)
+  }
 }
 
 const docCount = await DocItem.countDocuments({ tenantId: tenant._id })
@@ -1481,6 +1502,7 @@ if (!onboardSurvey) {
     tenantId: tenant._id,
     titulo: 'Bienvenida — primer día',
     descripcion: 'Encuesta de onboarding (Ola 19). Misma UI de encuestas §15.',
+    imageUrl: SURVEY_IMG_ONBOARD,
     status: 'published',
     purpose: 'onboarding',
     publishedAt: new Date(),
@@ -1516,9 +1538,17 @@ if (!onboardSurvey) {
     ],
   })
   console.log('Encuesta onboarding DEMO creada')
-} else if (!onboardSurvey.purpose || onboardSurvey.purpose === 'general') {
-  onboardSurvey.purpose = 'onboarding'
-  await onboardSurvey.save()
+} else {
+  let dirty = false
+  if (!onboardSurvey.purpose || onboardSurvey.purpose === 'general') {
+    onboardSurvey.purpose = 'onboarding'
+    dirty = true
+  }
+  if (!onboardSurvey.imageUrl) {
+    onboardSurvey.imageUrl = SURVEY_IMG_ONBOARD
+    dirty = true
+  }
+  if (dirty) await onboardSurvey.save()
 }
 
 let onboardTpl = await OnboardingTemplate.findOne({
@@ -1622,7 +1652,11 @@ if (maria && onboardTpl) {
 /** —— Ola 43 Portal de servicios —— */
 {
   const { seedServiciosForTenant } = await import('../lib/serviciosSeed.js')
-  const srv = await seedServiciosForTenant(tenant, { force: true })
+  const srv = await seedServiciosForTenant(tenant, {
+    force: true,
+    brandName: tenant.nombre || 'Connectia',
+    variant: 'demo',
+  })
   console.log(
     `Ola 43 DEMO: áreas +${srv.areasCreated} · ítems +${srv.itemsCreated} · req +${srv.requestsCreated}`,
   )

@@ -140,7 +140,7 @@ watch(scopeId, loadMembers)
 .th-kpi { background: #f8fafc; border-radius: 10px; padding: 0.6rem; text-align: center; display: flex; flex-direction: column; gap: 0.15rem; }
 .th-kpi span { font-size: 0.7rem; color: #64748b; }
 .th-cta {
-  width: 100%; border: 0; background: #0f766e; color: #fff; border-radius: 12px;
+  width: 100%; border: 0; background: var(--brand-primary, #0f766e); color: #fff; border-radius: 12px;
   padding: 0.85rem; font-weight: 600; margin-bottom: 1rem;
 }
 .th-select { width: 100%; padding: 0.55rem; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 0.75rem; }

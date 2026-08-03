@@ -1,5 +1,8 @@
 <template>
-  <section v-if="categories.length" class="stories-rail" aria-label="Stories">
+  <section v-if="categories.length" class="stories-rail" aria-label="Historias">
+    <header class="stories-head">
+      <h2 class="stories-title">Historias</h2>
+    </header>
     <div class="stories-scroll">
       <button
         v-for="cat in categories"
@@ -7,17 +10,19 @@
         type="button"
         class="story-bubble"
         :class="{ seen: cat.allSeen }"
-        :aria-label="`Stories ${cat.category}`"
+        :aria-label="`Historias ${cat.category}`"
         @click="openCategory(cat)"
       >
         <span class="story-ring">
-          <img
-            v-if="cat.cover && cat.coverType !== 'video'"
-            :src="cat.cover"
-            alt=""
-            class="story-thumb"
-          />
-          <span v-else class="story-thumb story-thumb-fallback">{{ cat.initial }}</span>
+          <span class="story-inner">
+            <img
+              v-if="cat.cover && cat.coverType !== 'video'"
+              :src="cat.cover"
+              alt=""
+              class="story-thumb"
+            />
+            <span v-else class="story-thumb story-thumb-fallback">{{ cat.initial }}</span>
+          </span>
         </span>
         <span class="story-label">{{ cat.category }}</span>
       </button>
@@ -36,9 +41,13 @@
           <div class="story-progress">
             <span
               v-for="(s, i) in viewer.stories"
-              :key="s.id"
+              :key="`${s.id}-${i === viewer.index ? progressKey : 'idle'}`"
               class="story-bar"
-              :class="{ done: i < viewer.index, on: i === viewer.index }"
+              :class="{
+                done: i < viewer.index,
+                on: i === viewer.index && progressArmed,
+              }"
+              :style="i === viewer.index && progressArmed ? { '--story-dur': `${currentDurationSec}s` } : undefined"
             />
           </div>
           <header class="story-viewer-head">
@@ -46,9 +55,35 @@
               <strong>{{ viewer.category }}</strong>
               <small>{{ current?.titulo || 'Story' }}</small>
             </div>
-            <button type="button" class="story-close" aria-label="Cerrar" @click="closeViewer">×</button>
+            <div class="story-viewer-actions">
+              <span
+                v-if="currentAudio"
+                class="story-music-badge"
+                :class="{ on: audioPlaying, loading: audioLoading }"
+                aria-hidden="true"
+                :title="audioLoading ? 'Cargando música' : 'Música'"
+              >
+                ♪
+              </span>
+              <button type="button" class="story-close" aria-label="Cerrar" @click="closeViewer">×</button>
+            </div>
           </header>
-          <div class="story-media" @click="advance">
+          <audio
+            v-if="currentAudio"
+            ref="audioEl"
+            :key="current?.id || currentAudio"
+            :src="currentAudio"
+            preload="auto"
+            loop
+            class="story-audio"
+          />
+          <div
+            class="story-media"
+            @click="onMediaTap"
+            @touchstart.passive="onTouchStart"
+            @touchend.passive="onTouchEnd"
+            @touchcancel.passive="onTouchCancel"
+          >
             <video
               v-if="current?.mediaType === 'video'"
               :src="mediaUrl(current.mediaUrl)"
@@ -64,6 +99,16 @@
               :alt="current.titulo || ''"
               class="story-media-el"
             />
+            <div
+              v-if="audioLoading"
+              class="story-audio-loading"
+              role="status"
+              aria-live="polite"
+              aria-label="Cargando música"
+            >
+              <span class="story-audio-spinner" aria-hidden="true" />
+              <small>Cargando música…</small>
+            </div>
           </div>
           <button type="button" class="story-nav prev" aria-label="Anterior" @click.stop="back">‹</button>
           <button type="button" class="story-nav next" aria-label="Siguiente" @click.stop="advance">›</button>
@@ -74,18 +119,47 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import api from '../services/api'
 import { resolveMediaUrl } from '../utils/media'
 
+const DEFAULT_DURATION_SEC = 5
+const MIN_DURATION_SEC = 1
+const MAX_DURATION_SEC = 60
+const SWIPE_THRESHOLD_PX = 48
+
 const categories = ref([])
 const viewer = ref(null)
+const audioEl = ref(null)
+const audioPlaying = ref(false)
+const audioLoading = ref(false)
+const progressArmed = ref(false)
+const progressKey = ref(0)
 let autoTimer
+let touchStartX = null
+let touchStartY = null
+let swiped = false
+let audioWaitGen = 0
 
 const current = computed(() => {
   if (!viewer.value) return null
   return viewer.value.stories[viewer.value.index] || null
 })
+
+const currentDurationSec = computed(() => storyDurationSec(current.value))
+
+const currentAudio = computed(() => {
+  const s = current.value
+  if (!s || s.mediaType === 'video') return ''
+  const u = String(s.audioUrl || '').trim()
+  return u ? resolveMediaUrl(u) : ''
+})
+
+function storyDurationSec(s) {
+  const n = Number(s?.durationSec)
+  if (!Number.isFinite(n)) return DEFAULT_DURATION_SEC
+  return Math.min(MAX_DURATION_SEC, Math.max(MIN_DURATION_SEC, Math.round(n)))
+}
 
 function mediaUrl(u) {
   return resolveMediaUrl(u)
@@ -112,19 +186,125 @@ async function load() {
   }
 }
 
-function openCategory(cat) {
-  viewer.value = {
-    category: cat.category,
-    stories: cat.stories,
-    index: 0,
+function stopAudio() {
+  const el = audioEl.value
+  if (el) {
+    el.pause()
+    el.currentTime = 0
   }
-  markView()
+  audioPlaying.value = false
+}
+
+function waitForAudioReady(el, gen) {
+  return new Promise((resolve) => {
+    if (!el) {
+      resolve(false)
+      return
+    }
+    if (el.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
+      resolve(true)
+      return
+    }
+    let settled = false
+    const finish = (ok) => {
+      if (settled) return
+      settled = true
+      el.removeEventListener('canplaythrough', onReady)
+      el.removeEventListener('canplay', onReady)
+      el.removeEventListener('loadeddata', onReady)
+      el.removeEventListener('error', onErr)
+      clearTimeout(timeoutId)
+      resolve(ok && gen === audioWaitGen)
+    }
+    const onReady = () => finish(true)
+    const onErr = () => finish(false)
+    el.addEventListener('canplaythrough', onReady)
+    el.addEventListener('canplay', onReady)
+    el.addEventListener('loadeddata', onReady)
+    el.addEventListener('error', onErr)
+    const timeoutId = setTimeout(() => finish(false), 12000)
+    try {
+      el.load()
+    } catch {
+      /* ignore */
+    }
+  })
+}
+
+/** Muestra la imagen ya; si hay música, espera a que cargue antes de contar el tiempo. */
+async function startStoryPlayback() {
+  clearTimeout(autoTimer)
+  progressArmed.value = false
+  stopAudio()
+
+  const gen = ++audioWaitGen
+  const hasMusic = Boolean(currentAudio.value)
+
+  if (!hasMusic) {
+    audioLoading.value = false
+    if (gen !== audioWaitGen || !viewer.value) return
+    armTimer()
+    return
+  }
+
+  audioLoading.value = true
+  await nextTick()
+  if (gen !== audioWaitGen || !viewer.value) return
+
+  const el = audioEl.value
+  await waitForAudioReady(el, gen)
+  if (gen !== audioWaitGen || !viewer.value) return
+
+  audioLoading.value = false
+  try {
+    if (el) {
+      el.currentTime = 0
+      await el.play()
+      if (gen !== audioWaitGen) return
+      audioPlaying.value = true
+    }
+  } catch {
+    audioPlaying.value = false
+  }
+  if (gen !== audioWaitGen || !viewer.value) return
   armTimer()
 }
 
+function openCategory(cat) {
+  const categoryIndex = categories.value.findIndex((c) => c.category === cat.category)
+  openCategoryAt(categoryIndex >= 0 ? categoryIndex : 0, 0)
+}
+
+function openCategoryAt(categoryIndex, index) {
+  const cat = categories.value[categoryIndex]
+  if (!cat?.stories?.length) {
+    closeViewer()
+    return
+  }
+  const safeIndex = Math.max(0, Math.min(index, cat.stories.length - 1))
+  viewer.value = {
+    categoryIndex,
+    category: cat.category,
+    stories: cat.stories,
+    index: safeIndex,
+  }
+  markView()
+  startStoryPlayback()
+}
+
 function closeViewer() {
+  audioWaitGen += 1
   clearTimeout(autoTimer)
+  progressArmed.value = false
+  audioLoading.value = false
+  stopAudio()
   viewer.value = null
+}
+
+function refreshSeen() {
+  for (const cat of categories.value) {
+    cat.allSeen = cat.stories.length > 0 && cat.stories.every((s) => s.viewed)
+  }
 }
 
 async function markView() {
@@ -133,6 +313,7 @@ async function markView() {
   try {
     await api.post(`/stories/${s.id}/view`)
     s.viewed = true
+    refreshSeen()
   } catch {
     /* ignore */
   }
@@ -140,92 +321,217 @@ async function markView() {
 
 function armTimer() {
   clearTimeout(autoTimer)
-  if (!viewer.value || current.value?.mediaType === 'video') return
-  autoTimer = setTimeout(advance, 5000)
-}
-
-function advance() {
-  if (!viewer.value) return
-  if (viewer.value.index >= viewer.value.stories.length - 1) {
-    closeViewer()
+  if (!viewer.value || !current.value) return
+  // Videos avanzan con @ended; no forzar timer encima.
+  if (current.value.mediaType === 'video') {
+    progressArmed.value = false
     return
   }
-  viewer.value.index += 1
-  markView()
-  armTimer()
+  progressArmed.value = true
+  progressKey.value += 1
+  const ms = currentDurationSec.value * 1000
+  autoTimer = setTimeout(advance, ms)
+}
+
+/** Evita doble avance (timer + fin de video / tap). */
+let lastAdvanceAt = 0
+
+function advance() {
+  clearTimeout(autoTimer)
+  if (!viewer.value) return
+  const now = Date.now()
+  if (now - lastAdvanceAt < 280) return
+  lastAdvanceAt = now
+
+  audioWaitGen += 1
+  audioLoading.value = false
+  progressArmed.value = false
+  stopAudio()
+
+  const catIdx = Number(viewer.value.categoryIndex) || 0
+  const storyIdx = viewer.value.index
+
+  if (storyIdx < viewer.value.stories.length - 1) {
+    viewer.value.index = storyIdx + 1
+    markView()
+    startStoryPlayback()
+    return
+  }
+
+  const cats = categories.value
+  for (let i = catIdx + 1; i < cats.length; i++) {
+    if (cats[i]?.stories?.length) {
+      openCategoryAt(i, 0)
+      return
+    }
+  }
+
+  closeViewer()
 }
 
 function back() {
+  clearTimeout(autoTimer)
   if (!viewer.value) return
-  if (viewer.value.index <= 0) return
-  viewer.value.index -= 1
-  armTimer()
+  audioWaitGen += 1
+  audioLoading.value = false
+  progressArmed.value = false
+  stopAudio()
+
+  if (viewer.value.index > 0) {
+    viewer.value.index -= 1
+    startStoryPlayback()
+    return
+  }
+
+  const catIdx = Number(viewer.value.categoryIndex) || 0
+  for (let i = catIdx - 1; i >= 0; i--) {
+    const prev = categories.value[i]
+    if (prev?.stories?.length) {
+      openCategoryAt(i, prev.stories.length - 1)
+      return
+    }
+  }
+}
+
+function onMediaTap() {
+  if (swiped) {
+    swiped = false
+    return
+  }
+  advance()
+}
+
+function onTouchStart(e) {
+  const t = e.changedTouches?.[0] || e.touches?.[0]
+  if (!t) return
+  touchStartX = t.clientX
+  touchStartY = t.clientY
+  swiped = false
+}
+
+function onTouchEnd(e) {
+  const t = e.changedTouches?.[0]
+  if (!t || touchStartX == null || touchStartY == null) {
+    touchStartX = null
+    touchStartY = null
+    return
+  }
+  const dx = t.clientX - touchStartX
+  const dy = t.clientY - touchStartY
+  touchStartX = null
+  touchStartY = null
+  if (Math.abs(dx) < SWIPE_THRESHOLD_PX || Math.abs(dx) < Math.abs(dy)) return
+  swiped = true
+  if (dx < 0) advance()
+  else back()
+}
+
+function onTouchCancel() {
+  touchStartX = null
+  touchStartY = null
 }
 
 onMounted(load)
-onUnmounted(() => clearTimeout(autoTimer))
+onUnmounted(() => {
+  audioWaitGen += 1
+  clearTimeout(autoTimer)
+  stopAudio()
+})
 
 defineExpose({ reload: load })
 </script>
 
 <style scoped>
 .stories-rail {
-  margin: 0 0 12px;
-  padding: 0 4px;
+  margin: 4px 0 4px;
+  padding: 0;
+}
+.stories-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px 8px;
+}
+.stories-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--cx-text, #0f172a);
+  line-height: 1.2;
 }
 .stories-scroll {
   display: flex;
-  gap: 12px;
+  gap: 14px;
   overflow-x: auto;
-  padding: 4px 2px 8px;
+  padding: 4px 16px 12px;
   scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
 }
 .stories-scroll::-webkit-scrollbar {
   display: none;
 }
 .story-bubble {
   flex: 0 0 auto;
-  width: 72px;
+  width: 76px;
   border: 0;
   background: transparent;
   padding: 0;
   cursor: pointer;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
 }
 .story-ring {
-  display: grid;
-  place-items: center;
-  width: 64px;
-  height: 64px;
-  margin: 0 auto 6px;
-  border-radius: 999px;
-  padding: 2px;
-  background: linear-gradient(135deg, #0d9488, #f59e0b);
+  box-sizing: border-box;
+  display: block;
+  width: 68px;
+  height: 68px;
+  flex: 0 0 68px;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  padding: 2.5px;
+  background: linear-gradient(135deg, var(--brand-primary, #0d9488), #f59e0b);
 }
 .story-bubble.seen .story-ring {
   background: #cbd5e1;
 }
-.story-thumb {
+.story-inner {
+  display: block;
   width: 100%;
   height: 100%;
-  border-radius: 999px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--u-surface, #fff);
+  box-shadow: inset 0 0 0 2.5px var(--u-surface, #fff);
+}
+.story-thumb {
+  display: block;
+  width: 100%;
+  height: 100%;
   object-fit: cover;
-  border: 2px solid var(--u-surface, #fff);
   background: #e2e8f0;
 }
 .story-thumb-fallback {
   display: grid;
   place-items: center;
   font-weight: 700;
-  color: #0f766e;
+  color: var(--brand-primary, #0f766e);
 }
 .story-label {
   display: block;
+  width: 100%;
   font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
   color: var(--u-muted, #64748b);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-transform: capitalize;
 }
 .story-viewer {
   position: fixed;
@@ -254,14 +560,32 @@ defineExpose({ reload: load })
   gap: 4px;
 }
 .story-bar {
+  position: relative;
   flex: 1;
   height: 3px;
   border-radius: 99px;
   background: rgba(255, 255, 255, 0.25);
+  overflow: hidden;
 }
-.story-bar.done,
-.story-bar.on {
+.story-bar.done {
   background: #fff;
+}
+.story-bar.on::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 0;
+  border-radius: inherit;
+  background: #fff;
+  animation: story-progress-fill var(--story-dur, 5s) linear forwards;
+}
+@keyframes story-progress-fill {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
 }
 .story-viewer-head {
   position: absolute;
@@ -279,6 +603,41 @@ defineExpose({ reload: load })
   opacity: 0.8;
   margin-top: 2px;
 }
+.story-viewer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.story-music-badge {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  font-size: 14px;
+  opacity: 0.7;
+}
+.story-music-badge.on {
+  opacity: 1;
+  animation: story-pulse 1.1s ease-in-out infinite;
+}
+@keyframes story-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+}
+.story-music-badge.loading {
+  opacity: 0.85;
+  animation: story-pulse 0.9s ease-in-out infinite;
+}
+.story-audio {
+  display: none;
+}
 .story-close {
   border: 0;
   background: transparent;
@@ -288,16 +647,52 @@ defineExpose({ reload: load })
   cursor: pointer;
 }
 .story-media {
+  position: relative;
   width: 100%;
   height: 100%;
   display: grid;
   place-items: center;
+  touch-action: pan-y;
 }
 .story-media-el {
   width: 100%;
   height: 100%;
   object-fit: contain;
   background: #000;
+  pointer-events: none;
+}
+.story-audio-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: color-mix(in srgb, #020617 28%, transparent);
+  pointer-events: none;
+  color: #fff;
+}
+.story-audio-loading small {
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.55);
+  opacity: 0.92;
+}
+.story-audio-spinner {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.28);
+  border-top-color: #fff;
+  animation: story-spin 0.75s linear infinite;
+}
+@keyframes story-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 .story-nav {
   position: absolute;

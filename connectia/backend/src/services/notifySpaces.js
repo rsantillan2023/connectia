@@ -99,3 +99,23 @@ export async function notifyReservationCancelled(tenant, reservation, resourceNo
     refId: reservation._id,
   })
 }
+
+/** Recordatorio ~10 min antes del inicio (uso del activo). */
+export async function notifyReservationUpcoming(tenant, reservation, resourceNombre, startAt) {
+  const when = startAt instanceof Date ? startAt : new Date(startAt)
+  const hora = Number.isNaN(+when)
+    ? ''
+    : when.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })
+  const nombre = resourceNombre || 'tu reserva'
+  return notifyUsers({
+    tenant,
+    userIds: [reservation.userId],
+    kind: 'space.reminder',
+    title: 'Tu reserva empieza en 10 minutos',
+    body: hora
+      ? `${nombre} es a las ${hora}. Ya podés prepararte para usarlo.`
+      : `${nombre} empieza en breve. Ya podés prepararte para usarlo.`,
+    href: '/espacios?tab=mis',
+    refId: reservation._id,
+  })
+}

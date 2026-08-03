@@ -1,6 +1,6 @@
 <template>
   <div class="min-h-dvh flex items-center justify-center p-4">
-    <div class="w-full max-w-lg rounded-2xl bg-white border border-teal-900/5 p-6 shadow-sm">
+    <div class="w-full max-w-lg rounded-2xl bg-white border border-[var(--cx-border)] p-6 shadow-sm">
       <h1 class="font-display text-2xl text-brand">{{ doc?.titulo || 'Términos' }}</h1>
       <p class="text-xs text-slate-500 mt-1">Versión {{ doc?.version }}</p>
       <p class="mt-4 text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{{ doc?.cuerpo }}</p>

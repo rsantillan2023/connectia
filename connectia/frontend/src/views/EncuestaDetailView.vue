@@ -31,6 +31,9 @@
 
         <template v-else-if="survey">
           <header class="encd-hero">
+            <div v-if="survey.imageUrl" class="encd-cover">
+              <img :src="survey.imageUrl" :alt="survey.titulo || 'Portada de la encuesta'" />
+            </div>
             <p v-if="survey.anonymous" class="encd-pill">Anónima</p>
             <h1>{{ survey.titulo }}</h1>
             <p v-if="survey.descripcion" class="encd-desc">{{ survey.descripcion }}</p>
@@ -634,6 +637,20 @@ onUnmounted(() => {
 
 .encd-hero {
   margin-bottom: 14px;
+}
+.encd-cover {
+  margin: 0 0 14px;
+  border-radius: 16px;
+  overflow: hidden;
+  aspect-ratio: 16 / 9;
+  background: color-mix(in srgb, var(--cx-muted) 12%, transparent);
+  border: 1px solid var(--cx-border);
+}
+.encd-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 .encd-pill {
   display: inline-block;

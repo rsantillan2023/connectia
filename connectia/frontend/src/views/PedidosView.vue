@@ -180,7 +180,7 @@ onMounted(load)
   font: inherit;
 }
 .pd-primary {
-  background: #0f766e;
+  background: var(--brand-primary, #0f766e);
   color: #fff;
   border: 0;
   border-radius: 999px;

@@ -114,6 +114,6 @@ async function save() {
 label { display: grid; gap: 0.3rem; font-size: 0.85rem; color: #475569; }
 input, select, textarea { padding: 0.55rem; border: 1px solid #e2e8f0; border-radius: 8px; font: inherit; }
 .check { display: flex; align-items: center; gap: 0.5rem; }
-.primary { background: #0f766e; color: #fff; border: 0; border-radius: 10px; padding: 0.75rem; font-weight: 600; }
+.primary { background: var(--brand-primary, #0f766e); color: #fff; border: 0; border-radius: 10px; padding: 0.75rem; font-weight: 600; }
 .sup-err { color: #b91c1c; }
 </style>

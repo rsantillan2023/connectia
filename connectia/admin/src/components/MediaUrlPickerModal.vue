@@ -64,7 +64,7 @@
                     <template v-if="item.duration">{{ item.duration }}</template>
                   </span>
                   <span v-if="item.directFile" class="badge">Archivo directo</span>
-                  <span v-else-if="kind === 'audio' && !item.directFile" class="badge soft">
+                  <span v-else-if="kindKey === 'audio' && !item.directFile" class="badge soft">
                     Página · verificá que reproduzca
                   </span>
                   <span class="result-snip">{{ item.snippet || item.url }}</span>
@@ -88,7 +88,7 @@ import { computed, nextTick, onMounted, ref } from 'vue'
 import api from '../services/api'
 
 const props = defineProps({
-  /** 'youtube' | 'audio' */
+  /** 'youtube' | 'vimeo' | 'hls' | 'audio' */
   kind: { type: String, default: 'youtube' },
   /** Prefill opcional (p. ej. título del borrador) */
   initialQuery: { type: String, default: '' },
@@ -105,28 +105,50 @@ const error = ref('')
 const searched = ref(false)
 const queryInput = ref(null)
 
-const titleId = computed(() => `media-pick-${props.kind}-title`)
-const inputId = computed(() => `media-pick-${props.kind}-q`)
+const kindKey = computed(() => {
+  const k = String(props.kind || 'youtube')
+  return ['youtube', 'vimeo', 'hls', 'audio'].includes(k) ? k : 'youtube'
+})
 
-const title = computed(() =>
-  props.kind === 'audio' ? 'Buscar audio en la red' : 'Buscar video en YouTube',
-)
-const subtitle = computed(() =>
-  props.kind === 'audio'
-    ? 'Buscá un archivo de audio o un enlace reproducible y lo cargamos en la publicación.'
-    : 'Buscá en YouTube, elegí un video y lo dejamos listo en la URL de media.',
-)
-const searchLabel = computed(() =>
-  props.kind === 'audio' ? '¿Qué audio buscás?' : '¿Qué video de YouTube buscás?',
-)
-const placeholder = computed(() =>
-  props.kind === 'audio' ? 'Ej. música suave oficina, podcast bienestar…' : 'Ej. onboarding equipo, tip seguridad…',
-)
-const hint = computed(() =>
-  props.kind === 'audio'
-    ? 'Priorizamos enlaces .mp3/.m4a/.wav y sitios de audio. Preferí “archivo directo” para que suene en el muro.'
-    : 'Los resultados son de YouTube. Un clic completa la URL del video en el editor.',
-)
+const titleId = computed(() => `media-pick-${kindKey.value}-title`)
+const inputId = computed(() => `media-pick-${kindKey.value}-q`)
+
+const COPY = {
+  youtube: {
+    title: 'Buscar video en YouTube',
+    subtitle: 'Buscá en YouTube, elegí un video y lo dejamos listo en la URL.',
+    searchLabel: '¿Qué video de YouTube buscás?',
+    placeholder: 'Ej. onboarding equipo, tip seguridad…',
+    hint: 'Resultados de YouTube. Un clic completa la URL en el editor.',
+  },
+  vimeo: {
+    title: 'Buscar video en Vimeo',
+    subtitle: 'Buscá en Vimeo, elegí un video y lo dejamos listo en la URL.',
+    searchLabel: '¿Qué video de Vimeo buscás?',
+    placeholder: 'Ej. lanzamiento producto, welcome day…',
+    hint: 'Resultados de Vimeo. Un clic completa la URL en el editor.',
+  },
+  hls: {
+    title: 'Buscar stream HLS',
+    subtitle: 'Buscá enlaces .m3u8 públicos (HLS) para usarlo como stream.',
+    searchLabel: '¿Qué stream HLS buscás?',
+    placeholder: 'Ej. canal demo m3u8, live HLS…',
+    hint: 'Solo aparecen URLs .m3u8. Muchos streams privados no aparecen en la búsqueda web.',
+  },
+  audio: {
+    title: 'Buscar audio en la red',
+    subtitle: 'Buscá un archivo de audio o un enlace reproducible y lo cargamos en la publicación.',
+    searchLabel: '¿Qué audio buscás?',
+    placeholder: 'Ej. música suave oficina, podcast bienestar…',
+    hint: 'Priorizamos enlaces .mp3/.m4a/.wav y sitios de audio. Preferí “archivo directo” para que suene en el muro.',
+  },
+}
+
+const title = computed(() => COPY[kindKey.value].title)
+const subtitle = computed(() => COPY[kindKey.value].subtitle)
+const searchLabel = computed(() => COPY[kindKey.value].searchLabel)
+const placeholder = computed(() => COPY[kindKey.value].placeholder)
+const hint = computed(() => COPY[kindKey.value].hint)
 
 function hostOf(url) {
   try {
@@ -149,7 +171,7 @@ async function runSearch() {
   provider.value = ''
   try {
     const { data } = await api.post('/admin/posts/media-search/search', {
-      kind: props.kind === 'audio' ? 'audio' : 'youtube',
+      kind: kindKey.value,
       query: q,
       limit: 8,
     })
@@ -167,9 +189,10 @@ async function runSearch() {
 function pick(item) {
   if (!item?.url) return
   emit('select', {
-    kind: props.kind === 'audio' ? 'audio' : 'youtube',
+    kind: kindKey.value,
     url: item.url,
     title: item.title || '',
+    imageUrl: item.imageUrl || '',
     item,
   })
 }
@@ -190,14 +213,14 @@ onMounted(() => {
   padding: 16px;
 }
 .panel {
-  width: min(640px, 100%);
-  max-height: min(88vh, 820px);
+  width: min(480px, calc(100vw - 32px));
+  max-height: min(72vh, 620px);
   display: flex;
   flex-direction: column;
-  background: var(--cx-surface);
-  color: var(--cx-text);
+  background: var(--cx-surface, var(--panel));
+  color: var(--cx-text, var(--ink));
   border-radius: 16px;
-  border: 1px solid var(--cx-border);
+  border: 1px solid var(--cx-border, var(--line));
   box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25);
   overflow: hidden;
 }

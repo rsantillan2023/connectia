@@ -9,6 +9,7 @@ import {
   isLinkVisibleNow,
   isTemporaryVisibleUntil,
   categoryVisibleOnSurface,
+  quickLinksForSurface,
 } from '../lib/hubVisibility.js'
 import {
   normalizeHubKind,
@@ -116,20 +117,34 @@ router.get('/', requireAuth, async (req, res, next) => {
       if (!byCat[cat]) byCat[cat] = []
       byCat[cat].push(serializeLink(l, catByName[cat], { templateCtx }))
     }
+    for (const cat of Object.keys(byCat)) {
+      byCat[cat].sort(
+        (a, b) =>
+          (Number(a.order) || 100) - (Number(b.order) || 100) ||
+          String(a.titulo || '').localeCompare(String(b.titulo || ''), 'es'),
+      )
+    }
 
-    const orderedCats = [
-      ...categories
-        .filter((c) => categoryVisibleOnSurface(c, surface) && byCat[c.nombre]?.length)
-        .map((c) => c.nombre),
-      ...Object.keys(byCat).filter((n) => !categories.some((c) => c.nombre === n)),
-    ]
+    const configuredCats = categories
+      .filter((c) => categoryVisibleOnSurface(c, surface) && byCat[c.nombre]?.length)
+      .sort((a, b) => (Number(a.orden) || 100) - (Number(b.orden) || 100) || a.nombre.localeCompare(b.nombre, 'es'))
+      .map((c) => c.nombre)
+    const orphanCats = Object.keys(byCat)
+      .filter((n) => !categories.some((c) => c.nombre === n))
+      .sort((a, b) => a.localeCompare(b, 'es'))
+    let orderedCats = [...configuredCats, ...orphanCats]
 
-    /** Hasta 3 accesos rápidos por pestaña; si no hay featured, usa los primeros 3 del grupo. */
+    /** En muro solo los marcados como acceso rápido; en /accesos hay fallback a los primeros. */
     const quickByCategory = {}
     for (const cat of orderedCats) {
-      const list = byCat[cat] || []
-      const featured = list.filter((l) => l.featured)
-      quickByCategory[cat] = (featured.length ? featured : list).slice(0, 3)
+      quickByCategory[cat] = quickLinksForSurface(byCat[cat] || [], surface, 48)
+    }
+
+    if (surface === 'muro') {
+      orderedCats = orderedCats.filter((cat) => (quickByCategory[cat] || []).length > 0)
+      for (const cat of Object.keys(quickByCategory)) {
+        if (!orderedCats.includes(cat)) delete quickByCategory[cat]
+      }
     }
 
     res.json({
@@ -137,7 +152,7 @@ router.get('/', requireAuth, async (req, res, next) => {
       categories: orderedCats,
       grouped: byCat,
       quickByCategory,
-      maxQuickPerCategory: 3,
+      maxQuickPerCategory: 48,
       surface,
       categoryMeta: categories
         .filter((c) => categoryVisibleOnSurface(c, surface))

@@ -151,6 +151,7 @@ describe('workflowEngine', () => {
     assert.equal(deepLinkForOrigin({ module: 'documentos', refId: 'x' }), '/docs')
     assert.equal(deepLinkForOrigin({ module: 'licencias', refId: 'l1' }), '/licencias/l1')
     assert.equal(deepLinkForOrigin({ module: 'ausentismos', refId: 'a1' }), '/ausencias/a1')
+    assert.equal(deepLinkForOrigin({ module: 'servicios', refId: 's1' }), '/servicios')
   })
 })
 

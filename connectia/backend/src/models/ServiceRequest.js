@@ -19,6 +19,30 @@ const answerSchema = new mongoose.Schema(
   { _id: false },
 )
 
+const csatSchema = new mongoose.Schema(
+  {
+    score: { type: Number, min: 1, max: 5, default: null },
+    comment: { type: String, default: '', maxlength: 1000 },
+    ratedAt: { type: Date, default: null },
+  },
+  { _id: false },
+)
+
+const jiraSyncSchema = new mongoose.Schema(
+  {
+    status: {
+      type: String,
+      enum: ['', 'skipped', 'pending', 'created', 'error'],
+      default: '',
+    },
+    issueKey: { type: String, default: '', maxlength: 80 },
+    issueUrl: { type: String, default: '', maxlength: 500 },
+    error: { type: String, default: '', maxlength: 500 },
+    at: { type: Date, default: null },
+  },
+  { _id: false },
+)
+
 const serviceRequestSchema = new mongoose.Schema(
   {
     tenantId: {
@@ -67,6 +91,9 @@ const serviceRequestSchema = new mongoose.Schema(
     slaBreached: { type: Boolean, default: false },
     history: { type: [historySchema], default: [] },
     idempotencyKey: { type: String, default: '', maxlength: 180, index: true },
+    csat: { type: csatSchema, default: () => ({}) },
+    jiraSync: { type: jiraSyncSchema, default: () => ({}) },
+    workflowStarted: { type: Boolean, default: false },
   },
   { timestamps: true },
 )

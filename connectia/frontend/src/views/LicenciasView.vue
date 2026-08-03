@@ -223,7 +223,7 @@ onMounted(load)
   font-size: 0.9rem;
 }
 .lic-new {
-  background: var(--brand, #0f766e);
+  background: var(--brand-primary, #0f766e);
   color: #fff;
   border: 0;
   border-radius: 0.65rem;
@@ -250,7 +250,7 @@ onMounted(load)
   margin-left: 0.35rem;
   font-size: 0.7rem;
   font-weight: 600;
-  color: #0f766e;
+  color: var(--brand-primary, #0f766e);
 }
 .lic-req {
   font-style: normal;
@@ -260,7 +260,7 @@ onMounted(load)
 .lic-link {
   border: 0;
   background: transparent;
-  color: #0f766e;
+  color: var(--brand-primary, #0f766e);
   font-size: 0.8rem;
   margin-left: 0.35rem;
   cursor: pointer;

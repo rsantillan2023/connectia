@@ -307,7 +307,7 @@ onMounted(bootstrap)
 
 <style scoped>
 .asistente {
-  --as-ink: #134e4a;
+  --as-ink: var(--brand-primary, #0f766e);
   --as-muted: #64748b;
   --as-line: color-mix(in srgb, var(--brand-primary, #0f766e) 14%, transparent);
   --as-soft: color-mix(in srgb, var(--brand-primary, #0f766e) 8%, #fff);
@@ -437,7 +437,7 @@ onMounted(bootstrap)
   background: linear-gradient(
     145deg,
     var(--brand-primary, #0f766e),
-    color-mix(in srgb, var(--brand-primary, #0f766e) 55%, #115e59)
+    color-mix(in srgb, var(--brand-primary, #0f766e) 55%, var(--brand-secondary, #6b3fa0))
   );
   box-shadow: 0 10px 24px color-mix(in srgb, var(--brand-primary, #0f766e) 30%, transparent);
 }

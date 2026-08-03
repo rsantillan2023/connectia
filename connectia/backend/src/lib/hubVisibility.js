@@ -53,3 +53,21 @@ export function categoryVisibleOnSurface(cat, surface = 'hub') {
   if (surface === 'muro' && cat.showOnMuro === false) return false
   return true
 }
+
+/**
+ * Accesos rápidos por superficie.
+ * - muro: solo enlaces marcados (featured); sin fallback — si no hay, no se ve nada.
+ * - hub: si hay featured usa esos; si no, los primeros del grupo.
+ * Siempre respeta `order` configurado (no reordena por título ni clicks).
+ */
+export function quickLinksForSurface(list, surface = 'hub', max = 3) {
+  const items = Array.isArray(list) ? list : []
+  const limit = Math.max(1, Math.min(48, Number(max) || 3))
+  const byOrder = (a, b) =>
+    (Number(a?.order) || 100) - (Number(b?.order) || 100) ||
+    String(a?.titulo || '').localeCompare(String(b?.titulo || ''), 'es')
+  const sorted = [...items].sort(byOrder)
+  const featured = sorted.filter((l) => l && l.featured)
+  if (surface === 'muro') return featured.slice(0, limit)
+  return (featured.length ? featured : sorted).slice(0, limit)
+}

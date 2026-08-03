@@ -24,16 +24,32 @@
             :key="s.id"
             type="button"
             class="enc-card enc-card--pending"
+            :class="{ 'enc-card--urgent': isUrgent(s) }"
             @click="$router.push(`/encuestas/${s.id}`)"
           >
-            <span class="enc-card-icon" aria-hidden="true">
+            <span v-if="s.imageUrl" class="enc-card-thumb" aria-hidden="true">
+              <img :src="s.imageUrl" alt="" @error="onImgErr" />
+            </span>
+            <span v-else class="enc-card-icon" aria-hidden="true">
               <AppIcon name="clipboard" :size="20" />
             </span>
             <div class="enc-card-body">
+              <div v-if="cardBadges(s).length" class="enc-card-badges">
+                <span
+                  v-for="b in cardBadges(s)"
+                  :key="b.key"
+                  class="enc-badge"
+                  :class="b.className"
+                >
+                  {{ b.label }}
+                </span>
+              </div>
               <h3>{{ s.titulo }}</h3>
-              <p>
-                {{ s.questionCount }} pregunta{{ s.questionCount === 1 ? '' : 's' }}
+              <p v-if="excerpt(s.descripcion)" class="enc-card-desc">{{ excerpt(s.descripcion) }}</p>
+              <p class="enc-card-meta">
+                <span>{{ questionLabel(s) }}</span>
                 <span v-if="scheduleHint(s)"> · {{ scheduleHint(s) }}</span>
+                <span v-if="authorHint(s)"> · {{ authorHint(s) }}</span>
               </p>
             </div>
             <span class="enc-card-cta">Responder</span>
@@ -54,14 +70,30 @@
             class="enc-card enc-card--done"
             @click="$router.push(`/encuestas/${s.id}`)"
           >
-            <span class="enc-card-icon enc-card-icon--done" aria-hidden="true">
+            <span v-if="s.imageUrl" class="enc-card-thumb enc-card-thumb--done" aria-hidden="true">
+              <img :src="s.imageUrl" alt="" @error="onImgErr" />
+            </span>
+            <span v-else class="enc-card-icon enc-card-icon--done" aria-hidden="true">
               <AppIcon name="check" :size="20" />
             </span>
             <div class="enc-card-body">
+              <div v-if="cardBadges(s).length" class="enc-card-badges">
+                <span
+                  v-for="b in cardBadges(s)"
+                  :key="b.key"
+                  class="enc-badge"
+                  :class="b.className"
+                >
+                  {{ b.label }}
+                </span>
+              </div>
               <h3>{{ s.titulo }}</h3>
-              <p>
-                {{ s.questionCount }} pregunta{{ s.questionCount === 1 ? '' : 's' }}
-                <span v-if="scheduleHint(s)"> · {{ scheduleHint(s) }}</span>
+              <p v-if="excerpt(s.descripcion)" class="enc-card-desc">{{ excerpt(s.descripcion) }}</p>
+              <p class="enc-card-meta">
+                <span>{{ questionLabel(s) }}</span>
+                <span v-if="answeredHint(s)"> · {{ answeredHint(s) }}</span>
+                <span v-else-if="scheduleHint(s)"> · {{ scheduleHint(s) }}</span>
+                <span v-if="authorHint(s)"> · {{ authorHint(s) }}</span>
               </p>
             </div>
             <span class="enc-card-cta enc-card-cta--ghost">Ver</span>
@@ -85,6 +117,12 @@ import { computed, onMounted, ref } from 'vue'
 import api from '../services/api'
 import AppIcon from '../components/AppIcon.vue'
 
+const PURPOSE_LABELS = {
+  onboarding: 'Ingreso',
+  offboarding: 'Egreso',
+  general: '',
+}
+
 const items = ref([])
 const loading = ref(true)
 const error = ref('')
@@ -98,28 +136,107 @@ const pendingHint = computed(() => {
     : `Tenés ${n} encuestas esperando tu respuesta`
 })
 
+function excerpt(text, max = 110) {
+  const t = String(text || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (!t) return ''
+  return t.length <= max ? t : `${t.slice(0, max - 1)}…`
+}
+
+function questionLabel(s) {
+  const n = Number(s.questionCount) || 0
+  return `${n} pregunta${n === 1 ? '' : 's'}`
+}
+
+function formatShortDate(d) {
+  if (!d) return ''
+  try {
+    return new Date(d).toLocaleDateString('es-AR', {
+      day: 'numeric',
+      month: 'short',
+    })
+  } catch {
+    return ''
+  }
+}
+
+function formatDateTime(d) {
+  if (!d) return ''
+  try {
+    return new Date(d).toLocaleString('es-AR', {
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  } catch {
+    return ''
+  }
+}
+
+function daysUntilEnd(s) {
+  if (!s?.endsAt) return null
+  const end = new Date(s.endsAt).getTime()
+  if (Number.isNaN(end)) return null
+  const ms = end - Date.now()
+  return Math.ceil(ms / (24 * 60 * 60 * 1000))
+}
+
+function isUrgent(s) {
+  const d = daysUntilEnd(s)
+  return d != null && d >= 0 && d <= 2
+}
+
 function scheduleHint(s) {
-  if (s.endsAt) {
-    try {
-      return `Hasta ${new Date(s.endsAt).toLocaleDateString('es-AR', {
-        day: 'numeric',
-        month: 'short',
-      })}`
-    } catch {
-      /* ignore */
-    }
+  const d = daysUntilEnd(s)
+  if (d != null) {
+    if (d < 0) return `Cerró ${formatShortDate(s.endsAt)}`
+    if (d === 0) return 'Cierra hoy'
+    if (d === 1) return 'Cierra mañana'
+    if (d <= 7) return `Cierra en ${d} días`
+    return `Hasta ${formatShortDate(s.endsAt)}`
   }
   if (s.startsAt) {
-    try {
-      return `Desde ${new Date(s.startsAt).toLocaleDateString('es-AR', {
-        day: 'numeric',
-        month: 'short',
-      })}`
-    } catch {
-      /* ignore */
-    }
+    const start = formatShortDate(s.startsAt)
+    if (start) return `Desde ${start}`
+  }
+  if (s.publishedAt) {
+    const pub = formatShortDate(s.publishedAt)
+    if (pub) return `Publicada ${pub}`
   }
   return ''
+}
+
+function answeredHint(s) {
+  if (!s.answeredAt) return ''
+  const when = formatDateTime(s.answeredAt)
+  return when ? `Respondida ${when}` : ''
+}
+
+function authorHint(s) {
+  const name = String(s.authorName || '').trim()
+  return name ? `Por ${name}` : ''
+}
+
+function cardBadges(s) {
+  const out = []
+  if (s.anonymous) {
+    out.push({ key: 'anon', label: 'Anónima', className: 'enc-badge--anon' })
+  }
+  const purpose = PURPOSE_LABELS[String(s.purpose || '').toLowerCase()]
+  if (purpose) {
+    out.push({ key: 'purpose', label: purpose, className: 'enc-badge--purpose' })
+  }
+  if (!s.answered && isUrgent(s)) {
+    out.push({ key: 'urgent', label: 'Por vencer', className: 'enc-badge--urgent' })
+  }
+  return out
+}
+
+function onImgErr(e) {
+  const el = e?.target
+  if (el) el.style.display = 'none'
 }
 
 async function load() {
@@ -194,7 +311,7 @@ onMounted(load)
 }
 .enc-card {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
   width: 100%;
   text-align: left;
@@ -213,8 +330,11 @@ onMounted(load)
   border-color: color-mix(in srgb, var(--brand-primary) 28%, var(--cx-border));
   box-shadow: 0 8px 22px color-mix(in srgb, var(--brand-primary) 10%, transparent);
 }
+.enc-card--urgent {
+  border-color: color-mix(in srgb, #c2410c 35%, var(--cx-border));
+}
 .enc-card--done {
-  opacity: 0.92;
+  opacity: 0.96;
 }
 .enc-card-icon {
   flex-shrink: 0;
@@ -225,14 +345,61 @@ onMounted(load)
   place-items: center;
   background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
   color: var(--brand-primary);
+  margin-top: 2px;
 }
 .enc-card-icon--done {
   background: color-mix(in srgb, var(--cx-ok) 12%, transparent);
   color: var(--cx-ok);
 }
+.enc-card-thumb {
+  flex-shrink: 0;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--cx-muted) 12%, transparent);
+  margin-top: 2px;
+}
+.enc-card-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.enc-card-thumb--done {
+  opacity: 0.9;
+}
 .enc-card-body {
   flex: 1;
   min-width: 0;
+}
+.enc-card-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.enc-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+}
+.enc-badge--anon {
+  background: color-mix(in srgb, var(--cx-muted) 14%, transparent);
+  color: var(--cx-muted);
+}
+.enc-badge--purpose {
+  background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
+  color: var(--brand-primary);
+}
+.enc-badge--urgent {
+  background: color-mix(in srgb, #c2410c 14%, transparent);
+  color: #c2410c;
 }
 .enc-card-body h3 {
   margin: 0 0 4px;
@@ -241,7 +408,18 @@ onMounted(load)
   color: var(--cx-text);
   line-height: 1.3;
 }
-.enc-card-body p {
+.enc-card-desc {
+  margin: 0 0 6px;
+  font-size: 0.82rem;
+  color: var(--cx-text);
+  opacity: 0.78;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.enc-card-meta {
   margin: 0;
   font-size: 0.78rem;
   color: var(--cx-muted);
@@ -249,6 +427,7 @@ onMounted(load)
 }
 .enc-card-cta {
   flex-shrink: 0;
+  align-self: center;
   font-size: 0.72rem;
   font-weight: 700;
   padding: 8px 12px;
@@ -267,7 +446,7 @@ onMounted(load)
   gap: 10px;
 }
 .enc-skel-card {
-  height: 76px;
+  height: 96px;
   border-radius: 16px;
   background: linear-gradient(
     90deg,

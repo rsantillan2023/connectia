@@ -690,6 +690,10 @@ export async function seedGenericTenant({ tenant, passwordHash, profile: profile
   }
 
   const surveyTitulo = `Clima laboral — pulse ${brand}`
+  const SURVEY_IMG_CLIMA =
+    'https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200&q=80'
+  const SURVEY_IMG_ONBOARD =
+    'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=1200&q=80'
   let survey = await Survey.findOne({ tenantId: tenant._id, titulo: surveyTitulo })
   if (!survey) {
     const invitedCount = await User.countDocuments({ tenantId: tenant._id, activo: true })
@@ -697,6 +701,7 @@ export async function seedGenericTenant({ tenant, passwordHash, profile: profile
       tenantId: tenant._id,
       titulo: surveyTitulo,
       descripcion: `Encuesta de clima para el equipo de ${brand}. Tus respuestas ayudan a priorizar acciones.`,
+      imageUrl: SURVEY_IMG_CLIMA,
       status: 'published',
       publishedAt: new Date(),
       version: 1,
@@ -738,6 +743,58 @@ export async function seedGenericTenant({ tenant, passwordHash, profile: profile
         },
       ],
     })
+  } else if (!survey.imageUrl) {
+    survey.imageUrl = SURVEY_IMG_CLIMA
+    await survey.save()
+  }
+
+  const onboardTitulo = `Bienvenida ${brand} — primer día`
+  let onboardSurvey = await Survey.findOne({ tenantId: tenant._id, titulo: onboardTitulo })
+  if (!onboardSurvey) {
+    const invitedCount = await User.countDocuments({ tenantId: tenant._id, activo: true })
+    onboardSurvey = await Survey.create({
+      tenantId: tenant._id,
+      titulo: onboardTitulo,
+      descripcion: `Encuesta corta de bienvenida para nuevos ingresos en ${brand}.`,
+      imageUrl: SURVEY_IMG_ONBOARD,
+      status: 'published',
+      purpose: 'onboarding',
+      publishedAt: new Date(),
+      version: 1,
+      audience: { mode: 'all', areaIds: [], groupIds: [] },
+      audienceSnapshot: {
+        invitedCount,
+        capturedAt: new Date(),
+        mode: 'all',
+        areaIds: [],
+        groupIds: [],
+      },
+      anonymous: false,
+      authorId: comunicacion._id,
+      authorName: `${comunicacion.nombre} ${comunicacion.apellido}`,
+      questions: [
+        {
+          id: 'q_ob_kit',
+          texto: '¿Recibiste tu kit / accesos de bienvenida?',
+          tipo: 'single',
+          required: true,
+          grupo: 'Ingreso',
+          opciones: ['Sí', 'Parcialmente', 'Aún no'],
+        },
+        {
+          id: 'q_ob_ayuda',
+          texto: '¿Qué necesitás para arrancar con confianza?',
+          tipo: 'textarea',
+          required: false,
+          grupo: 'Ingreso',
+          opciones: [],
+        },
+      ],
+    })
+  } else if (!onboardSurvey.imageUrl) {
+    onboardSurvey.imageUrl = SURVEY_IMG_ONBOARD
+    if (onboardSurvey.purpose !== 'onboarding') onboardSurvey.purpose = 'onboarding'
+    await onboardSurvey.save()
   }
 
   if (survey && juan) {
@@ -1119,7 +1176,11 @@ export async function seedGenericTenant({ tenant, passwordHash, profile: profile
 
   const { seedServiciosForTenant, tenantWantsServicios } = await import('../lib/serviciosSeed.js')
   if (tenantWantsServicios(tenant)) {
-    const srv = await seedServiciosForTenant(tenant, { force: false })
+    const srv = await seedServiciosForTenant(tenant, {
+      force: false,
+      brandName: brand,
+      variant: 'default',
+    })
     console.log(
       `[seedGeneric] Ola 43: áreas +${srv.areasCreated} · ítems +${srv.itemsCreated} · req +${srv.requestsCreated}`,
     )

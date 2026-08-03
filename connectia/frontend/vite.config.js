@@ -14,6 +14,7 @@ export default defineConfig({
         'icons/favicon.png',
         'icons/favicon-32.png',
         'branding/connectyx/connectyx-mark.svg',
+        'branding/connectyx/connectyx-mark-on-brand.svg',
         'branding/connectyx/favicon1.png',
       ],
       manifest: {
@@ -77,10 +78,7 @@ export default defineConfig({
         target: 'http://localhost:4000',
         changeOrigin: true,
       },
-      '/branding': {
-        target: 'http://localhost:4000',
-        changeOrigin: true,
-      },
+      // /branding se sirve desde public/ (no proxy): evita 500 si el backend reinicia
     },
   },
 })

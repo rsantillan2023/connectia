@@ -488,6 +488,7 @@ router.get('/', requireAuth, requireCapability('admin.publicaciones'), async (re
     const origin = String(req.query.origin || '').trim()
     const risk = String(req.query.risk || '').trim()
     const q = String(req.query.q || '').trim()
+    const knowledge = String(req.query.isKnowledge || req.query.knowledge || '').trim().toLowerCase()
     const page = Math.max(1, Number(req.query.page) || 1)
     const size = Math.min(500, Math.max(1, Number(req.query.size) || 20))
     const fromDay = String(req.query.from || '').trim()
@@ -508,6 +509,11 @@ router.get('/', requireAuth, requireCapability('admin.publicaciones'), async (re
     }
     if (tipo && ['noticia', 'aviso', 'beneficio', 'evento', 'general'].includes(tipo)) filter.tipo = tipo
     if (origin === 'member' || origin === 'admin') filter.origin = origin
+    if (knowledge === 'true' || knowledge === '1' || knowledge === 'yes') {
+      filter.isKnowledge = true
+    } else if (knowledge === 'false' || knowledge === '0' || knowledge === 'no') {
+      filter.isKnowledge = { $ne: true }
+    }
     if (['low', 'medium', 'high'].includes(risk)) filter['moderationAi.risk'] = risk
     if (pinned === 'true') filter.pinned = true
     if (pinned === 'false') filter.pinned = false

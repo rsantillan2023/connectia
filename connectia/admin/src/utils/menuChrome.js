@@ -99,6 +99,7 @@ const ROUTE_FA = {
   '/directorio': 'fas fa-address-book',
   '/eventos': 'fas fa-calendar-check',
   '/beneficios': 'fas fa-gift',
+  '/beneficios?tab=earn': 'fas fa-star',
   '/reservas': 'fas fa-door-open',
   '/asistencia': 'fas fa-user-clock',
   '/ayuda': 'fas fa-question-circle',

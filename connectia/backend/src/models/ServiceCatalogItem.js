@@ -15,6 +15,21 @@ const fieldSchema = new mongoose.Schema(
   { _id: false },
 )
 
+const audienceSchema = new mongoose.Schema(
+  {
+    mode: {
+      type: String,
+      enum: ['all', 'restricted', 'users', 'none'],
+      default: 'all',
+    },
+    areaIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'OrgArea' }],
+    groupIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'UserGroup' }],
+    userIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    clientIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'AudienceClient' }],
+  },
+  { _id: false },
+)
+
 const serviceCatalogItemSchema = new mongoose.Schema(
   {
     tenantId: {
@@ -31,10 +46,14 @@ const serviceCatalogItemSchema = new mongoose.Schema(
     },
     label: { type: String, required: true, maxlength: 200, trim: true },
     description: { type: String, default: '', maxlength: 1000 },
+    keywords: [{ type: String, maxlength: 60 }],
     active: { type: Boolean, default: true },
     order: { type: Number, default: 0 },
     slaMinutes: { type: Number, default: 0, min: 0 },
     fields: { type: [fieldSchema], default: [] },
+    audience: { type: audienceSchema, default: () => ({ mode: 'all' }) },
+    requireApproval: { type: Boolean, default: false },
+    createJiraIssue: { type: Boolean, default: false },
   },
   { timestamps: true },
 )

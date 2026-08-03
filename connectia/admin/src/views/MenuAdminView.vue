@@ -592,15 +592,13 @@ const ADMIN_MENU_GROUPS = [
       const r = String(item.route || '')
       const k = String(item.key || '')
       return (
-        ['/comunidad', '/menu', '/parametros', '/asistente-kb', '/accesos'].includes(r) ||
+        ['/menu', '/parametros', '/asistente-kb', '/accesos'].includes(r) ||
         [
-          'admin.tenants',
           'admin.menu',
           'admin.params',
           'admin.kb',
           'admin.ia',
           'admin.hub',
-          'comunidad',
           'menu',
           'parametros',
           'asistente-kb',
@@ -758,6 +756,7 @@ const PRESETS_U = [
 ]
 
 const PRESETS_A = [
+  { label: 'Comunidad', route: '/comunidad', key: 'admin.tenants', icon: 'building' },
   { label: 'Dashboard', route: '/', key: 'admin.home', icon: 'home' },
   { label: 'Usuarios', route: '/usuarios', key: 'admin.users', icon: 'grid' },
   { label: 'Listado de legajos', route: '/legajos', key: 'admin.legajos', icon: 'file' },
@@ -766,7 +765,6 @@ const PRESETS_A = [
   { label: 'Datos útiles', route: '/directorio', key: 'admin.directorio', icon: 'grid' },
   { label: 'Eventos', route: '/eventos', key: 'admin.eventos', icon: 'calendar' },
   { label: 'Organización', route: '/organizacion', key: 'admin.org', icon: 'building' },
-  { label: 'Comunidad', route: '/comunidad', key: 'admin.tenants', icon: 'building' },
   { label: 'Menú de la app', route: '/menu', key: 'admin.menu', icon: 'menu' },
   { label: 'Base de conocimientos', route: '/asistente-kb', key: 'admin.kb', icon: 'sparkles' },
   { label: 'Bandeja', route: '/solicitudes', key: 'admin.requests', icon: 'inbox' },

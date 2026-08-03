@@ -38,7 +38,7 @@ import { PRODUCT_ICON } from '../constants/brand'
 const splash = useSplashStore()
 
 const splashStyle = computed(() => {
-  const primary = splash.primary || '#0F766E'
+  const primary = splash.primary || 'var(--brand-primary, #0f766e)'
   const text = splash.textColor || primary
   const style = {
     '--splash-primary': primary,

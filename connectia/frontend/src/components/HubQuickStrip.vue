@@ -1,12 +1,16 @@
 <template>
-  <section v-if="!loading && categories.length" class="mp-hub" :class="{ compact }">
+  <section
+    v-if="!loading && categories.length"
+    class="mp-hub"
+    :class="{ compact, collapsed: collapsible && !hubOpen }"
+  >
     <p v-if="toast" class="mp-toast">{{ toast }}</p>
 
-    <!-- Una sola pieza: franja marca + pestañas + card (efecto carpeta MP) -->
-    <div class="mp-shell">
+    <!-- Tabs simples + enlaces sobre fondo blanco -->
+    <div v-show="!collapsible || hubOpen" class="mp-shell">
       <div class="mp-tabs" role="tablist" aria-label="Grupos de enlaces">
         <button
-          v-for="(cat, idx) in categories"
+          v-for="cat in categories"
           :key="cat"
           type="button"
           role="tab"
@@ -19,11 +23,7 @@
         </button>
       </div>
 
-      <div
-        class="mp-card"
-        role="tabpanel"
-        :class="cardRadiusClass"
-      >
+      <div class="mp-card" role="tabpanel">
         <div v-if="!compact" class="mp-card-head">
           <div class="mp-card-head-text">
             <p class="mp-kicker">{{ activeCat }}</p>
@@ -48,7 +48,6 @@
           </button>
           <p v-if="!activeQuick.length" class="mp-empty">Sin accesos rápidos en este grupo.</p>
         </div>
-
       </div>
     </div>
 
@@ -92,6 +91,7 @@
 import { computed, onMounted, watch } from 'vue'
 import HubIcon from './HubIcon.vue'
 import { useHubLinks } from '../composables/useHubLinks'
+import { useMuroHubStrip } from '../composables/useMuroHubStrip'
 
 const props = defineProps({
   compact: { type: Boolean, default: false },
@@ -102,6 +102,11 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['loaded'])
+
+const isMuroSurface = props.surface === 'muro' || (props.compact && !props.surface)
+const collapsible = computed(() => isMuroSurface)
+
+const { expanded: hubOpen, setHasLinks } = useMuroHubStrip()
 
 const {
   categories,
@@ -114,15 +119,10 @@ const {
   load,
   openLink,
 } = useHubLinks({
-  surface: props.surface === 'muro' || (props.compact && !props.surface) ? 'muro' : 'hub',
+  surface: isMuroSurface ? 'muro' : 'hub',
 })
 
-const activeIndex = computed(() => {
-  const i = categories.value.indexOf(activeCat.value)
-  return i < 0 ? 0 : i
-})
-
-/** Color de acento configurado en admin → CSS --accent */
+/** Color de acento configurado en admin → CSS --accent (también en muro). */
 function linkAccentStyle(l) {
   const c = String(l?.color || '').trim()
   if (!c || !/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(c)) return undefined
@@ -130,20 +130,12 @@ function linkAccentStyle(l) {
 }
 
 function iconPx(l) {
+  if (props.compact) return 28
   const s = l?.iconSize
   if (s === 'sm') return 22
   if (s === 'lg') return 30
   return 26
 }
-
-/** Radio de la card según pestaña activa (efecto carpeta). */
-const cardRadiusClass = computed(() => {
-  const i = activeIndex.value
-  const last = Math.max(0, categories.value.length - 1)
-  if (i <= 0) return 'radius-first'
-  if (i >= last) return 'radius-last'
-  return 'radius-mid'
-})
 
 watch(categories, (cats) => {
   if (cats?.length && !cats.includes(activeCat.value)) activeCat.value = cats[0]
@@ -151,7 +143,12 @@ watch(categories, (cats) => {
 
 onMounted(async () => {
   await load()
-  emit('loaded', { categories: categories.value })
+  const has = categories.value.length > 0
+  if (collapsible.value) setHasLinks(has)
+  emit('loaded', {
+    categories: categories.value,
+    hasLinks: has,
+  })
 })
 
 defineExpose({ load, loading, categories })
@@ -159,19 +156,137 @@ defineExpose({ load, loading, categories })
 
 <style scoped>
 .mp-hub {
-  --mp-ink: #1a1a1a;
-  --mp-muted: #6b7280;
+  --mp-ink: #0f172a;
+  --mp-muted: #64748b;
   --mp-accent: var(--brand-primary, #0f766e);
-  --mp-action-bg: color-mix(in srgb, var(--mp-accent) 14%, #fff);
-  --mp-action-fg: var(--mp-accent);
-  --mp-radius: 22px;
   margin: 0;
   padding: 0;
-  background: transparent;
+  background: #fff;
 }
 
 .mp-hub.compact {
-  padding-bottom: 0;
+  padding: 10px 0 40px;
+  margin: 0;
+  background: var(--brand-primary, #0f766e);
+}
+
+.mp-hub.compact.collapsed {
+  padding: 0;
+  margin: 0;
+  min-height: 0;
+  height: 0;
+  overflow: hidden;
+  background: transparent;
+  pointer-events: none;
+}
+
+.mp-hub.compact .mp-shell {
+  margin: 0 12px;
+  padding: 2px 8px 6px;
+  overflow: visible;
+  border: 2px solid var(--brand-primary, #0f766e);
+  border-radius: 14px;
+  box-sizing: border-box;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.14);
+  /* mismo color de fondo y borde que el header */
+  background: var(--brand-primary, #0f766e);
+}
+
+.mp-hub.compact .mp-tabs {
+  padding: 0;
+  gap: 0;
+  width: 100%;
+  border-bottom: 1px solid color-mix(in srgb, #fff 28%, transparent);
+}
+
+.mp-hub.compact .mp-tab {
+  flex: 1 1 0;
+  min-width: 0;
+  font-size: 0.62rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  padding: 5px 4px 5px;
+  color: color-mix(in srgb, #fff 62%, transparent);
+}
+
+.mp-hub.compact .mp-tab.on {
+  font-weight: 650;
+  color: #fff;
+  padding-bottom: 5px;
+}
+
+.mp-hub.compact .mp-tab.on::after {
+  background: #fff;
+}
+
+.mp-hub.compact .mp-card {
+  padding: 6px 2px 2px;
+  background: transparent;
+  box-shadow: none;
+  border-radius: 0;
+}
+
+.mp-hub.compact .mp-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 2px 0 2px;
+  justify-content: flex-start;
+  align-items: flex-start;
+}
+.mp-hub.compact .mp-actions::-webkit-scrollbar {
+  display: none;
+}
+
+/* Tile blanco + sombra; el ícono usa el color configurado en admin */
+.mp-hub.compact .mp-action {
+  --tile-accent: var(--accent, var(--mp-accent));
+  flex: 0 0 auto;
+  min-width: 78px;
+  max-width: 92px;
+  min-height: 0;
+  width: 84px;
+  padding: 0;
+  gap: 6px;
+  border-radius: 0;
+  background: transparent;
+  color: var(--tile-accent);
+  box-shadow: none;
+}
+
+.mp-hub.compact .mp-action-ico {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: #fff;
+  color: var(--tile-accent);
+  border: 1px solid #e8eef5;
+  box-sizing: border-box;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.07);
+}
+
+.mp-hub.compact .mp-action-label {
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  line-height: 1.2;
+  color: color-mix(in srgb, #fff 88%, transparent);
+  max-width: 100%;
+  width: 100%;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.mp-hub.compact .mp-empty {
+  margin: 4px 0;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: color-mix(in srgb, #fff 78%, transparent);
 }
 
 .mp-toast {
@@ -184,98 +299,90 @@ defineExpose({ load, loading, categories })
   font-weight: 600;
 }
 
-/* Shell: pestañas + card alineados (mismo ancho) */
 .mp-shell {
-  padding: 0 12px 14px;
-  background: var(--brand-primary, #0f766e);
+  padding: 8px 12px 14px;
+  background: #fff;
 }
 
 .mp-tabs {
   display: flex;
-  align-items: flex-end;
-  gap: 2px;
+  align-items: stretch;
+  gap: 4px;
+  width: 100%;
   overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
-  padding: 8px 0 0;
-  margin: 0;
+  padding: 0;
+  margin: 0 0 4px;
   position: relative;
-  z-index: 3;
+  z-index: 1;
+  border-bottom: 1px solid #e2e8f0;
 }
 .mp-tabs::-webkit-scrollbar {
   display: none;
 }
 
 .mp-tab {
-  flex: 0 0 auto;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: 0;
   outline: 0;
   background: transparent;
-  color: color-mix(in srgb, #fff 90%, transparent);
+  color: #94a3b8;
   font: inherit;
-  font-size: 0.95rem;
-  font-weight: 600;
+  font-size: 0.78rem;
+  font-weight: 500;
   letter-spacing: -0.01em;
-  padding: 12px 16px 14px;
-  border-radius: var(--mp-radius) var(--mp-radius) 0 0;
+  padding: 10px 8px 9px;
+  border-radius: 0;
   cursor: pointer;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
   position: relative;
   z-index: 1;
   line-height: 1.2;
-  transition: color 0.12s ease, background 0.12s ease;
+  transition: color 0.12s ease;
   box-shadow: none;
 }
 .mp-tab:not(.on):active {
-  color: #fff;
+  color: #64748b;
 }
 
-/* Activa: blanca, se funde con la card (sin línea de corte) */
 .mp-tab.on {
-  background: #fff;
+  background: transparent;
   color: var(--mp-ink);
-  font-weight: 800;
-  z-index: 4;
-  margin-bottom: -2px;
-  padding-bottom: 16px;
+  font-weight: 700;
+  z-index: 1;
+  margin-bottom: 0;
+  padding-bottom: 9px;
   box-shadow: none;
 }
-/* Puente blanco bajo la pestaña activa para tapar cualquier borde/sombra */
 .mp-tab.on::after {
   content: '';
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -3px;
-  height: 6px;
-  background: #fff;
+  left: 12%;
+  right: 12%;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--mp-accent);
   pointer-events: none;
 }
 
-/* Card pegada a las pestañas (sombra solo abajo, no corta la pestaña) */
 .mp-card {
   margin: 0;
   background: #fff;
-  padding: 16px 14px 14px;
+  padding: 16px 4px 10px;
   position: relative;
-  z-index: 2;
+  z-index: 1;
   border: 0;
   outline: 0;
-  box-shadow: 0 12px 24px -8px rgba(15, 23, 42, 0.14);
-}
-
-.mp-card.radius-first {
-  border-radius: 0 var(--mp-radius) var(--mp-radius) var(--mp-radius);
-}
-.mp-card.radius-mid {
-  border-radius: var(--mp-radius);
-}
-.mp-card.radius-last {
-  border-radius: var(--mp-radius) 0 var(--mp-radius) var(--mp-radius);
-}
-
-.mp-hub.compact .mp-card {
-  padding: 14px 12px 12px;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .mp-card-head {
@@ -283,7 +390,7 @@ defineExpose({ load, loading, categories })
   align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
-  padding: 2px 2px 16px;
+  padding: 2px 8px 16px;
 }
 .mp-kicker {
   margin: 0;
@@ -311,24 +418,31 @@ defineExpose({ load, loading, categories })
 }
 
 .mp-actions {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: nowrap;
   gap: 10px;
+  width: 100%;
+  overflow-x: visible;
   align-items: stretch;
+  justify-content: center;
+  padding-bottom: 2px;
 }
 
 .mp-action {
   --tile-accent: var(--accent, var(--mp-accent));
+  flex: 1 1 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  width: auto;
   min-height: 96px;
   padding: 12px 8px 10px;
   border: 0;
   border-radius: 18px;
-  background: color-mix(in srgb, var(--tile-accent) 16%, #fff);
+  background: color-mix(in srgb, var(--tile-accent) 12%, #fff);
   color: var(--tile-accent);
   cursor: pointer;
   font: inherit;
@@ -377,7 +491,6 @@ defineExpose({ load, loading, categories })
   background: transparent;
 }
 
-/* El bloque “más” sale del fondo marca */
 .more-block {
   margin: 18px 16px 0;
   padding: 0;

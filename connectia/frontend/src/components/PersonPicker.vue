@@ -127,7 +127,7 @@ onBeforeUnmount(() => clearTimeout(timer))
 .pp-clear {
   border: none;
   background: transparent;
-  color: #0f766e;
+  color: var(--brand-primary, #0f766e);
   font-weight: 700;
   cursor: pointer;
 }

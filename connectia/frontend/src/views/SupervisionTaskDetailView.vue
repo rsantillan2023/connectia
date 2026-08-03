@@ -268,10 +268,10 @@ h2 { font-size: 1rem; margin: 1.25rem 0 0.5rem; }
 .form { display: grid; gap: 0.5rem; }
 .form.row { grid-template-columns: 1fr auto; }
 textarea, input[type='text'], .form.row input { padding: 0.55rem; border: 1px solid #e2e8f0; border-radius: 8px; font: inherit; }
-.primary { background: #0f766e; color: #fff; border: 0; border-radius: 10px; padding: 0.7rem; }
+.primary { background: var(--brand-primary, #0f766e); color: #fff; border: 0; border-radius: 10px; padding: 0.7rem; }
 .foto { max-width: 100%; border-radius: 12px; margin-top: 0.5rem; }
 .comments { list-style: none; padding: 0; }
 .comments li { background: #f8fafc; border-radius: 8px; padding: 0.5rem 0.75rem; margin-bottom: 0.4rem; font-size: 0.9rem; display: flex; align-items: center; }
-.ok { color: #0f766e; }
+.ok { color: var(--brand-primary, #0f766e); }
 .sup-err { color: #b91c1c; }
 </style>

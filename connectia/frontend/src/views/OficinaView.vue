@@ -269,7 +269,7 @@ onMounted(async () => {
 }
 .of-btn {
   margin-top: 0.65rem;
-  background: #0f766e;
+  background: var(--brand-primary, #0f766e);
   color: #fff;
   border: none;
   border-radius: 0.65rem;
@@ -317,7 +317,7 @@ onMounted(async () => {
 .of-bar i {
   display: block;
   height: 100%;
-  background: #0f766e;
+  background: var(--brand-primary, #0f766e);
 }
 .of-res li {
   display: flex;
@@ -330,7 +330,7 @@ onMounted(async () => {
 .of-link {
   background: none;
   border: none;
-  color: #0f766e;
+  color: var(--brand-primary, #0f766e);
   font-size: 0.82rem;
   padding: 0;
   font-weight: 600;
@@ -349,7 +349,7 @@ onMounted(async () => {
   color: #b91c1c;
 }
 .of-ok {
-  color: #0f766e;
+  color: var(--brand-primary, #0f766e);
 }
 .of-who li {
   display: flex;

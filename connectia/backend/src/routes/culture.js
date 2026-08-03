@@ -31,6 +31,7 @@ import {
   buildRecognitionPostHref,
 } from '../lib/recognitionPublish.js'
 import { openMarketplaceChat, tenantHasChat } from '../lib/marketplaceChat.js'
+import { scheduleAwardPoints } from '../lib/pointsRules.js'
 
 const router = Router()
 const ObjectId = mongoose.Types.ObjectId
@@ -205,6 +206,13 @@ router.post('/recognitions', requireAuth, requireCultureCap('reconocimientos'), 
       pointsRequested,
     })
 
+    scheduleAwardPoints({
+      tenant: req.tenant,
+      userId: req.user._id,
+      event: 'recognition_sent',
+      entityId: doc._id,
+    })
+
     await notifyRecognition({ tenant: req.tenant, recognition: doc.toObject() })
     res.status(201).json({
       recognition: serializeRecognition(doc.toObject()),
@@ -275,6 +283,12 @@ router.post('/marketplace', requireAuth, requireCultureCap('marketplace'), async
       imageUrl: String(body.imageUrl || '').trim().slice(0, 500),
       contactNote: String(body.contactNote || '').trim().slice(0, 400),
       status: 'published',
+    })
+    scheduleAwardPoints({
+      tenant: req.tenant,
+      userId: req.user._id,
+      event: 'marketplace_listing_created',
+      entityId: doc._id,
     })
     res.status(201).json({ listing: serializeMarketplace(doc.toObject()) })
   } catch (e) {
@@ -360,6 +374,12 @@ router.post('/referrals', requireAuth, requireCultureCap('referidos'), async (re
       notes: String(body.notes || '').trim().slice(0, 2000),
       status: 'submitted',
     })
+    scheduleAwardPoints({
+      tenant: req.tenant,
+      userId: req.user._id,
+      event: 'referral_created',
+      entityId: doc._id,
+    })
     res.status(201).json({ referral: serializeReferral(doc.toObject()) })
   } catch (e) {
     next(e)
@@ -438,6 +458,12 @@ router.post('/pulse/:id/respond', requireAuth, requireCultureCap('pulso'), async
       campaignId: campaign._id,
       userId: req.user._id,
       answers: answers.map((a) => ({ value: a?.value })),
+    })
+    scheduleAwardPoints({
+      tenant: req.tenant,
+      userId: req.user._id,
+      event: 'pulse_responded',
+      entityId: campaign._id,
     })
     res.status(201).json({
       ok: true,

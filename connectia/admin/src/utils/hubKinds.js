@@ -1,17 +1,17 @@
 /** Espejo del catálogo de kinds del backend (labels UI). */
 export const HUB_KINDS = [
-  { id: 'url', label: 'URL externa', short: 'URL', hint: 'Abre un sitio en nueva pestaña', group: 'Web' },
-  { id: 'webview', label: 'Webview in-app', short: 'Webview', hint: 'Muestra la URL dentro de Connectia', group: 'Web' },
-  { id: 'route', label: 'Ruta interna', short: 'Ruta', hint: 'Navega a una pantalla de la app', group: 'App' },
-  { id: 'request', label: 'Nueva solicitud', short: 'Solicitud', hint: 'Abre el alta de un tipo de solicitud', group: 'App' },
-  { id: 'survey', label: 'Encuesta', short: 'Encuesta', hint: 'Va a una encuesta concreta', group: 'App' },
-  { id: 'document', label: 'Documento', short: 'Documento', hint: 'Abre o descarga un documento', group: 'App' },
-  { id: 'post', label: 'Publicación', short: 'Publicación', hint: 'Abre un post del muro', group: 'App' },
-  { id: 'mailto', label: 'Correo (mailto)', short: 'Correo', hint: 'Compone un email', group: 'Contacto' },
-  { id: 'tel', label: 'Teléfono', short: 'Teléfono', hint: 'Inicia una llamada', group: 'Contacto' },
-  { id: 'whatsapp', label: 'WhatsApp', short: 'WhatsApp', hint: 'Abre chat con mensaje opcional', group: 'Contacto' },
-  { id: 'copy', label: 'Copiar texto', short: 'Copiar', hint: 'Copia un código o texto al portapapeles', group: 'Utilidad' },
-  { id: 'sso', label: 'SSO / adaptador', short: 'SSO', hint: 'Abre destino vía adaptador SSO (secreto en servidor)', group: 'Integraciones' },
+  { id: 'url', label: 'URL externa', short: 'URL', hint: 'Abre un sitio en nueva pestaña', group: 'Web', icon: 'globe' },
+  { id: 'webview', label: 'Webview in-app', short: 'Webview', hint: 'Muestra la URL dentro de Connectia', group: 'Web', icon: 'laptop' },
+  { id: 'route', label: 'Ruta interna', short: 'Ruta', hint: 'Navega a una pantalla de la app', group: 'App', icon: 'home' },
+  { id: 'request', label: 'Nueva solicitud', short: 'Solicitud', hint: 'Abre el alta de un tipo de solicitud', group: 'App', icon: 'clipboard' },
+  { id: 'survey', label: 'Encuesta', short: 'Encuesta', hint: 'Va a una encuesta concreta', group: 'App', icon: 'chart' },
+  { id: 'document', label: 'Documento', short: 'Documento', hint: 'Abre o descarga un documento', group: 'App', icon: 'file' },
+  { id: 'post', label: 'Publicación', short: 'Publicación', hint: 'Abre un post del muro', group: 'App', icon: 'megaphone' },
+  { id: 'mailto', label: 'Correo (mailto)', short: 'Correo', hint: 'Compone un email', group: 'Contacto', icon: 'mail' },
+  { id: 'tel', label: 'Teléfono', short: 'Teléfono', hint: 'Inicia una llamada', group: 'Contacto', icon: 'phone' },
+  { id: 'whatsapp', label: 'WhatsApp', short: 'WhatsApp', hint: 'Abre chat con mensaje opcional', group: 'Contacto', icon: 'chat' },
+  { id: 'copy', label: 'Copiar texto', short: 'Copiar', hint: 'Copia un código o texto al portapapeles', group: 'Utilidad', icon: 'check' },
+  { id: 'sso', label: 'SSO / adaptador', short: 'SSO', hint: 'Abre destino vía adaptador SSO (secreto en servidor)', group: 'Integraciones', icon: 'key' },
 ]
 
 export function normalizeKindId(id) {
@@ -31,6 +31,10 @@ export function kindLabel(id) {
 
 export function kindShort(id) {
   return kindMeta(id).short || kindMeta(id).label
+}
+
+export function kindIcon(id) {
+  return kindMeta(id).icon || 'link'
 }
 
 export const HUB_KIND_GROUPS = ['Web', 'App', 'Contacto', 'Utilidad', 'Integraciones']

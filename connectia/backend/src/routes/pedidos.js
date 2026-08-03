@@ -20,6 +20,7 @@ import {
   notifyPedidoStatusChanged,
 } from '../services/notifyPedidos.js'
 import { toPublicMediaUrl } from '../lib/mediaUrl.js'
+import { scheduleAwardPoints } from '../lib/pointsRules.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const UPLOAD_DIR = path.resolve(__dirname, '../../uploads/pedidos')
@@ -271,6 +272,14 @@ async function createPedido(req, res, next, { source, forceUrgent }) {
       pedido: doc,
       receptorUserIds: cat.receptorUserIds || [],
       creatorId: req.user._id,
+    })
+
+    scheduleAwardPoints({
+      tenant: req.tenant,
+      userId: req.user._id,
+      event: 'pedido_created',
+      entityId: doc._id,
+      meta: { source },
     })
 
     res.status(201).json({
