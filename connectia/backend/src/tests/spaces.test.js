@@ -9,6 +9,8 @@ import {
   isValidPlate,
   evaluateCreateReservation,
   canCancelReservation,
+  canCheckInReservation,
+  CHECK_IN_OPEN_MINUTES_BEFORE,
   kindLabel,
   serializeResource,
   weekDateKeys,
@@ -153,6 +155,50 @@ describe('spaces validation', () => {
       now,
     })
     assert.equal(pending.ok, true)
+  })
+
+  it('check-in solo en ventana (10 min antes + gracia)', () => {
+    assert.equal(CHECK_IN_OPEN_MINUTES_BEFORE, 10)
+    const startAt = '2026-07-28T12:00:00Z'
+    const endAt = '2026-07-28T13:00:00Z'
+    const reservation = { status: 'confirmed', startAt, endAt }
+    const policy = { checkInGraceMinutes: 15 }
+
+    const tooEarly = canCheckInReservation({
+      reservation,
+      policy,
+      now: new Date('2026-07-28T11:45:00Z'),
+    })
+    assert.equal(tooEarly.ok, false)
+    assert.match(tooEarly.error, /10 min/)
+
+    const open = canCheckInReservation({
+      reservation,
+      policy,
+      now: new Date('2026-07-28T11:50:00Z'),
+    })
+    assert.equal(open.ok, true)
+
+    const during = canCheckInReservation({
+      reservation,
+      policy,
+      now: new Date('2026-07-28T12:05:00Z'),
+    })
+    assert.equal(during.ok, true)
+
+    const afterGrace = canCheckInReservation({
+      reservation,
+      policy,
+      now: new Date('2026-07-28T12:16:00Z'),
+    })
+    assert.equal(afterGrace.ok, false)
+
+    const completed = canCheckInReservation({
+      reservation: { ...reservation, status: 'completed' },
+      policy,
+      now: new Date('2026-07-28T12:00:00Z'),
+    })
+    assert.equal(completed.ok, false)
   })
 })
 

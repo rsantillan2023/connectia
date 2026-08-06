@@ -72,6 +72,78 @@ export function kindLabel(kind) {
   return kind === 'reward' ? 'Premio' : 'Beneficio'
 }
 
+/** Etiqueta humana de un asiento del ledger (acreditación / desacreditación / …). */
+export function walletTxKindLabel(type, signedAmount = 0) {
+  const signed = Number(signedAmount) || 0
+  if (type === 'credit' || type === 'earn') return 'Acreditación'
+  if (type === 'adjust') return signed < 0 ? 'Desacreditación' : 'Ajuste'
+  if (type === 'debit') return 'Débito'
+  if (type === 'redeem') return 'Canje'
+  if (type === 'transfer_out') return 'Transferencia enviada'
+  if (type === 'transfer_in') return 'Transferencia recibida'
+  if (type === 'withdraw') return 'Retiro'
+  return type || 'Movimiento'
+}
+
+/** Ventanas de resumen de puntos sumados (admin saldos). */
+export const EARNED_SUMMARY_WINDOWS = [
+  { id: '7d', label: '7 días', days: 7 },
+  { id: '30d', label: '30 días', days: 30 },
+  { id: '60d', label: '60 días', days: 60 },
+  { id: '6m', label: '6 meses', months: 6 },
+]
+
+export function isPositiveEarnTx(tx) {
+  if (!tx) return false
+  if (tx.status && tx.status !== 'confirmed') return false
+  return Number(tx.signedAmount) > 0
+}
+
+function windowStartFrom(now, window) {
+  const d = new Date(now)
+  if (window.months) {
+    d.setMonth(d.getMonth() - Number(window.months))
+    return d
+  }
+  const days = Number(window.days) || 0
+  d.setTime(d.getTime() - days * 86400000)
+  return d
+}
+
+/**
+ * Resume puntos acreditados (signedAmount > 0) por ventanas temporales.
+ * @param {Array<{ signedAmount?: number, createdAt?: Date|string, status?: string }>} txs
+ * @param {Date} [now]
+ * @param {typeof EARNED_SUMMARY_WINDOWS} [windows]
+ */
+export function summarizeEarnedByWindows(txs, now = new Date(), windows = EARNED_SUMMARY_WINDOWS) {
+  const list = Array.isArray(txs) ? txs : []
+  const nowMs = now.getTime()
+  return windows.map((w) => {
+    const from = windowStartFrom(now, w)
+    const fromMs = from.getTime()
+    let points = 0
+    let count = 0
+    for (const tx of list) {
+      if (!isPositiveEarnTx(tx)) continue
+      const createdMs = new Date(tx.createdAt).getTime()
+      if (!Number.isFinite(createdMs) || createdMs < fromMs || createdMs > nowMs) continue
+      points += Math.floor(Number(tx.signedAmount) || 0)
+      count += 1
+    }
+    return {
+      id: w.id,
+      label: w.label,
+      days: w.days ?? null,
+      months: w.months ?? null,
+      from: from.toISOString(),
+      to: now.toISOString(),
+      points,
+      count,
+    }
+  })
+}
+
 export function statusLabel(status) {
   if (status === 'published') return 'Publicado'
   if (status === 'archived') return 'Archivado'
@@ -657,17 +729,20 @@ export function serializeBenefit(doc, extras = {}) {
 
 export function serializeWalletTx(doc) {
   if (!doc) return null
+  const signedAmount = Number(doc.signedAmount || 0)
   return {
     id: String(doc._id || doc.id),
     type: doc.type,
+    kindLabel: walletTxKindLabel(doc.type, signedAmount),
     status: doc.status,
     amount: Number(doc.amount || 0),
-    signedAmount: Number(doc.signedAmount || 0),
+    signedAmount,
     balanceAfter: Number(doc.balanceAfter || 0),
     currency: doc.currency || 'POINTS',
     concept: doc.concept || '',
     benefitId: doc.benefitId ? String(doc.benefitId) : null,
     counterpartyUserId: doc.counterpartyUserId ? String(doc.counterpartyUserId) : null,
+    createdBy: doc.createdBy ? String(doc.createdBy) : null,
     idempotencyKey: doc.idempotencyKey || '',
     createdAt: doc.createdAt || null,
   }

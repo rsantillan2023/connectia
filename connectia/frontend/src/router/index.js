@@ -63,6 +63,13 @@ const router = createRouter({
           component: () => import('../views/MisPublicacionesView.vue'),
         },
         {
+          /* Skin portal-empleado-v3 (mismo MuroView; no reemplaza el clásico). */
+          path: 'muro/portal',
+          name: 'muro-portal',
+          component: () => import('../views/MuroView.vue'),
+          meta: { muroSkin: 'portal' },
+        },
+        {
           path: 'conocimiento',
           name: 'conocimiento',
           component: () => import('../views/ConocimientoView.vue'),

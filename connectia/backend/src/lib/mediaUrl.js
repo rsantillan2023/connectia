@@ -83,3 +83,24 @@ export function serializePostMedia(p) {
     toPublicMediaUrl(rawCarousel[0])
   return { imageUrl, imageUrls }
 }
+
+/**
+ * Media de encuesta: imágenes (1 o carrusel) + video opcional.
+ * Misma regla de imageUrls que posts; videoUrl es independiente.
+ */
+export function resolveSurveyMediaFields(body = {}) {
+  const { imageUrl, imageUrls } = resolvePostMediaFields(body)
+  const videoUrl =
+    typeof body.videoUrl === 'string' ? body.videoUrl.trim().slice(0, 500) : ''
+  return { imageUrl, imageUrls, videoUrl }
+}
+
+/** Serializa media de encuesta para API. */
+export function serializeSurveyMedia(s) {
+  const { imageUrl, imageUrls } = serializePostMedia(s)
+  return {
+    imageUrl,
+    imageUrls,
+    videoUrl: toPublicMediaUrl(s?.videoUrl || ''),
+  }
+}

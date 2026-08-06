@@ -118,6 +118,12 @@ const tenantSchema = new mongoose.Schema(
      */
     benefitsConfig: { type: mongoose.Schema.Types.Mixed, default: undefined },
     /**
+     * Encuestas: categorías editables + tipos de pregunta habilitados.
+     * Se normaliza con normalizeSurveysConfig().
+     * { categories: [{ id, label }], enabledQuestionTypes: string[] }
+     */
+    surveysConfig: { type: mongoose.Schema.Types.Mixed, default: undefined },
+    /**
      * Resumen de onboarding / seed al alta (plataforma).
      * Guarda perfil IA, accesos demo y mensaje listo para enviar al cliente.
      */

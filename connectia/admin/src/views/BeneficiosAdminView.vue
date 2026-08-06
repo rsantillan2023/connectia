@@ -1,10 +1,14 @@
 <template>
   <div>
-    <AdminPageHeader title="Beneficios para miembros de la comunidad" />
-    <ScreenHelp
-      purpose="ABM del catálogo: tipos de beneficio, imagen, empresas asociadas, reglas de puntos y canjes."
-      can-do="Crear beneficios paso a paso, ver previews, acreditar puntos y revisar canjes."
-    />
+    <AdminPageHeader title="Beneficios para miembros de la comunidad">
+      <template #actions>
+        <ScreenHelp
+          class="in-header"
+          purpose="ABM del catálogo: tipos de beneficio, imagen, empresas asociadas, reglas de puntos y canjes."
+          can-do="Crear beneficios paso a paso, ver previews, acreditar puntos y revisar canjes."
+        />
+      </template>
+    </AdminPageHeader>
 
     <nav class="ben-tabs" aria-label="Secciones de beneficios">
       <button type="button" :class="{ on: panel === 'list' }" @click="goCatalog">
@@ -21,7 +25,7 @@
         <span
           v-if="attentionCount > 0"
           class="ben-attn-bell"
-          :aria-label="`${attentionCount} pendientes`"
+          :aria-label="`${attentionCount} canjes pendientes de aprobación`"
         >
           <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
             <path
@@ -547,7 +551,7 @@
         <button type="button" class="btn-ghost" @click="exportCsv">Export CSV</button>
       </div>
 
-      <div class="ben-tabs ben-tabs--sub mt-3" role="tablist" aria-label="Secciones de gestión">
+      <div class="ben-tabs ben-tabs--sub" role="tablist" aria-label="Secciones de gestión">
         <button
           type="button"
           role="tab"
@@ -565,7 +569,7 @@
           :class="{ on: gestionTab === 'pendientes' }"
           @click="gestionTab = 'pendientes'"
         >
-          Pendientes
+          Canjes pendientes de aprobación
           <em v-if="attentionCount" class="attn">{{ attentionCount }}</em>
         </button>
         <button
@@ -581,25 +585,7 @@
       </div>
 
       <div v-if="gestionTab === 'points'" class="panel mt-3">
-        <h3 class="font-semibold">Acreditar puntos</h3>
-        <div class="grid gap-2 mt-2" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr))">
-          <input v-model="credit.q" class="input" placeholder="Buscar usuario…" @input="searchCreditUser" />
-          <input v-model.number="credit.amount" class="input" type="number" placeholder="Monto (+ acredita / − desacredita)" />
-          <input v-model="credit.concept" class="input" placeholder="Motivo (obligatorio)" maxlength="240" />
-          <button type="button" class="btn-primary" :disabled="!credit.userId || busy" @click="doCredit">
-            Aplicar
-          </button>
-        </div>
-        <ul v-if="creditResults.length" class="user-results mt-2">
-          <li v-for="u in creditResults" :key="u.id">
-            <button type="button" @click="pickCreditUser(u)">
-              {{ u.label }} <span class="muted">@{{ u.usuario }}</span>
-            </button>
-          </li>
-        </ul>
-        <p v-if="credit.userId" class="text-sm mt-2">Destino: <strong>{{ credit.userLabel }}</strong></p>
-
-        <div class="wallet-table-head mt-4">
+        <div class="wallet-table-head">
           <div>
             <h3 class="font-semibold">Saldos de la comunidad</h3>
             <p class="wallet-table-sub">
@@ -673,20 +659,50 @@
                   <div class="wallet-row-actions">
                     <button
                       type="button"
+                      class="wallet-act earned"
+                      title="Puntos sumados"
+                      aria-label="Cómo sumó puntos en 7, 30, 60 días y 6 meses"
+                      @click="openWalletEarned(w)"
+                    >
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <path d="M4 19V5M4 19h16" stroke-linecap="round" />
+                        <path d="M8 15l3-4 3 2 4-6" stroke-linecap="round" stroke-linejoin="round" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      class="wallet-act history"
+                      title="Historial"
+                      aria-label="Historial de acreditaciones y desacreditaciones"
+                      @click="openWalletHistory(w)"
+                    >
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="M12 7v5l3 2" stroke-linecap="round" stroke-linejoin="round" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
                       class="wallet-act credit"
-                      title="Acreditar puntos"
+                      title="Acreditar"
+                      aria-label="Acreditar puntos"
                       @click="openWalletAdjust(w, 'credit')"
                     >
-                      Acreditar
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <path d="M12 5v14M5 12h14" stroke-linecap="round" />
+                      </svg>
                     </button>
                     <button
                       type="button"
                       class="wallet-act debit"
-                      title="Desacreditar puntos"
+                      title="Desacreditar"
+                      aria-label="Desacreditar puntos"
                       :disabled="!(Number(w.balance) > 0)"
                       @click="openWalletAdjust(w, 'debit')"
                     >
-                      Desacreditar
+                      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                        <path d="M5 12h14" stroke-linecap="round" />
+                      </svg>
                     </button>
                   </div>
                 </td>
@@ -789,6 +805,168 @@
                       : 'Acreditar'
                 }}
               </button>
+            </footer>
+          </div>
+        </div>
+
+        <!-- Modal historial de acreditaciones / desacreditaciones -->
+        <div
+          v-if="walletHistoryOpen"
+          class="sheet-backdrop ben-chooser-backdrop"
+          @click.self="closeWalletHistory"
+        >
+          <div
+            class="ben-chooser wallet-history-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="wallet-history-title"
+          >
+            <header class="ben-chooser-head">
+              <div>
+                <h2 id="wallet-history-title">Historial de puntos</h2>
+                <p>
+                  {{ walletHistory.userLabel || walletHistory.usuario }}
+                  <template v-if="walletHistory.usuario"> · @{{ walletHistory.usuario }}</template>
+                  · saldo {{ walletHistory.balance }} pts
+                </p>
+              </div>
+              <button type="button" class="icon-btn" title="Cerrar" aria-label="Cerrar" @click="closeWalletHistory">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M6 6l12 12M18 6 6 18" />
+                </svg>
+              </button>
+            </header>
+            <div class="wallet-history-body">
+              <p v-if="walletHistoryLoading" class="text-sm text-slate-500">Cargando movimientos…</p>
+              <p v-else-if="walletHistoryError" class="text-sm text-red-600">{{ walletHistoryError }}</p>
+              <template v-else>
+                <table v-if="walletHistory.items.length" class="w-full text-sm wallet-history-table">
+                  <thead class="bg-slate-50 text-left text-slate-500">
+                    <tr>
+                      <th class="p-2">Fecha</th>
+                      <th class="p-2">Tipo</th>
+                      <th class="p-2">Motivo</th>
+                      <th class="p-2 wallet-col-balance">Pts</th>
+                      <th class="p-2 wallet-col-balance">Saldo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="t in walletHistory.items" :key="t.id" class="border-t">
+                      <td class="p-2 whitespace-nowrap">{{ formatDate(t.createdAt) }}</td>
+                      <td class="p-2">
+                        <span
+                          class="wallet-tx-kind"
+                          :class="Number(t.signedAmount) < 0 ? 'neg' : 'pos'"
+                        >
+                          {{ t.kindLabel || t.type }}
+                        </span>
+                        <div v-if="t.createdByLabel" class="text-xs text-slate-500 mt-0.5">
+                          por {{ t.createdByLabel }}
+                        </div>
+                      </td>
+                      <td class="p-2">{{ t.concept || '—' }}</td>
+                      <td
+                        class="p-2 font-semibold wallet-col-balance"
+                        :class="{ 'text-red-600': Number(t.signedAmount) < 0 }"
+                      >
+                        {{ Number(t.signedAmount) > 0 ? '+' : '' }}{{ t.signedAmount }}
+                      </td>
+                      <td class="p-2 wallet-col-balance">{{ t.balanceAfter }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div v-else class="wallet-history-empty">
+                  <strong>Sin movimientos</strong>
+                  <p>Todavía no hay acreditaciones ni desacreditaciones para este miembro.</p>
+                </div>
+                <div v-if="walletHistory.pages > 1" class="wallet-pager">
+                  <button
+                    type="button"
+                    class="btn-ghost"
+                    :disabled="walletHistory.page <= 1 || walletHistoryLoading"
+                    @click="loadWalletHistoryPage(walletHistory.page - 1)"
+                  >
+                    Anterior
+                  </button>
+                  <span class="wallet-pager-info">
+                    Página {{ walletHistory.page }} de {{ walletHistory.pages }}
+                    · {{ walletHistory.total }} mov.
+                  </span>
+                  <button
+                    type="button"
+                    class="btn-ghost"
+                    :disabled="walletHistory.page >= walletHistory.pages || walletHistoryLoading"
+                    @click="loadWalletHistoryPage(walletHistory.page + 1)"
+                  >
+                    Siguiente
+                  </button>
+                </div>
+              </template>
+            </div>
+            <footer class="ben-chooser-foot">
+              <button
+                type="button"
+                class="btn-ghost"
+                @click="openWalletAdjustFromHistory('credit')"
+              >
+                Acreditar
+              </button>
+              <button
+                type="button"
+                class="btn-ghost"
+                :disabled="!(Number(walletHistory.balance) > 0)"
+                @click="openWalletAdjustFromHistory('debit')"
+              >
+                Desacreditar
+              </button>
+              <button type="button" class="btn-primary" @click="closeWalletHistory">Cerrar</button>
+            </footer>
+          </div>
+        </div>
+
+        <!-- Modal puntos sumados por período -->
+        <div
+          v-if="walletEarnedOpen"
+          class="sheet-backdrop ben-chooser-backdrop"
+          @click.self="closeWalletEarned"
+        >
+          <div
+            class="ben-chooser wallet-earned-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="wallet-earned-title"
+          >
+            <header class="ben-chooser-head">
+              <div>
+                <h2 id="wallet-earned-title">Puntos sumados</h2>
+                <p>
+                  {{ walletEarned.userLabel || walletEarned.usuario }}
+                  <template v-if="walletEarned.usuario"> · @{{ walletEarned.usuario }}</template>
+                  · saldo {{ walletEarned.balance }} pts
+                </p>
+              </div>
+              <button type="button" class="icon-btn" title="Cerrar" aria-label="Cerrar" @click="closeWalletEarned">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path d="M6 6l12 12M18 6 6 18" />
+                </svg>
+              </button>
+            </header>
+            <div class="wallet-earned-body">
+              <p v-if="walletEarnedLoading" class="text-sm text-slate-500">Calculando…</p>
+              <p v-else-if="walletEarnedError" class="text-sm text-red-600">{{ walletEarnedError }}</p>
+              <div v-else class="wallet-earned-grid">
+                <div v-for="w in walletEarned.windows" :key="w.id" class="wallet-earned-card">
+                  <span class="wallet-earned-label">{{ w.label }}</span>
+                  <strong class="wallet-earned-pts">+{{ w.points }}</strong>
+                  <span class="wallet-earned-meta">
+                    {{ w.count }} acreditación{{ w.count === 1 ? '' : 'es' }}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <footer class="ben-chooser-foot">
+              <button type="button" class="btn-ghost" @click="openWalletHistoryFromEarned">Ver historial</button>
+              <button type="button" class="btn-primary" @click="closeWalletEarned">Cerrar</button>
             </footer>
           </div>
         </div>
@@ -1970,9 +2148,6 @@ function clearPartnerFilters() {
   partnerStatusFilter.value = ''
   partnerImageFilter.value = ''
 }
-const credit = ref({ q: '', userId: '', userLabel: '', amount: 500, concept: '' })
-const creditResults = ref([])
-let creditTimer = null
 const walletAdjustOpen = ref(false)
 const walletAdjustError = ref('')
 const walletAdjust = ref({
@@ -1983,6 +2158,30 @@ const walletAdjust = ref({
   balance: 0,
   amount: 100,
   concept: '',
+})
+const walletHistoryOpen = ref(false)
+const walletHistoryLoading = ref(false)
+const walletHistoryError = ref('')
+const walletHistory = ref({
+  userId: '',
+  usuario: '',
+  userLabel: '',
+  balance: 0,
+  items: [],
+  page: 1,
+  pages: 1,
+  total: 0,
+  pageSize: 30,
+})
+const walletEarnedOpen = ref(false)
+const walletEarnedLoading = ref(false)
+const walletEarnedError = ref('')
+const walletEarned = ref({
+  userId: '',
+  usuario: '',
+  userLabel: '',
+  balance: 0,
+  windows: [],
 })
 
 const canSubmitWalletAdjust = computed(() => {
@@ -2009,10 +2208,120 @@ function openWalletAdjust(w, mode = 'credit') {
   walletAdjustOpen.value = true
 }
 
+function openWalletAdjustFromHistory(mode = 'credit') {
+  const h = walletHistory.value
+  if (!h.userId) return
+  walletHistoryOpen.value = false
+  openWalletAdjust(
+    {
+      userId: h.userId,
+      usuario: h.usuario,
+      nombre: h.userLabel,
+      balance: h.balance,
+    },
+    mode,
+  )
+}
+
 function closeWalletAdjust() {
   if (busy.value) return
   walletAdjustOpen.value = false
   walletAdjustError.value = ''
+}
+
+async function openWalletHistory(w) {
+  walletHistoryError.value = ''
+  walletHistory.value = {
+    userId: w.userId,
+    usuario: w.usuario || '',
+    userLabel: w.nombre || w.usuario || 'Miembro',
+    balance: Number(w.balance) || 0,
+    items: [],
+    page: 1,
+    pages: 1,
+    total: 0,
+    pageSize: 30,
+  }
+  walletHistoryOpen.value = true
+  await loadWalletHistoryPage(1)
+}
+
+function closeWalletHistory() {
+  if (walletHistoryLoading.value) return
+  walletHistoryOpen.value = false
+  walletHistoryError.value = ''
+}
+
+async function loadWalletHistoryPage(page = 1) {
+  const userId = walletHistory.value.userId
+  if (!userId) return
+  walletHistoryLoading.value = true
+  walletHistoryError.value = ''
+  try {
+    const { data } = await api.get(`/admin/benefits/wallets/${userId}/ledger`, {
+      params: { page, pageSize: walletHistory.value.pageSize || 30 },
+    })
+    walletHistory.value = {
+      userId,
+      usuario: data.user?.usuario || walletHistory.value.usuario,
+      userLabel: data.user?.nombre || walletHistory.value.userLabel,
+      balance: Number(data.balance) || 0,
+      items: data.items || [],
+      page: data.page || page,
+      pages: data.pages || 1,
+      total: data.total || 0,
+      pageSize: data.pageSize || 30,
+    }
+  } catch (e) {
+    walletHistoryError.value = e.response?.data?.error || 'No se pudo cargar el historial'
+  } finally {
+    walletHistoryLoading.value = false
+  }
+}
+
+async function openWalletEarned(w) {
+  walletEarnedError.value = ''
+  walletEarned.value = {
+    userId: w.userId,
+    usuario: w.usuario || '',
+    userLabel: w.nombre || w.usuario || 'Miembro',
+    balance: Number(w.balance) || 0,
+    windows: [],
+  }
+  walletEarnedOpen.value = true
+  walletEarnedLoading.value = true
+  try {
+    const { data } = await api.get(`/admin/benefits/wallets/${w.userId}/earned-summary`)
+    walletEarned.value = {
+      userId: w.userId,
+      usuario: data.user?.usuario || w.usuario || '',
+      userLabel: data.user?.nombre || w.nombre || w.usuario || 'Miembro',
+      balance: Number(data.balance) || Number(w.balance) || 0,
+      windows: data.windows || [],
+    }
+  } catch (e) {
+    walletEarnedError.value = e.response?.data?.error || 'No se pudo calcular el resumen'
+  } finally {
+    walletEarnedLoading.value = false
+  }
+}
+
+function closeWalletEarned() {
+  if (walletEarnedLoading.value) return
+  walletEarnedOpen.value = false
+  walletEarnedError.value = ''
+}
+
+function openWalletHistoryFromEarned() {
+  const e = walletEarned.value
+  if (!e.userId) return
+  walletEarnedOpen.value = false
+  openWalletHistory({
+    userId: e.userId,
+    usuario: e.usuario,
+    nombre: e.userLabel,
+    balance: e.balance,
+  })
 }
 
 async function submitWalletAdjust() {
@@ -2037,6 +2346,9 @@ async function submitWalletAdjust() {
         : `Acreditados ${amountAbs} pts · saldo ${data.balance}`
     walletAdjustOpen.value = false
     await loadWallets()
+    if (walletHistoryOpen.value && walletHistory.value.userId === a.userId) {
+      await loadWalletHistoryPage(1)
+    }
   } catch (e) {
     walletAdjustError.value = e.response?.data?.error || 'No se pudo actualizar el saldo'
   } finally {
@@ -3422,26 +3734,6 @@ async function cancelWaitlist(w) {
   }
 }
 
-function searchCreditUser() {
-  clearTimeout(creditTimer)
-  creditTimer = setTimeout(async () => {
-    const qv = credit.value.q.trim()
-    if (qv.length < 2) {
-      creditResults.value = []
-      return
-    }
-    const { data } = await api.get('/admin/benefits/audience-candidates', { params: { q: qv } })
-    creditResults.value = data.items || []
-  }, 250)
-}
-
-function pickCreditUser(u) {
-  credit.value.userId = u.id
-  credit.value.userLabel = u.label
-  credit.value.q = u.usuario
-  creditResults.value = []
-}
-
 async function openRules() {
   configOpen.value = true
   panel.value = 'rules'
@@ -3495,39 +3787,6 @@ async function seedRules() {
     await loadRules()
   } catch (e) {
     error.value = e.response?.data?.error || 'No se pudieron crear defaults'
-  } finally {
-    busy.value = false
-  }
-}
-
-async function doCredit() {
-  const amount = Number(credit.value.amount)
-  const concept = String(credit.value.concept || '').trim()
-  if (!credit.value.userId) {
-    error.value = 'Elegí un miembro'
-    return
-  }
-  if (!Number.isFinite(amount) || amount === 0) {
-    error.value = 'Ingresá un monto distinto de 0'
-    return
-  }
-  if (concept.length < 3) {
-    error.value = 'Agregá un motivo (mín. 3 caracteres)'
-    return
-  }
-  busy.value = true
-  error.value = ''
-  try {
-    const { data } = await api.post('/admin/benefits/credit', {
-      userId: credit.value.userId,
-      amount,
-      concept,
-      idempotencyKey: `admin-credit:${credit.value.userId}:${Date.now()}`,
-    })
-    okMsg.value = `Saldo actualizado: ${data.balance} pts`
-    await loadWallets()
-  } catch (e) {
-    error.value = e.response?.data?.error || 'No se pudo acreditar'
   } finally {
     busy.value = false
   }
@@ -3641,7 +3900,7 @@ watch(panel, async (p) => {
   border: 1px solid var(--line);
 }
 .ben-tabs--sub {
-  margin: 0;
+  margin: 1.5rem 0 0;
 }
 .ben-tabs em {
   font-style: normal;
@@ -3901,24 +4160,31 @@ watch(panel, async (p) => {
   width: 1%;
   white-space: nowrap;
   text-align: right;
+  min-width: 0;
 }
 .wallet-row-actions {
   display: inline-flex;
-  flex-wrap: wrap;
-  gap: 0.3rem;
+  flex-wrap: nowrap;
+  gap: 0.25rem;
   justify-content: flex-end;
+  align-items: center;
 }
 .wallet-act {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  padding: 0;
   border: 1px solid var(--line);
   background: var(--panel);
   color: var(--ink-soft);
-  border-radius: 0.5rem;
-  padding: 0.28rem 0.55rem;
-  font: inherit;
-  font-size: 0.72rem;
-  font-weight: 650;
+  border-radius: 0.45rem;
   cursor: pointer;
-  line-height: 1.2;
+  flex-shrink: 0;
+}
+.wallet-act svg {
+  display: block;
 }
 .wallet-act.credit {
   border-color: color-mix(in srgb, var(--brand-primary) 35%, var(--line));
@@ -3936,12 +4202,137 @@ watch(panel, async (p) => {
 .wallet-act.debit:hover:not(:disabled) {
   background: color-mix(in srgb, #dc2626 12%, var(--panel));
 }
+.wallet-act.history {
+  border-color: color-mix(in srgb, var(--ink-soft) 22%, var(--line));
+  color: var(--ink-soft);
+}
+.wallet-act.history:hover {
+  background: color-mix(in srgb, var(--ink-soft) 8%, var(--panel));
+}
+.wallet-act.earned {
+  border-color: color-mix(in srgb, #2563eb 28%, var(--line));
+  color: #1d4ed8;
+  background: color-mix(in srgb, #2563eb 7%, var(--panel));
+}
+.wallet-act.earned:hover {
+  background: color-mix(in srgb, #2563eb 14%, var(--panel));
+}
 .wallet-act:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
 .wallet-adjust-modal {
   width: min(440px, 100%);
+}
+.ben-chooser.wallet-earned-modal {
+  width: min(520px, calc(100vw - 2rem));
+  max-width: none;
+}
+.wallet-earned-body {
+  min-height: 6rem;
+  padding: 0.15rem 0 0.35rem;
+}
+.wallet-earned-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+.wallet-earned-card {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  background: var(--panel-2, #f8fafc);
+}
+.wallet-earned-label {
+  font-size: 0.75rem;
+  font-weight: 650;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.wallet-earned-pts {
+  font-size: 1.35rem;
+  font-weight: 750;
+  color: #047857;
+  line-height: 1.1;
+}
+.wallet-earned-meta {
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+}
+.ben-chooser.wallet-history-modal {
+  width: min(960px, calc(100vw - 2rem));
+  max-width: none;
+  max-height: min(88vh, 820px);
+  display: flex;
+  flex-direction: column;
+}
+.wallet-history-body {
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 0.25rem 0 0.5rem;
+  min-height: 8rem;
+}
+.wallet-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+.wallet-history-table th,
+.wallet-history-table td {
+  vertical-align: top;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+.wallet-history-table th:nth-child(1),
+.wallet-history-table td:nth-child(1) {
+  width: 8.5rem;
+  white-space: nowrap;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+.wallet-history-table th:nth-child(2),
+.wallet-history-table td:nth-child(2) {
+  width: 9.5rem;
+}
+.wallet-history-table th:nth-child(4),
+.wallet-history-table td:nth-child(4),
+.wallet-history-table th:nth-child(5),
+.wallet-history-table td:nth-child(5) {
+  width: 4.5rem;
+  white-space: nowrap;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+.wallet-history-empty {
+  text-align: center;
+  padding: 1.5rem 1rem;
+  color: var(--ink-soft);
+}
+.wallet-history-empty strong {
+  display: block;
+  color: var(--ink);
+  margin-bottom: 0.25rem;
+}
+.wallet-tx-kind {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  padding: 0.12rem 0.4rem;
+  border-radius: 0.35rem;
+  background: color-mix(in srgb, var(--brand-primary) 10%, var(--panel));
+  color: var(--brand-primary);
+}
+.wallet-tx-kind.neg {
+  background: color-mix(in srgb, #dc2626 10%, var(--panel));
+  color: #b91c1c;
+}
+.wallet-tx-kind.pos {
+  background: color-mix(in srgb, #059669 10%, var(--panel));
+  color: #047857;
 }
 .wallet-adjust-body {
   display: grid;

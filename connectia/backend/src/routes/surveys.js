@@ -7,6 +7,8 @@ import { normalizeAnswerValue } from '../lib/surveyQuestions.js'
 import { markSurveyNotificationsRead } from '../services/notifySurvey.js'
 import { closeOnboardingMilestonesForSurvey } from '../services/onboardingSurveyHook.js'
 import { scheduleAwardPoints } from '../lib/pointsRules.js'
+import { serializeSurveyMedia, toPublicMediaUrl } from '../lib/mediaUrl.js'
+import { normalizeSurveyCategory, surveyCategoryLabel } from '../lib/surveyCategories.js'
 
 const router = Router()
 
@@ -17,7 +19,7 @@ function isSurveyOpen(s, now = new Date()) {
   return true
 }
 
-function serializeSurvey(s, { includeQuestions = true, answered = false } = {}) {
+function serializeSurvey(s, { includeQuestions = true, answered = false, includeAdminFields = false } = {}) {
   const questions = includeQuestions
     ? (s.questions || []).map((q) => ({
         id: q.id,
@@ -26,13 +28,18 @@ function serializeSurvey(s, { includeQuestions = true, answered = false } = {}) 
         required: q.required !== false,
         opciones: q.opciones || [],
         grupo: q.grupo || 'General',
+        imageUrl: toPublicMediaUrl(q.imageUrl || ''),
       }))
     : undefined
+  const media = serializeSurveyMedia(s)
   return {
     id: String(s._id),
     titulo: s.titulo,
     descripcion: s.descripcion || '',
-    imageUrl: s.imageUrl || '',
+    ...(includeAdminFields ? { aiContext: s.aiContext || '' } : {}),
+    imageUrl: media.imageUrl,
+    imageUrls: media.imageUrls,
+    videoUrl: media.videoUrl,
     status: s.status,
     version: s.version || 1,
     audience: serializeAudience(s.audience),
@@ -46,6 +53,10 @@ function serializeSurvey(s, { includeQuestions = true, answered = false } = {}) 
     startsAt: s.startsAt,
     endsAt: s.endsAt,
     anonymous: Boolean(s.anonymous),
+    questionFlow: s.questionFlow === 'one_by_one' ? 'one_by_one' : 'all',
+    showProgress: s.showProgress !== false,
+    categoria: normalizeSurveyCategory(s.categoria) || '',
+    categoriaLabel: surveyCategoryLabel(s.categoria) || '',
     purpose: s.purpose || 'general',
     authorName: s.authorName || '',
     publishedAt: s.publishedAt,

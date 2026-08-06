@@ -2,7 +2,7 @@ import { Router } from 'express'
 import mongoose from 'mongoose'
 import { requireAuth, requireCapability } from '../middleware/auth.js'
 import { Benefit, BenefitPartnerLink, BenefitCode, BenefitWaitlist } from '../models/Benefit.js'
-import { BenefitRedemption, WalletAccount } from '../models/Wallet.js'
+import { BenefitRedemption, WalletAccount, WalletTransaction } from '../models/Wallet.js'
 import { OrgArea } from '../models/OrgArea.js'
 import { UserGroup } from '../models/UserGroup.js'
 import { User } from '../models/User.js'
@@ -10,6 +10,9 @@ import { normalizeAudience } from '../lib/audience.js'
 import {
   serializeBenefit,
   serializePartnerLink,
+  serializeWalletTx,
+  summarizeEarnedByWindows,
+  EARNED_SUMMARY_WINDOWS,
   benefitsMeta,
   buildBenefitSearchFilter,
   applyBenefitPatch,
@@ -788,6 +791,126 @@ router.get('/wallets', async (req, res, next) => {
       }),
       total: accounts.length,
       limit,
+    })
+  } catch (e) {
+    next(e)
+  }
+})
+
+/**
+ * GET /wallets/:userId/ledger — historial de acreditaciones / desacreditaciones del miembro
+ */
+router.get('/wallets/:userId/ledger', async (req, res, next) => {
+  try {
+    if (!ObjectId.isValid(req.params.userId)) {
+      return res.status(400).json({ error: 'userId inválido' })
+    }
+    const userId = new ObjectId(req.params.userId)
+    const user = await User.findOne({ _id: userId, tenantId: req.tenant._id })
+      .select('_id usuario nombre apellido')
+      .lean()
+    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' })
+
+    const page = Math.max(1, Number(req.query.page) || 1)
+    const pageSize = Math.min(100, Math.max(5, Number(req.query.pageSize) || 30))
+    const filter = {
+      tenantId: req.tenant._id,
+      userId,
+      status: { $in: ['confirmed', 'pending', 'reversed'] },
+    }
+    const [total, txs, account] = await Promise.all([
+      WalletTransaction.countDocuments(filter),
+      WalletTransaction.find(filter)
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * pageSize)
+        .limit(pageSize)
+        .lean(),
+      WalletAccount.findOne({ tenantId: req.tenant._id, userId, currency: 'POINTS' }).lean(),
+    ])
+
+    const creatorIds = [
+      ...new Set(txs.map((t) => (t.createdBy ? String(t.createdBy) : '')).filter(Boolean)),
+    ]
+    const creators =
+      creatorIds.length > 0
+        ? await User.find({ _id: { $in: creatorIds.map((id) => new ObjectId(id)) } })
+            .select('_id usuario nombre apellido')
+            .lean()
+        : []
+    const creatorById = Object.fromEntries(
+      creators.map((u) => [
+        String(u._id),
+        [u.nombre, u.apellido].filter(Boolean).join(' ') || u.usuario || '',
+      ]),
+    )
+
+    res.json({
+      user: {
+        id: String(user._id),
+        usuario: user.usuario || '',
+        nombre: [user.nombre, user.apellido].filter(Boolean).join(' ') || '',
+      },
+      balance: account?.balance ?? 0,
+      items: txs.map((t) => {
+        const base = serializeWalletTx(t)
+        return {
+          ...base,
+          createdByLabel: t.createdBy ? creatorById[String(t.createdBy)] || '' : '',
+        }
+      }),
+      total,
+      page,
+      pageSize,
+      pages: Math.max(1, Math.ceil(total / pageSize)),
+    })
+  } catch (e) {
+    next(e)
+  }
+})
+
+/**
+ * GET /wallets/:userId/earned-summary — puntos sumados en 7d / 30d / 60d / 6m
+ */
+router.get('/wallets/:userId/earned-summary', async (req, res, next) => {
+  try {
+    if (!ObjectId.isValid(req.params.userId)) {
+      return res.status(400).json({ error: 'userId inválido' })
+    }
+    const userId = new ObjectId(req.params.userId)
+    const user = await User.findOne({ _id: userId, tenantId: req.tenant._id })
+      .select('_id usuario nombre apellido')
+      .lean()
+    if (!user) return res.status(404).json({ error: 'Usuario no encontrado' })
+
+    const now = new Date()
+    const oldest = EARNED_SUMMARY_WINDOWS.reduce((acc, w) => {
+      const start = new Date(now)
+      if (w.months) start.setMonth(start.getMonth() - Number(w.months))
+      else start.setTime(start.getTime() - Number(w.days || 0) * 86400000)
+      return start < acc ? start : acc
+    }, now)
+
+    const [txs, account] = await Promise.all([
+      WalletTransaction.find({
+        tenantId: req.tenant._id,
+        userId,
+        status: 'confirmed',
+        signedAmount: { $gt: 0 },
+        createdAt: { $gte: oldest },
+      })
+        .select('signedAmount createdAt status type')
+        .lean(),
+      WalletAccount.findOne({ tenantId: req.tenant._id, userId, currency: 'POINTS' }).lean(),
+    ])
+
+    res.json({
+      user: {
+        id: String(user._id),
+        usuario: user.usuario || '',
+        nombre: [user.nombre, user.apellido].filter(Boolean).join(' ') || '',
+      },
+      balance: account?.balance ?? 0,
+      windows: summarizeEarnedByWindows(txs, now),
     })
   } catch (e) {
     next(e)

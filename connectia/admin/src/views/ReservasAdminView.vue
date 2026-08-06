@@ -519,6 +519,14 @@
         >Cancelar con anticipación (min)
         <input v-model.number="policy.cancelMinutesBefore" type="number" min="0" />
       </label>
+      <label
+        >Gracia de check-in tras el inicio (min)
+        <input v-model.number="policy.checkInGraceMinutes" type="number" min="0" />
+      </label>
+      <p class="hint">
+        El check-in en la app de usuario se habilita 10 minutos antes del inicio y permanece abierto
+        hasta esa gracia (si es 0, hasta el fin de la reserva).
+      </p>
       <button type="button" class="btn-primary" @click="savePolicy">Guardar políticas</button>
     </section>
 
@@ -1082,6 +1090,7 @@ const policy = reactive({
   maxSimultaneousDesk: 1,
   maxOfficeDaysPerWeek: 5,
   cancelMinutesBefore: 30,
+  checkInGraceMinutes: 15,
 })
 const filterTypeId = ref('')
 const filterSiteId = ref('')
@@ -1442,6 +1451,7 @@ async function loadPolicy() {
   policy.maxSimultaneousDesk = item.maxSimultaneousDesk ?? 1
   policy.maxOfficeDaysPerWeek = item.maxOfficeDaysPerWeek ?? 5
   policy.cancelMinutesBefore = item.cancelMinutesBefore ?? 30
+  policy.checkInGraceMinutes = item.checkInGraceMinutes ?? 15
 }
 
 async function refresh() {

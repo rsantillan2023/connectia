@@ -63,11 +63,13 @@ describe('supervisionTasks', () => {
   })
 
   it('snapshotMediciones copia sin mutar origen', () => {
-    const src = [{ nombre: 'A', tipo: 'check', obligatorio: true }]
+    const src = [{ nombre: 'A', tipo: 'check', obligatorio: true, requiereFoto: true, requiereTexto: false }]
     const snap = snapshotMediciones(src)
     assert.equal(snap.length, 1)
     assert.equal(snap[0].nombre, 'A')
     assert.equal(snap[0].key, 'm1')
+    assert.equal(snap[0].requiereFoto, true)
+    assert.equal(snap[0].requiereTexto, false)
   })
 
   it('mapLegacyRolId: 4 y 1 → operario; 5 → admin_mod', () => {

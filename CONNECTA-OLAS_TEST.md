@@ -14,7 +14,7 @@
 | 2 | Tenant + menú | ✓ | — | no | sí |
 | 3 | Muro | ✓ | — | no | sí |
 | 4 | Solicitudes | ✓ | — | no | no |
-| 5 | Encuestas + docs + hub | ✓ | — | no | cerrado enlaces |
+| 5 | Encuestas + docs + hub | ✓ | — | no | cerrado enlaces + documentos |
 | 6 | Perfil (§3) | ✓ | — | no | no |
 | 7 | Push / avisos (§7) | ✓ | — | no | no |
 | 8 | Saludos (§5) | ✓ | — | no | no |

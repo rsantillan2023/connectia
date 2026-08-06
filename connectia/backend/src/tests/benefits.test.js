@@ -7,9 +7,12 @@ import {
   isBenefitActiveNow,
   isBenefitInSchedule,
   serializeBenefit,
+  serializeWalletTx,
   applyBenefitPatch,
   buildBenefitSearchFilter,
   kindLabel,
+  walletTxKindLabel,
+  summarizeEarnedByWindows,
   defaultBenefitSeed,
   defaultPartnerSeed,
   distanceKm,
@@ -48,6 +51,44 @@ describe('benefits ledger', () => {
     const a = applyAdjust(100, -30)
     assert.equal(a.balanceAfter, 70)
     assert.throws(() => applyAdjust(10, -20), /Saldo insuficiente/)
+  })
+
+  it('etiqueta acreditación y desacreditación', () => {
+    assert.equal(walletTxKindLabel('credit', 50), 'Acreditación')
+    assert.equal(walletTxKindLabel('adjust', -20), 'Desacreditación')
+    assert.equal(walletTxKindLabel('adjust', 10), 'Ajuste')
+    assert.equal(walletTxKindLabel('redeem', -40), 'Canje')
+  })
+
+  it('serializeWalletTx incluye kindLabel', () => {
+    const tx = serializeWalletTx({
+      _id: '507f1f77bcf86cd799439011',
+      type: 'adjust',
+      status: 'confirmed',
+      amount: 25,
+      signedAmount: -25,
+      balanceAfter: 75,
+      concept: 'Corrección',
+      createdAt: new Date('2026-08-03T12:00:00Z'),
+    })
+    assert.equal(tx.kindLabel, 'Desacreditación')
+    assert.equal(tx.signedAmount, -25)
+  })
+
+  it('resume puntos sumados por ventanas', () => {
+    const now = new Date('2026-08-03T12:00:00Z')
+    const txs = [
+      { signedAmount: 100, status: 'confirmed', createdAt: '2026-08-01T10:00:00Z' },
+      { signedAmount: 50, status: 'confirmed', createdAt: '2026-07-10T10:00:00Z' },
+      { signedAmount: 200, status: 'confirmed', createdAt: '2026-06-01T10:00:00Z' },
+      { signedAmount: -30, status: 'confirmed', createdAt: '2026-08-02T10:00:00Z' },
+      { signedAmount: 10, status: 'pending', createdAt: '2026-08-02T10:00:00Z' },
+    ]
+    const rows = summarizeEarnedByWindows(txs, now)
+    assert.equal(rows.find((r) => r.id === '7d')?.points, 100)
+    assert.equal(rows.find((r) => r.id === '30d')?.points, 150)
+    assert.equal(rows.find((r) => r.id === '60d')?.points, 150)
+    assert.equal(rows.find((r) => r.id === '6m')?.points, 350)
   })
 })
 

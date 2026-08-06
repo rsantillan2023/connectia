@@ -49,6 +49,7 @@ import surveysAdminRoutes from './src/routes/surveysAdmin.js'
 import documentsRoutes from './src/routes/documents.js'
 import documentsAdminRoutes from './src/routes/documentsAdmin.js'
 import documentsUploadAdminRoutes from './src/routes/documentsUploadAdmin.js'
+import documentsZipImportAdminRoutes from './src/routes/documentsZipImportAdmin.js'
 import helpRoutes from './src/routes/help.js'
 import helpAdminRoutes from './src/routes/helpAdmin.js'
 import policiesRoutes from './src/routes/policies.js'
@@ -109,6 +110,7 @@ import { startGreetingScheduler } from './src/services/greetingScheduler.js'
 import { startPostPublishScheduler } from './src/services/postPublishScheduler.js'
 import { startNewsletterRuleScheduler } from './src/services/newsletterRuleScheduler.js'
 import { startSpaceReminderScheduler } from './src/services/spaceReminderScheduler.js'
+import { startSupervisionRecurrenciaScheduler } from './src/services/supervisionRecurrenciaScheduler.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
@@ -125,7 +127,26 @@ app.use(
 )
 app.use(express.json({ limit: '2mb' }))
 app.use(morgan('dev'))
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
+app.use(
+  '/uploads',
+  express.static(path.join(__dirname, 'uploads'), {
+    setHeaders(res, filePath) {
+      // OOXML es ZIP por dentro; forzar MIME por extensión para que no se abra como .zip
+      const ext = path.extname(filePath).toLowerCase()
+      const officeMime = {
+        '.doc': 'application/msword',
+        '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        '.xls': 'application/vnd.ms-excel',
+        '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        '.ppt': 'application/vnd.ms-powerpoint',
+        '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      }
+      if (officeMime[ext]) {
+        res.setHeader('Content-Type', officeMime[ext])
+      }
+    },
+  }),
+)
 /** Logos estáticos de seed (ej. /branding/thefork-logo.svg en frontend/public) */
 app.use(
   '/branding',
@@ -186,6 +207,7 @@ app.use('/api/admin/surveys/upload', uploadsSurveysAdminRoutes)
 app.use('/api/admin/surveys', surveysAdminRoutes)
 app.use('/api/documents', documentsRoutes)
 app.use('/api/admin/documents/upload', documentsUploadAdminRoutes)
+app.use('/api/admin/documents/zip-import', documentsZipImportAdminRoutes)
 app.use('/api/admin/documents', documentsAdminRoutes)
 app.use('/api/help', helpRoutes)
 app.use('/api/admin/help', helpAdminRoutes)
@@ -246,6 +268,8 @@ app.use((err, req, res, _next) => {
 })
 
 await connectDB()
+const { ensureSupClienteSalaIndexes } = await import('./src/models/Supervision.js')
+await ensureSupClienteSalaIndexes()
 const server = app.listen(port, () => {
   console.log(`Connectia API http://localhost:${port}`)
   startPushCampaignScheduler()
@@ -253,6 +277,7 @@ const server = app.listen(port, () => {
   startPostPublishScheduler()
   startNewsletterRuleScheduler()
   startSpaceReminderScheduler()
+  startSupervisionRecurrenciaScheduler()
 })
 server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {

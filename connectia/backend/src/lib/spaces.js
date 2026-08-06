@@ -33,6 +33,9 @@ export const FREE_HOUR_KINDS = ['hora_libre']
 export const GROUP_KINDS = ['grupo']
 export const ACTIVE_RESERVATION_STATUSES = ['pending', 'confirmed', 'checked_in']
 
+/** Minutos antes del inicio en que se habilita el check-in (alineado al recordatorio). */
+export const CHECK_IN_OPEN_MINUTES_BEFORE = 10
+
 export const KIND_LABELS = {
   sala: 'Sala',
   otro: 'Espacio',
@@ -503,6 +506,35 @@ export function canCancelReservation({ reservation, policy, now = new Date() }) 
   const start = +new Date(reservation.startAt)
   if (reservation.status !== 'pending' && mins > 0 && start - +now < mins * 60_000) {
     return { ok: false, error: `Cancelá con al menos ${mins} min de anticipación` }
+  }
+  return { ok: true }
+}
+
+/**
+ * ¿Se puede hacer check-in ahora?
+ * Ventana: [start − CHECK_IN_OPEN_MINUTES_BEFORE, start + checkInGraceMinutes]
+ * (si gracia = 0, cierra en endAt).
+ */
+export function canCheckInReservation({ reservation, policy, now = new Date() }) {
+  if (!reservation) return { ok: false, error: 'Reserva no encontrada' }
+  if (!['confirmed', 'pending'].includes(reservation.status)) {
+    return { ok: false, error: 'Estado no permite check-in' }
+  }
+  const start = +new Date(reservation.startAt)
+  const end = +new Date(reservation.endAt)
+  if (!Number.isFinite(start) || !Number.isFinite(end)) {
+    return { ok: false, error: 'Horario de reserva inválido' }
+  }
+  const openMins = CHECK_IN_OPEN_MINUTES_BEFORE
+  const grace = Math.max(0, Number(policy?.checkInGraceMinutes ?? 15) || 0)
+  const t = +now
+  const openAt = start - openMins * 60_000
+  const latest = grace > 0 ? Math.min(end, start + grace * 60_000) : end
+  if (t < openAt) {
+    return { ok: false, error: `El check-in abre ${openMins} min antes del inicio` }
+  }
+  if (t > latest) {
+    return { ok: false, error: 'La ventana de check-in ya cerró' }
   }
   return { ok: true }
 }

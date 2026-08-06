@@ -5,7 +5,7 @@ import fs from 'fs'
 import { fileURLToPath } from 'url'
 import { requireAuth, requireCapability } from '../middleware/auth.js'
 import { toPublicMediaUrl } from '../lib/mediaUrl.js'
-import { inferFileType, extFromName } from '../lib/docTypes.js'
+import { inferFileType, extFromName, normalizeDocMime } from '../lib/docTypes.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const UPLOAD_DIR = path.resolve(__dirname, '../../uploads/documents')
@@ -89,7 +89,11 @@ router.post(
     }
     const fileUrl = toPublicMediaUrl(`/uploads/documents/${req.file.filename}`)
     const fileName = req.file.originalname || req.file.filename
-    const mimeType = req.file.mimetype || ''
+    const mimeType = normalizeDocMime({
+      mimeType: req.file.mimetype || '',
+      fileName,
+      fileUrl,
+    })
     const fileType = inferFileType({
       mimeType,
       fileName,

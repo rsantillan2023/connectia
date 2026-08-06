@@ -8,8 +8,12 @@
         <p class="detail-bar-title">{{ barTitle }}</p>
         <p class="detail-bar-sub">{{ readOnly ? 'Tu respuesta' : 'Encuesta' }}</p>
       </div>
-      <div v-if="!loading && survey && !readOnly" class="detail-progress-mini" aria-hidden="true">
-        {{ answeredCount }}/{{ totalQuestions }}
+      <div
+        v-if="!loading && survey && !readOnly && showProgressUi"
+        class="detail-progress-mini"
+        aria-hidden="true"
+      >
+        {{ isStepFlow ? `${stepIndex + 1}/${totalQuestions}` : `${answeredCount}/${totalQuestions}` }}
       </div>
     </header>
 
@@ -30,9 +34,27 @@
         </div>
 
         <template v-else-if="survey">
-          <header class="encd-hero">
-            <div v-if="survey.imageUrl" class="encd-cover">
-              <img :src="survey.imageUrl" :alt="survey.titulo || 'Portada de la encuesta'" />
+          <header v-if="showHero" class="encd-hero">
+            <div v-if="hasSurveyMedia" class="encd-media">
+              <div v-if="isSurveyCarousel" class="encd-cover encd-cover--carousel">
+                <PostMediaCarousel
+                  :urls="surveyMediaUrls"
+                  :alt="survey.titulo || 'Portada de la encuesta'"
+                />
+              </div>
+              <template v-else>
+                <div v-if="surveyImages.length" class="encd-cover">
+                  <img :src="surveyImages[0]" :alt="survey.titulo || 'Portada de la encuesta'" />
+                </div>
+                <video
+                  v-else-if="survey.videoUrl"
+                  class="encd-cover-video"
+                  :src="survey.videoUrl"
+                  controls
+                  playsinline
+                  preload="metadata"
+                />
+              </template>
             </div>
             <p v-if="survey.anonymous" class="encd-pill">Anónima</p>
             <h1>{{ survey.titulo }}</h1>
@@ -48,7 +70,12 @@
             <span>{{ formatDate(myResponse.submittedAt) }} · solo lectura</span>
           </div>
 
-          <div v-else class="encd-progress" role="status" :aria-label="progressLabel">
+          <div
+            v-else-if="showProgressUi"
+            class="encd-progress"
+            role="status"
+            :aria-label="progressLabel"
+          >
             <div class="encd-progress-top">
               <span>{{ progressLabel }}</span>
               <span>{{ progressPct }}%</span>
@@ -60,13 +87,14 @@
 
           <fieldset :disabled="readOnly" class="encd-fieldset">
             <article
-              v-for="(q, idx) in survey.questions"
+              v-for="{ q, idx } in visibleQuestionEntries"
               :key="q.id"
               :ref="(el) => setQuestionEl(q.id, el)"
               class="encd-q"
               :class="{
                 'is-answered': isAnswered(q),
                 'is-missing': missingIds.has(q.id),
+                'is-step': isStepFlow && !readOnly,
               }"
             >
               <header class="encd-q-head">
@@ -84,6 +112,10 @@
                   </p>
                 </div>
               </header>
+
+              <figure v-if="q.imageUrl" class="encd-q-image">
+                <img :src="q.imageUrl" :alt="`Imagen de la pregunta ${idx + 1}`" @error="onImgErr" />
+              </figure>
 
               <div v-if="q.tipo === 'rating'" class="encd-rating" role="group" :aria-label="q.texto">
                 <button
@@ -261,13 +293,48 @@
       </div>
 
       <div v-if="!readOnly && survey" class="encd-sticky" aria-label="Enviar encuesta">
-        <div class="encd-sticky-meta">
+        <div v-if="showProgressUi" class="encd-sticky-meta">
           <div class="encd-sticky-bar">
             <div class="encd-sticky-fill" :style="{ width: `${progressPct}%` }" />
           </div>
-          <span>{{ answeredCount }} de {{ totalQuestions }}</span>
+          <span>
+            {{
+              isStepFlow
+                ? `${stepIndex + 1} de ${totalQuestions}`
+                : `${answeredCount} de ${totalQuestions}`
+            }}
+          </span>
+        </div>
+        <div v-if="isStepFlow" class="encd-sticky-nav">
+          <button
+            type="button"
+            class="encd-nav-btn"
+            :disabled="stepIndex <= 0 || saving"
+            @click="prevStep"
+          >
+            Anterior
+          </button>
+          <button
+            v-if="!isLastStep"
+            type="button"
+            class="encd-submit"
+            :disabled="saving"
+            @click="nextStep"
+          >
+            Siguiente
+          </button>
+          <button
+            v-else
+            type="submit"
+            class="encd-submit"
+            :class="{ 'is-incomplete': !canSubmit }"
+            :disabled="saving"
+          >
+            {{ saving ? 'Enviando…' : canSubmit ? 'Enviar respuestas' : 'Completar obligatorias' }}
+          </button>
         </div>
         <button
+          v-else
           type="submit"
           class="encd-submit"
           :class="{ 'is-incomplete': !canSubmit }"
@@ -285,6 +352,7 @@ import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '../services/api'
 import AppIcon from '../components/AppIcon.vue'
+import PostMediaCarousel from '../components/PostMediaCarousel.vue'
 import {
   enqueueSurveyResponse,
   flushSurveyQueue,
@@ -306,9 +374,50 @@ const geoError = reactive({})
 const missingIds = ref(new Set())
 const questionEls = {}
 const scrollEl = ref(null)
+const stepIndex = ref(0)
 let stopFlush = null
 
 const readOnly = computed(() => Boolean(myResponse.value))
+
+const isStepFlow = computed(
+  () => !readOnly.value && survey.value?.questionFlow === 'one_by_one',
+)
+const showProgressUi = computed(() => survey.value?.showProgress !== false)
+const showHero = computed(() => {
+  if (readOnly.value) return true
+  if (!isStepFlow.value) return true
+  return stepIndex.value === 0
+})
+const isLastStep = computed(() => {
+  const n = survey.value?.questions?.length || 0
+  return stepIndex.value >= Math.max(0, n - 1)
+})
+
+const visibleQuestionEntries = computed(() => {
+  const qs = survey.value?.questions || []
+  if (!isStepFlow.value) {
+    return qs.map((q, idx) => ({ q, idx }))
+  }
+  const idx = Math.min(Math.max(0, stepIndex.value), Math.max(0, qs.length - 1))
+  const q = qs[idx]
+  return q ? [{ q, idx }] : []
+})
+
+const surveyImages = computed(() => {
+  const s = survey.value
+  if (!s) return []
+  if (Array.isArray(s.imageUrls) && s.imageUrls.length) return s.imageUrls.filter(Boolean)
+  if (s.imageUrl) return [s.imageUrl]
+  return []
+})
+const surveyMediaUrls = computed(() => {
+  const urls = [...surveyImages.value]
+  const video = String(survey.value?.videoUrl || '').trim()
+  if (video && !urls.includes(video)) urls.push(video)
+  return urls
+})
+const isSurveyCarousel = computed(() => surveyMediaUrls.value.length > 1)
+const hasSurveyMedia = computed(() => surveyMediaUrls.value.length > 0)
 
 const barTitle = computed(() => {
   const t = String(survey.value?.titulo || '').trim()
@@ -325,10 +434,16 @@ const answeredCount = computed(() => {
 
 const progressPct = computed(() => {
   if (!totalQuestions.value) return 0
+  if (isStepFlow.value) {
+    return Math.round(((stepIndex.value + 1) / totalQuestions.value) * 100)
+  }
   return Math.round((answeredCount.value / totalQuestions.value) * 100)
 })
 
 const progressLabel = computed(() => {
+  if (isStepFlow.value) {
+    return `Pregunta ${stepIndex.value + 1} de ${totalQuestions.value}`
+  }
   if (!answeredCount.value) return 'Empezá a responder'
   if (answeredCount.value >= totalQuestions.value) return 'Listo para enviar'
   return `${answeredCount.value} de ${totalQuestions.value} respondidas`
@@ -359,6 +474,11 @@ const scheduleLine = computed(() => {
 function setQuestionEl(id, el) {
   if (el) questionEls[id] = el
   else delete questionEls[id]
+}
+
+function onImgErr(e) {
+  const el = e?.target
+  if (el) el.style.display = 'none'
 }
 
 function isEmpty(val) {
@@ -444,6 +564,7 @@ function hydrateAnswers(questions, response) {
 async function load() {
   loading.value = true
   error.value = ''
+  stepIndex.value = 0
   try {
     const { data } = await api.get(`/surveys/${route.params.id}`)
     survey.value = data.survey
@@ -458,6 +579,34 @@ async function load() {
     error.value = e.response?.data?.error || e.message
   } finally {
     loading.value = false
+  }
+}
+
+function scrollSurveyTop() {
+  scrollEl.value?.scrollTo?.({ top: 0, behavior: 'smooth' })
+}
+
+function prevStep() {
+  if (stepIndex.value <= 0) return
+  error.value = ''
+  stepIndex.value -= 1
+  scrollSurveyTop()
+}
+
+function nextStep() {
+  const qs = survey.value?.questions || []
+  const q = qs[stepIndex.value]
+  if (!q) return
+  if (q.required !== false && !isAnswered(q)) {
+    missingIds.value = new Set([q.id])
+    error.value = 'Completá esta pregunta para continuar'
+    return
+  }
+  clearMissing(q.id)
+  error.value = ''
+  if (stepIndex.value < qs.length - 1) {
+    stepIndex.value += 1
+    scrollSurveyTop()
   }
 }
 
@@ -503,8 +652,14 @@ async function submit() {
       missing.length === 1
         ? 'Falta completar 1 pregunta obligatoria.'
         : `Faltan completar ${missing.length} preguntas obligatorias.`
-    const first = questionEls[missing[0].id]
-    first?.scrollIntoView?.({ behavior: 'smooth', block: 'center' })
+    if (isStepFlow.value) {
+      const qs = survey.value?.questions || []
+      const idx = qs.findIndex((q) => q.id === missing[0].id)
+      if (idx >= 0) stepIndex.value = idx
+    } else {
+      const first = questionEls[missing[0].id]
+      first?.scrollIntoView?.({ behavior: 'smooth', block: 'center' })
+    }
     return
   }
 
@@ -638,13 +793,25 @@ onUnmounted(() => {
 .encd-hero {
   margin-bottom: 14px;
 }
-.encd-cover {
+.encd-media {
   margin: 0 0 14px;
+}
+.encd-cover-video {
+  width: 100%;
+  border-radius: 16px;
+  aspect-ratio: 16 / 9;
+  background: #0f172a;
+  border: 1px solid var(--cx-border);
+}
+.encd-cover {
   border-radius: 16px;
   overflow: hidden;
   aspect-ratio: 16 / 9;
   background: color-mix(in srgb, var(--cx-muted) 12%, transparent);
   border: 1px solid var(--cx-border);
+}
+.encd-cover--carousel {
+  min-height: 0;
 }
 .encd-cover img {
   width: 100%;
@@ -801,6 +968,19 @@ onUnmounted(() => {
   margin: 4px 0 0;
   font-size: 0.72rem;
   color: var(--cx-muted);
+}
+.encd-q-image {
+  margin: 0;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--cx-border);
+  background: var(--cx-input);
+}
+.encd-q-image img {
+  display: block;
+  width: 100%;
+  max-height: 240px;
+  object-fit: cover;
 }
 
 .encd-rating {
@@ -995,6 +1175,29 @@ onUnmounted(() => {
   border-radius: inherit;
   background: var(--brand-primary);
   transition: width 0.25s ease;
+}
+.encd-sticky-nav {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+  align-items: stretch;
+}
+.encd-nav-btn {
+  border: 1px solid var(--cx-border);
+  border-radius: 14px;
+  padding: 14px 16px;
+  background: var(--cx-surface);
+  color: var(--cx-text);
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.encd-nav-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.encd-q.is-step {
+  min-height: 40vh;
 }
 .encd-submit {
   border: 0;

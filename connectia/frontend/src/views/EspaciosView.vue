@@ -34,6 +34,25 @@
       <template v-if="mode === 'book'">
         <section class="sp-block sp-filters" aria-label="Filtros">
           <div class="sp-site-block">
+            <h2 id="sp-when" class="sp-block__title">Cuándo</h2>
+            <div class="sp-when__grid">
+              <label>
+                Desde
+                <input
+                  v-model="startLocal"
+                  type="datetime-local"
+                  aria-labelledby="sp-when"
+                  @change="onWhenChange"
+                />
+              </label>
+              <label>
+                Hasta
+                <input v-model="endLocal" type="datetime-local" @change="onWhenChange" />
+              </label>
+            </div>
+          </div>
+
+          <div class="sp-site-block">
             <h2 id="sp-site" class="sp-block__title">Sucursal</h2>
             <select
               v-model="siteId"
@@ -165,7 +184,7 @@
                 <button
                   type="button"
                   class="sp-offer-cta"
-                  :disabled="reserving === r.id || r.available === false"
+                  :disabled="reserving === r.id"
                   @click="openBook(r)"
                 >
                   {{
@@ -180,7 +199,7 @@
 
             <p v-if="!resources.length" class="sp-empty">
               No hay {{ (selectedType?.label || 'activos').toLowerCase() }} con esos filtros.
-              <span>Probá otro tipo, sucursal o característica.</span>
+              <span>Probá otro horario, tipo, sucursal o característica.</span>
             </p>
           </template>
         </section>
@@ -246,13 +265,14 @@
                     <span class="sp-status">{{ m.statusLabel }}</span>
                     <div v-if="mineScope === 'active'" class="sp-row-actions">
                       <button
-                        v-if="['confirmed', 'pending'].includes(m.status)"
+                        v-if="m.checkInAvailable"
                         type="button"
                         class="sp-btn ghost"
                         @click="checkIn(m)"
                       >
                         Check-in
                       </button>
+                      <p v-else-if="checkInHint(m)" class="sp-checkin-hint">{{ checkInHint(m) }}</p>
                       <button
                         v-if="m.status === 'checked_in'"
                         type="button"
@@ -338,19 +358,21 @@
             </option>
             <option v-for="c in freeUnitCodes" :key="c" :value="c">{{ c }}</option>
           </select>
-          <span v-if="!unitsLoading && !freeUnitCodes.length" class="sp-hint"
-            >Sin disponibilidad en esa franja.</span
+          <span v-if="!unitsLoading && !freeUnitCodes.length" class="sp-hint warn"
+            >Sin unidades libres en esa franja. Probá otro día u horario.</span
           >
         </label>
         <p
-          v-else-if="booking.unitCount > 1 && bookFreeUnits != null"
+          v-else-if="bookFreeUnits != null"
           class="sp-hint"
           :class="{ warn: bookFreeUnits <= 0 }"
         >
           {{
             bookFreeUnits <= 0
-              ? 'Sin disponibilidad en esa franja.'
-              : `Quedan ${bookFreeUnits} de ${booking.unitCount} ${(booking.unitLabel || 'lugares').toLowerCase()}`
+              ? 'Ocupado en esa franja. Probá otro día u horario.'
+              : booking.unitCount > 1
+                ? `Quedan ${bookFreeUnits} de ${booking.unitCount} ${(booking.unitLabel || 'lugares').toLowerCase()}`
+                : 'Disponible en esa franja.'
           }}
         </p>
 
@@ -380,7 +402,12 @@
         <p v-if="bookError" class="sp-err" role="alert">{{ bookError }}</p>
         <div class="sp-actions">
           <button type="button" class="sp-btn ghost" @click="closeBook">Volver</button>
-          <button type="button" class="sp-btn" :disabled="!!reserving" @click="confirmBook">
+          <button
+            type="button"
+            class="sp-btn"
+            :disabled="!!reserving || unitsLoading || !bookSlotOk"
+            @click="confirmBook"
+          >
             Confirmar
           </button>
         </div>
@@ -573,11 +600,19 @@ const needsPlate = computed(
   () => booking.value?.exigePatente || booking.value?.kind === 'cochera',
 )
 
-/** CTA cuando no hay lugar: unitario → ya reservado; cupo/aforo → sin disponibilidad */
+/** ¿La franja elegida en el modal tiene cupo para confirmar? */
+const bookSlotOk = computed(() => {
+  if (!booking.value) return false
+  if (booking.value.numbered) {
+    return !!bookForm.unitCode && freeUnitCodes.value.includes(bookForm.unitCode)
+  }
+  if (bookFreeUnits.value != null) return bookFreeUnits.value > 0
+  return booking.value.available !== false
+})
+
+/** CTA: si está ocupado en la franja filtrada, igual se puede abrir para elegir otro horario */
 function availabilityCta(r) {
-  if (r?.available !== false) return 'Reservar'
-  if (Number(r?.unitCount) > 1 || Number(r?.effectiveCupo) > 1) return 'Sin disponibilidad'
-  return 'Ya reservado'
+  return r?.available !== false ? 'Reservar' : 'Elegir otro horario'
 }
 
 function fmt(d) {
@@ -683,6 +718,14 @@ function onSiteChange() {
   loadCatalog()
 }
 
+function onWhenChange() {
+  if (booking.value) {
+    refreshBookUnits()
+    return
+  }
+  if (mode.value === 'book') loadCatalog()
+}
+
 function selectType(id) {
   typeId.value = id
   applyCatalogFromInventory()
@@ -700,9 +743,12 @@ function toggleAttr(key) {
 function openBook(r) {
   booking.value = r
   bookError.value = ''
-  const range = defaultRange()
-  startLocal.value = toLocalInput(range.start)
-  endLocal.value = toLocalInput(range.end)
+  // Conserva la franja del filtro de búsqueda (no la pisa con el default).
+  if (!startLocal.value || !endLocal.value) {
+    const range = defaultRange()
+    startLocal.value = toLocalInput(range.start)
+    endLocal.value = toLocalInput(range.end)
+  }
   bookForm.title = r.nombre
   bookForm.plate = ''
   bookForm.vehicleType = r.vehicleTypes?.[0] || ''
@@ -720,6 +766,7 @@ function closeBook() {
   freeUnitCodes.value = []
   bookFreeUnits.value = null
   bookForm.unitCode = ''
+  if (mode.value === 'book') loadCatalog()
 }
 
 async function refreshBookUnits() {
@@ -755,6 +802,10 @@ async function refreshBookUnits() {
 
 async function confirmBook() {
   if (!booking.value) return
+  if (!bookSlotOk.value) {
+    bookError.value = 'Elegí un día y horario en el que el activo esté libre.'
+    return
+  }
   if (booking.value.numbered && !bookForm.unitCode) {
     bookError.value = `Elegí un ${(booking.value.unitLabel || 'unidad').toLowerCase()}`
     return
@@ -787,7 +838,6 @@ async function confirmBook() {
       unitCode: item.unitCode || '',
       when: snap.when,
     }
-    await loadCatalog()
   } catch (e) {
     bookError.value = friendlyErrorMessage(e, 'No se pudo confirmar la reserva.')
   } finally {
@@ -822,6 +872,16 @@ async function checkIn(m) {
   } catch (e) {
     error.value = friendlyErrorMessage(e, 'No se pudo hacer el check-in.')
   }
+}
+
+function showCheckIn(m) {
+  return ['confirmed', 'pending'].includes(m.status)
+}
+
+function checkInHint(m) {
+  if (!showCheckIn(m)) return ''
+  if (m.checkInAvailable) return ''
+  return m.checkInMessage || 'El check-in aún no está disponible.'
 }
 
 async function checkOut(m) {
@@ -1358,6 +1418,14 @@ onMounted(async () => {
   flex-wrap: wrap;
   gap: 0.35rem;
   margin-top: 0.35rem;
+  align-items: center;
+}
+.sp-checkin-hint {
+  margin: 0;
+  flex: 1 1 100%;
+  font-size: 0.75rem;
+  color: var(--cx-muted, #64748b);
+  line-height: 1.3;
 }
 .sp-btn {
   border: none;
@@ -1452,7 +1520,10 @@ onMounted(async () => {
 .sp-hint {
   margin: 0;
   font-size: 0.8rem;
-  color: #f59e0b;
+  color: var(--cx-muted, #64748b);
+}
+.sp-hint.warn {
+  color: #b45309;
 }
 .sp-book-media {
   position: relative;

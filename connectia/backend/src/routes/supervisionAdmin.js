@@ -10,6 +10,7 @@ import {
   SupSala,
   SupClienteSala,
   SupTemplate,
+  SupCoberturaRol,
   serializeCadena,
   serializeCliente,
   serializeSala,
@@ -17,25 +18,78 @@ import {
   serializeTemplate,
 } from '../models/Supervision.js'
 import { snapshotMediciones, SUP_ROLE } from '../lib/supervisionTasks.js'
+import { ensureDefaultCoberturaRoles } from '../lib/supervisionCoberturaRoles.js'
 import { User } from '../models/User.js'
-import { ensureOla31MenuItems } from '../lib/ensureOla31Menu.js'
+import { ensureOla31MenuItems, OLA31_MENU_ITEMS } from '../lib/ensureOla31Menu.js'
+import { MenuItem } from '../models/MenuItem.js'
+import { seedSupervisionAdminDemo } from '../lib/supervisionAdminSeed.js'
 import { mountSupervisionAdminExtras } from './supervisionAdminExtras.js'
 
 const router = Router()
 const ObjectId = mongoose.Types.ObjectId
+const SUP_MODULE_CAP = 'supervision.comercial'
 
 router.use(requireAuth)
 router.use(requireCapability('admin.supervision'))
 
 mountSupervisionAdminExtras(router)
 
-router.post('/ensure-menu', async (req, res) => {
-  await ensureOla31MenuItems(req.tenant._id)
+/** Estado del módulo (capability + menú) en esta comunidad. */
+router.get('/module', async (req, res) => {
+  const caps = req.tenant.capabilities || []
+  res.json({ enabled: caps.includes(SUP_MODULE_CAP), capability: SUP_MODULE_CAP })
+})
+
+/**
+ * Activa o desactiva Supervisión comercial en el tenant:
+ * - capability `supervision.comercial`
+ * - ítems de menú Ola 31 (app + admin)
+ */
+router.put('/module', async (req, res) => {
+  const enabled = Boolean(req.body?.enabled)
   const caps = new Set(req.tenant.capabilities || [])
-  caps.add('supervision.comercial')
+  if (enabled) {
+    caps.add(SUP_MODULE_CAP)
+    await ensureOla31MenuItems(req.tenant._id)
+  } else {
+    caps.delete(SUP_MODULE_CAP)
+    await MenuItem.updateMany(
+      { tenantId: req.tenant._id, key: { $in: OLA31_MENU_ITEMS.map((i) => i.key) } },
+      { $set: { activo: false } },
+    )
+  }
   req.tenant.capabilities = [...caps]
+  req.tenant.menuVersion = (req.tenant.menuVersion || 1) + 1
   await req.tenant.save()
-  res.json({ ok: true, capabilities: req.tenant.capabilities })
+  res.json({
+    ok: true,
+    enabled,
+    capability: SUP_MODULE_CAP,
+    capabilities: req.tenant.capabilities,
+    menuVersion: req.tenant.menuVersion,
+  })
+})
+
+/** Compat: activar menú + capability (equivalente a PUT /module { enabled: true }). */
+router.post('/ensure-menu', async (req, res) => {
+  const caps = new Set(req.tenant.capabilities || [])
+  caps.add(SUP_MODULE_CAP)
+  await ensureOla31MenuItems(req.tenant._id)
+  req.tenant.capabilities = [...caps]
+  req.tenant.menuVersion = (req.tenant.menuVersion || 1) + 1
+  await req.tenant.save()
+  res.json({ ok: true, enabled: true, capabilities: req.tenant.capabilities })
+})
+
+/** Seed rico supervisión + equipos para la comunidad actual. Body: { force?: boolean } */
+router.post('/seed-demo', async (req, res, next) => {
+  try {
+    const force = Boolean(req.body?.force)
+    const result = await seedSupervisionAdminDemo(req.tenant, { force })
+    res.json(result)
+  } catch (e) {
+    next(e)
+  }
 })
 
 /* —— Cadenas —— */
@@ -143,18 +197,66 @@ router.post('/cliente-salas', async (req, res) => {
   if (!ObjectId.isValid(clienteId) || !ObjectId.isValid(salaId)) {
     return res.status(400).json({ error: 'clienteId y salaId requeridos' })
   }
-  try {
-    const d = await SupClienteSala.create({
+  const titulo = String(req.body?.titulo || '').trim().slice(0, 40)
+  if (!titulo) return res.status(400).json({ error: 'Título requerido (máx. 40 caracteres)' })
+  let templateId = null
+  if (req.body?.templateId && ObjectId.isValid(req.body.templateId)) {
+    const tpl = await SupTemplate.findOne({
+      _id: req.body.templateId,
       tenantId: req.tenant._id,
-      clienteId,
-      salaId,
-      colaboradores: [],
-    })
-    res.status(201).json({ item: serializeClienteSala(d) })
-  } catch (err) {
-    if (err?.code === 11000) return res.status(409).json({ error: 'Relación ya existe' })
-    throw err
+      activo: true,
+    }).lean()
+    if (!tpl) return res.status(400).json({ error: 'Plantilla no encontrada' })
+    templateId = tpl._id
   }
+  const d = await SupClienteSala.create({
+    tenantId: req.tenant._id,
+    clienteId,
+    salaId,
+    titulo,
+    descripcion: String(req.body?.descripcion || '').trim().slice(0, 4000),
+    templateId,
+    colaboradores: [],
+  })
+  res.status(201).json({ item: serializeClienteSala(d) })
+})
+
+router.patch('/cliente-salas/:id', async (req, res) => {
+  if (!ObjectId.isValid(req.params.id)) return res.status(400).json({ error: 'ID inválido' })
+  const d = await SupClienteSala.findOne({ _id: req.params.id, tenantId: req.tenant._id })
+  if (!d) return res.status(404).json({ error: 'No encontrada' })
+  const b = req.body || {}
+  if (typeof b.activo === 'boolean') d.activo = b.activo
+  if (b.titulo !== undefined) {
+    const titulo = String(b.titulo || '').trim().slice(0, 40)
+    if (!titulo) return res.status(400).json({ error: 'Título requerido (máx. 40 caracteres)' })
+    d.titulo = titulo
+  }
+  if (b.descripcion !== undefined) d.descripcion = String(b.descripcion || '').trim().slice(0, 4000)
+  if (b.clienteId !== undefined) {
+    if (!ObjectId.isValid(b.clienteId)) return res.status(400).json({ error: 'clienteId inválido' })
+    d.clienteId = b.clienteId
+  }
+  if (b.salaId !== undefined) {
+    if (!ObjectId.isValid(b.salaId)) return res.status(400).json({ error: 'salaId inválido' })
+    d.salaId = b.salaId
+  }
+  if (b.templateId !== undefined) {
+    if (!b.templateId) {
+      d.templateId = null
+    } else if (ObjectId.isValid(b.templateId)) {
+      const tpl = await SupTemplate.findOne({
+        _id: b.templateId,
+        tenantId: req.tenant._id,
+      }).lean()
+      if (!tpl) return res.status(400).json({ error: 'Plantilla no encontrada' })
+      d.templateId = tpl._id
+    } else {
+      return res.status(400).json({ error: 'templateId inválido' })
+    }
+  }
+  await d.save()
+  res.json({ item: serializeClienteSala(d) })
 })
 
 router.post('/cliente-salas/:id/colaboradores', async (req, res) => {
@@ -162,17 +264,34 @@ router.post('/cliente-salas/:id/colaboradores', async (req, res) => {
   const d = await SupClienteSala.findOne({ _id: req.params.id, tenantId: req.tenant._id })
   if (!d) return res.status(404).json({ error: 'No encontrada' })
   const userId = req.body?.userId
-  const role = String(req.body?.role || SUP_ROLE.OPERARIO)
+  const role = String(req.body?.role || 'operario').trim().slice(0, 40)
   if (!ObjectId.isValid(userId)) return res.status(400).json({ error: 'userId inválido' })
-  const allowed = Object.values(SUP_ROLE)
-  if (!allowed.includes(role)) return res.status(400).json({ error: 'Rol inválido' })
+  if (!role) return res.status(400).json({ error: 'Rol de cobertura requerido' })
+
+  let rolOk = await SupCoberturaRol.findOne({
+    tenantId: req.tenant._id,
+    codigo: role,
+    activo: true,
+  }).lean()
+  if (!rolOk) {
+    const n = await SupCoberturaRol.countDocuments({ tenantId: req.tenant._id })
+    if (n === 0) {
+      await ensureDefaultCoberturaRoles(req.tenant._id)
+      rolOk = await SupCoberturaRol.findOne({
+        tenantId: req.tenant._id,
+        codigo: role,
+        activo: true,
+      }).lean()
+    }
+  }
+  if (!rolOk) {
+    return res.status(400).json({ error: 'Rol de cobertura inválido o inactivo. Configuralo en Roles de cobertura.' })
+  }
+
   d.colaboradores = (d.colaboradores || []).filter((c) => String(c.userId) !== String(userId))
   d.colaboradores.push({ userId, role })
   await d.save()
-  await User.updateOne(
-    { _id: userId, tenantId: req.tenant._id },
-    { $set: { supervisionRole: role } },
-  )
+  // No tocar User.supervisionRole: el rol de cobertura es solo de este módulo/punto.
   res.json({ item: serializeClienteSala(d) })
 })
 
@@ -183,8 +302,19 @@ router.delete('/cliente-salas/:id/colaboradores/:userId', async (req, res) => {
   const d = await SupClienteSala.findOne({ _id: req.params.id, tenantId: req.tenant._id })
   if (!d) return res.status(404).json({ error: 'No encontrada' })
   d.colaboradores = (d.colaboradores || []).filter((c) => String(c.userId) !== String(req.params.userId))
+  if (!d.colaboradores.length) {
+    await d.deleteOne()
+    return res.json({ ok: true, deletedAssignment: true, item: null })
+  }
   await d.save()
-  res.json({ item: serializeClienteSala(d) })
+  res.json({ ok: true, deletedAssignment: false, item: serializeClienteSala(d) })
+})
+
+router.delete('/cliente-salas/:id', async (req, res) => {
+  if (!ObjectId.isValid(req.params.id)) return res.status(400).json({ error: 'ID inválido' })
+  const d = await SupClienteSala.findOneAndDelete({ _id: req.params.id, tenantId: req.tenant._id })
+  if (!d) return res.status(404).json({ error: 'No encontrada' })
+  res.json({ ok: true })
 })
 
 /* —— Templates —— */

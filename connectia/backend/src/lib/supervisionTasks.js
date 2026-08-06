@@ -86,7 +86,7 @@ export function validateComplete({ requiereFoto, hasPhoto, observacion }) {
 
 /**
  * Snapshot de mediciones de un template (no mutar plantilla después).
- * @param {Array<{ nombre?: string, tipo?: string, obligatorio?: boolean, orden?: number }>} mediciones
+ * @param {Array<{ nombre?: string, tipo?: string, obligatorio?: boolean, orden?: number, requiereFoto?: boolean, requiereTexto?: boolean, key?: string }>} mediciones
  */
 export function snapshotMediciones(mediciones = []) {
   return (Array.isArray(mediciones) ? mediciones : []).map((m, i) => ({
@@ -95,6 +95,8 @@ export function snapshotMediciones(mediciones = []) {
     tipo: String(m.tipo || 'check').slice(0, 40),
     obligatorio: m.obligatorio !== false,
     orden: Number.isFinite(m.orden) ? m.orden : i,
+    requiereFoto: Boolean(m.requiereFoto),
+    requiereTexto: Boolean(m.requiereTexto),
   }))
 }
 

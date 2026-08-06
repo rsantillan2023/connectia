@@ -259,6 +259,7 @@ import { useMuroHubStrip } from '../composables/useMuroHubStrip'
 import { iconFor } from '../utils/navIcons'
 import { filterMenuByActiveModules } from '../utils/menuModuleCaps'
 import { resolveMediaUrl } from '../utils/media'
+import { isMuroFeedPath } from '../utils/muroFeed'
 import { PRODUCT_LOGO_LIGHT, PRODUCT_LOGO_ON_BRAND, PRODUCT_NAME } from '../constants/brand'
 
 const DEFAULT_MENU = [
@@ -1152,9 +1153,8 @@ const immersiveMain = computed(() => {
 
 const showCrearFab = computed(() => {
   if (hideTabbar.value) return false
-  const p = route.path || ''
-  // Solo en el feed del muro (no en detalle /muro/:id ni /muro/mias)
-  return p === '/muro' || p === '/muro/'
+  // Feed muro clásico o portal (no detalle /muro/:id ni /muro/mias)
+  return isMuroFeedPath(route.path || '')
 })
 
 /** Ícono de enlaces junto a la campana (solo feed muro, si hay links). */
@@ -1186,7 +1186,8 @@ function toggleSearch() {
 }
 
 function goSearch() {
-  if (route.name !== 'muro') router.push({ name: 'muro', query: { q: searchQ.value } })
+  if (route.name === 'muro' || route.name === 'muro-portal') return
+  router.push({ name: 'muro', query: { q: searchQ.value } })
 }
 
 watch(

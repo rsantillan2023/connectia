@@ -27,8 +27,9 @@
             :class="{ 'enc-card--urgent': isUrgent(s) }"
             @click="$router.push(`/encuestas/${s.id}`)"
           >
-            <span v-if="s.imageUrl" class="enc-card-thumb" aria-hidden="true">
-              <img :src="s.imageUrl" alt="" @error="onImgErr" />
+            <span v-if="s.imageUrl || s.videoUrl" class="enc-card-thumb" aria-hidden="true">
+              <img v-if="s.imageUrl" :src="s.imageUrl" alt="" @error="onImgErr" />
+              <span v-else class="enc-card-video">Video</span>
             </span>
             <span v-else class="enc-card-icon" aria-hidden="true">
               <AppIcon name="clipboard" :size="20" />
@@ -70,8 +71,9 @@
             class="enc-card enc-card--done"
             @click="$router.push(`/encuestas/${s.id}`)"
           >
-            <span v-if="s.imageUrl" class="enc-card-thumb enc-card-thumb--done" aria-hidden="true">
-              <img :src="s.imageUrl" alt="" @error="onImgErr" />
+            <span v-if="s.imageUrl || s.videoUrl" class="enc-card-thumb enc-card-thumb--done" aria-hidden="true">
+              <img v-if="s.imageUrl" :src="s.imageUrl" alt="" @error="onImgErr" />
+              <span v-else class="enc-card-video">Video</span>
             </span>
             <span v-else class="enc-card-icon enc-card-icon--done" aria-hidden="true">
               <AppIcon name="check" :size="20" />
@@ -365,6 +367,18 @@ onMounted(load)
   height: 100%;
   object-fit: cover;
   display: block;
+}
+.enc-card-video {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #fff;
+  background: #0f172a;
 }
 .enc-card-thumb--done {
   opacity: 0.9;

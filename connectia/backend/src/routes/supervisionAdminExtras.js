@@ -10,6 +10,7 @@ import {
   SupClienteSala,
   SupSubcadena,
   SupCategoria,
+  SupCoberturaRol,
   SupPilar,
   SupMedicion,
   SupItemMedicion,
@@ -17,11 +18,25 @@ import {
   SupTemplateEstado,
   SupUbicacion,
   SupRolePermisos,
+  SupVisitaRecurrencia,
+  SupAsignacionConsulta,
+  SupTemplate,
   serializeNamed,
+  serializeCoberturaRol,
+  serializeVisitaRecurrencia,
+  serializeAsignacionConsulta,
+  resolveAsignadosIds,
 } from '../models/Supervision.js'
 import { parseSupervisionImport, buildImportTemplate } from '../lib/supervisionImport.js'
 import { defaultPermisosForRole, mergePermisos, SUP_SCREENS, SUP_ACTIONS } from '../lib/supervisionPermisos.js'
 import { SUP_ROLE } from '../lib/supervisionTasks.js'
+import { ensureDefaultCoberturaRoles } from '../lib/supervisionCoberturaRoles.js'
+import {
+  computeNextRunAt,
+  validateRecurrenciaPayload,
+  normalizeDiasSemana,
+  normalizeSemanasMes,
+} from '../lib/supervisionRecurrencia.js'
 import { User } from '../models/User.js'
 import mongoose from 'mongoose'
 
@@ -117,6 +132,72 @@ export function mountSupervisionAdminExtras(router) {
   router.get('/categorias', cat.list)
   router.post('/categorias', cat.create)
   router.patch('/categorias/:id', cat.patch)
+
+  /** Roles de cobertura (catálogo del módulo; no es el rol general del usuario). */
+  router.get('/cobertura-roles', async (req, res) => {
+    await ensureDefaultCoberturaRoles(req.tenant._id)
+    const rows = await SupCoberturaRol.find({ tenantId: req.tenant._id }).sort({ orden: 1, nombre: 1 }).lean()
+    res.json({ items: rows.map(serializeCoberturaRol) })
+  })
+  router.post('/cobertura-roles', async (req, res) => {
+    const nombre = String(req.body?.nombre || '').trim()
+    if (!nombre) return res.status(400).json({ error: 'Nombre requerido' })
+    let codigo = String(req.body?.codigo || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_]+/g, '_')
+      .replace(/^_|_$/g, '')
+      .slice(0, 40)
+    if (!codigo) {
+      codigo = nombre
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_|_$/g, '')
+        .slice(0, 40) || `rol_${Date.now()}`
+    }
+    try {
+      const d = await SupCoberturaRol.create({
+        tenantId: req.tenant._id,
+        codigo,
+        nombre: nombre.slice(0, 120),
+        descripcion: String(req.body?.descripcion || '').slice(0, 500),
+        orden: Number(req.body?.orden) || 0,
+        activo: true,
+      })
+      res.status(201).json({ item: serializeCoberturaRol(d) })
+    } catch (err) {
+      if (err?.code === 11000) return res.status(409).json({ error: 'Ya existe un rol con ese código' })
+      throw err
+    }
+  })
+  router.patch('/cobertura-roles/:id', async (req, res) => {
+    if (!ObjectId.isValid(req.params.id)) return res.status(400).json({ error: 'ID inválido' })
+    const d = await SupCoberturaRol.findOne({ _id: req.params.id, tenantId: req.tenant._id })
+    if (!d) return res.status(404).json({ error: 'No encontrado' })
+    const b = req.body || {}
+    if (b.nombre != null) d.nombre = String(b.nombre).trim().slice(0, 120)
+    if (b.descripcion != null) d.descripcion = String(b.descripcion).slice(0, 500)
+    if (b.orden != null) d.orden = Number(b.orden) || 0
+    if (b.activo != null) d.activo = Boolean(b.activo)
+    if (b.codigo != null) {
+      const codigo = String(b.codigo)
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9_]+/g, '_')
+        .replace(/^_|_$/g, '')
+        .slice(0, 40)
+      if (codigo) d.codigo = codigo
+    }
+    try {
+      await d.save()
+    } catch (err) {
+      if (err?.code === 11000) return res.status(409).json({ error: 'Ya existe un rol con ese código' })
+      throw err
+    }
+    res.json({ item: serializeCoberturaRol(d) })
+  })
 
   const pil = crudNamed(SupPilar)
   router.get('/pilares', pil.list)
@@ -348,11 +429,24 @@ export function mountSupervisionAdminExtras(router) {
             errors.push(`Usuario no hallado: ${row.usuario}`)
             continue
           }
-          const role = Object.values(SUP_ROLE).includes(row.role) ? row.role : SUP_ROLE.OPERARIO
+          const roleRaw = String(row.role || 'operario').trim().slice(0, 40) || 'operario'
+          let roleDoc = await SupCoberturaRol.findOne({
+            tenantId,
+            codigo: roleRaw,
+            activo: true,
+          }).lean()
+          if (!roleDoc) {
+            await ensureDefaultCoberturaRoles(tenantId)
+            roleDoc = await SupCoberturaRol.findOne({
+              tenantId,
+              codigo: roleRaw,
+              activo: true,
+            }).lean()
+          }
+          const role = roleDoc?.codigo || 'operario'
           link.colaboradores = (link.colaboradores || []).filter((c) => String(c.userId) !== String(user._id))
           link.colaboradores.push({ userId: user._id, role })
           await link.save()
-          await User.updateOne({ _id: user._id }, { $set: { supervisionRole: role } })
         }
       }
     }
@@ -390,6 +484,304 @@ export function mountSupervisionAdminExtras(router) {
         await SupUbicacion.create({ tenantId, tipo: 'comuna', nombre: name, parentId: region._id })
       }
     }
+    res.json({ ok: true })
+  })
+
+  /* Visitas programadas (recurrencia automática) */
+  router.get('/visita-recurrencias', async (req, res) => {
+    const rows = await SupVisitaRecurrencia.find({ tenantId: req.tenant._id, activo: true })
+      .sort({ nextRunAt: 1, titulo: 1 })
+      .lean()
+    res.json({ items: rows.map(serializeVisitaRecurrencia) })
+  })
+
+  router.post('/visita-recurrencias', async (req, res) => {
+    const check = validateRecurrenciaPayload(req.body || {})
+    if (!check.ok) return res.status(400).json({ error: check.error })
+    const body = req.body || {}
+    if (!ObjectId.isValid(body.salaId)) return res.status(400).json({ error: 'Sala inválida' })
+    const sala = await SupSala.findOne({ _id: body.salaId, tenantId: req.tenant._id, activo: true })
+    if (!sala) return res.status(400).json({ error: 'Sala inválida' })
+    if (body.templateId && ObjectId.isValid(body.templateId)) {
+      const tpl = await SupTemplate.findOne({ _id: body.templateId, tenantId: req.tenant._id, activo: true })
+      if (!tpl) return res.status(400).json({ error: 'Plantilla inválida' })
+    }
+    const asignadoId = body.asignadoId && ObjectId.isValid(body.asignadoId) ? body.asignadoId : null
+    const fromList = Array.isArray(body.asignadosIds)
+      ? body.asignadosIds.filter((id) => ObjectId.isValid(id))
+      : []
+    const asignadosIds = [...new Set([...(asignadoId ? [String(asignadoId)] : []), ...fromList.map(String)])]
+    const payload = {
+      tenantId: req.tenant._id,
+      titulo: String(body.titulo).trim().slice(0, 40),
+      descripcion: String(body.descripcion || '').slice(0, 4000),
+      salaId: body.salaId,
+      clienteId: body.clienteId && ObjectId.isValid(body.clienteId) ? body.clienteId : null,
+      templateId: body.templateId && ObjectId.isValid(body.templateId) ? body.templateId : null,
+      asignadoId: asignadosIds[0] || null,
+      asignadosIds,
+      creadorId: req.user._id,
+      prioridad: ['alta', 'media', 'baja'].includes(body.prioridad) ? body.prioridad : 'media',
+      requiereFoto: Boolean(body.requiereFoto),
+      plazoHoras: Math.min(24 * 30, Math.max(1, Number(body.plazoHoras) || 24)),
+      frecuencia: body.frecuencia,
+      diaSemana: Math.min(6, Math.max(0, Number(body.diaSemana ?? 1))),
+      diasSemana:
+        body.frecuencia === 'semanal_custom'
+          ? normalizeDiasSemana(body.diasSemana, body.diaSemana ?? 1)
+          : [],
+      diaMes: Math.min(28, Math.max(1, Number(body.diaMes ?? 1))),
+      semanasMes:
+        body.frecuencia === 'mensual_custom' ? normalizeSemanasMes(body.semanasMes) : [],
+      horaLocal: String(body.horaLocal || '09:00').slice(0, 5),
+      enabled: body.enabled !== false,
+      activo: true,
+    }
+    payload.nextRunAt = computeNextRunAt(payload, new Date())
+    const doc = await SupVisitaRecurrencia.create(payload)
+    res.status(201).json({ item: serializeVisitaRecurrencia(doc) })
+  })
+
+  router.patch('/visita-recurrencias/:id', async (req, res) => {
+    if (!ObjectId.isValid(req.params.id)) return res.status(400).json({ error: 'ID inválido' })
+    const doc = await SupVisitaRecurrencia.findOne({
+      _id: req.params.id,
+      tenantId: req.tenant._id,
+      activo: true,
+    })
+    if (!doc) return res.status(404).json({ error: 'No encontrado' })
+    const body = req.body || {}
+    if (body.titulo != null) doc.titulo = String(body.titulo).trim().slice(0, 40)
+    if (body.descripcion != null) doc.descripcion = String(body.descripcion).slice(0, 4000)
+    if (body.prioridad && ['alta', 'media', 'baja'].includes(body.prioridad)) doc.prioridad = body.prioridad
+    if (body.requiereFoto != null) doc.requiereFoto = Boolean(body.requiereFoto)
+    if (body.plazoHoras != null) doc.plazoHoras = Math.min(24 * 30, Math.max(1, Number(body.plazoHoras) || 24))
+    if (
+      body.frecuencia &&
+      ['diaria', 'semanal', 'semanal_custom', 'mensual', 'mensual_custom'].includes(body.frecuencia)
+    ) {
+      doc.frecuencia = body.frecuencia
+    }
+    if (body.diaSemana != null) doc.diaSemana = Math.min(6, Math.max(0, Number(body.diaSemana)))
+    if (body.diasSemana !== undefined) {
+      doc.diasSemana = normalizeDiasSemana(body.diasSemana, body.diaSemana ?? doc.diaSemana ?? 1)
+    }
+    if (body.diaMes != null) doc.diaMes = Math.min(28, Math.max(1, Number(body.diaMes)))
+    if (body.semanasMes !== undefined) {
+      doc.semanasMes = normalizeSemanasMes(body.semanasMes)
+    }
+    if (doc.frecuencia === 'semanal_custom' && body.diasSemana === undefined && !doc.diasSemana?.length) {
+      doc.diasSemana = normalizeDiasSemana([doc.diaSemana], 1)
+    }
+    if (doc.frecuencia === 'mensual_custom' && body.semanasMes === undefined && !doc.semanasMes?.length) {
+      doc.semanasMes = [1]
+    }
+    if (doc.frecuencia !== 'semanal_custom') doc.diasSemana = doc.diasSemana || []
+    if (doc.frecuencia !== 'mensual_custom') doc.semanasMes = doc.semanasMes || []
+    if (body.horaLocal != null) doc.horaLocal = String(body.horaLocal).slice(0, 5)
+    if (body.enabled != null) doc.enabled = Boolean(body.enabled)
+    if (body.salaId && ObjectId.isValid(body.salaId)) doc.salaId = body.salaId
+    if (body.clienteId !== undefined) {
+      doc.clienteId = body.clienteId && ObjectId.isValid(body.clienteId) ? body.clienteId : null
+    }
+    if (body.templateId !== undefined) {
+      doc.templateId = body.templateId && ObjectId.isValid(body.templateId) ? body.templateId : null
+    }
+    if (body.asignadosIds !== undefined && Array.isArray(body.asignadosIds)) {
+      const ids = [...new Set(body.asignadosIds.filter((id) => ObjectId.isValid(id)).map(String))]
+      doc.asignadosIds = ids
+      doc.asignadoId = ids[0] || null
+    } else if (body.asignadoId !== undefined) {
+      doc.asignadoId = body.asignadoId && ObjectId.isValid(body.asignadoId) ? body.asignadoId : null
+      const cur = resolveAsignadosIds(doc)
+      if (doc.asignadoId) {
+        const rest = cur.filter((id) => id !== String(doc.asignadoId))
+        doc.asignadosIds = [String(doc.asignadoId), ...rest]
+      } else {
+        doc.asignadosIds = cur
+      }
+    }
+    doc.nextRunAt = computeNextRunAt(doc, new Date())
+    await doc.save()
+    res.json({ item: serializeVisitaRecurrencia(doc) })
+  })
+
+  router.post('/visita-recurrencias/:id/asignados', async (req, res) => {
+    if (!ObjectId.isValid(req.params.id)) return res.status(400).json({ error: 'ID inválido' })
+    const userId = req.body?.userId
+    if (!ObjectId.isValid(userId)) return res.status(400).json({ error: 'userId inválido' })
+    const doc = await SupVisitaRecurrencia.findOne({
+      _id: req.params.id,
+      tenantId: req.tenant._id,
+      activo: true,
+    })
+    if (!doc) return res.status(404).json({ error: 'No encontrado' })
+    const ids = resolveAsignadosIds(doc).filter((id) => id !== String(userId))
+    ids.push(String(userId))
+    doc.asignadosIds = ids
+    doc.asignadoId = ids[0] || null
+    await doc.save()
+    res.json({ item: serializeVisitaRecurrencia(doc) })
+  })
+
+  router.delete('/visita-recurrencias/:id/asignados/:userId', async (req, res) => {
+    if (!ObjectId.isValid(req.params.id) || !ObjectId.isValid(req.params.userId)) {
+      return res.status(400).json({ error: 'IDs inválidos' })
+    }
+    const doc = await SupVisitaRecurrencia.findOne({
+      _id: req.params.id,
+      tenantId: req.tenant._id,
+      activo: true,
+    })
+    if (!doc) return res.status(404).json({ error: 'No encontrado' })
+    const ids = resolveAsignadosIds(doc).filter((id) => id !== String(req.params.userId))
+    if (!ids.length) {
+      doc.activo = false
+      doc.enabled = false
+      doc.asignadosIds = []
+      doc.asignadoId = null
+      await doc.save()
+      return res.json({ ok: true, deletedAssignment: true, item: null })
+    }
+    doc.asignadosIds = ids
+    doc.asignadoId = ids[0]
+    await doc.save()
+    res.json({ ok: true, deletedAssignment: false, item: serializeVisitaRecurrencia(doc) })
+  })
+
+  router.delete('/visita-recurrencias/:id', async (req, res) => {
+    if (!ObjectId.isValid(req.params.id)) return res.status(400).json({ error: 'ID inválido' })
+    const doc = await SupVisitaRecurrencia.findOneAndUpdate(
+      { _id: req.params.id, tenantId: req.tenant._id },
+      { $set: { activo: false, enabled: false } },
+      { new: true },
+    )
+    if (!doc) return res.status(404).json({ error: 'No encontrado' })
+    res.json({ ok: true })
+  })
+
+  /* Consultas / OK (leer pub, encuesta, doc, política…) */
+  router.get('/asignaciones-consulta', async (req, res) => {
+    const rows = await SupAsignacionConsulta.find({ tenantId: req.tenant._id, activo: true })
+      .sort({ dueAt: 1, createdAt: -1 })
+      .lean()
+    res.json({ items: rows.map(serializeAsignacionConsulta) })
+  })
+
+  router.post('/asignaciones-consulta', async (req, res) => {
+    const body = req.body || {}
+    const titulo = String(body.titulo || '').trim()
+    if (!titulo) return res.status(400).json({ error: 'Título requerido' })
+    const fromList = Array.isArray(body.asignadosIds)
+      ? body.asignadosIds.filter((id) => ObjectId.isValid(id)).map(String)
+      : []
+    const one = body.asignadoId && ObjectId.isValid(body.asignadoId) ? String(body.asignadoId) : null
+    const asignadosIds = [...new Set([...(one ? [one] : []), ...fromList])]
+    if (!asignadosIds.length) return res.status(400).json({ error: 'Asignado requerido' })
+    const refType = ['post', 'survey', 'document', 'policy', 'manual'].includes(body.refType)
+      ? body.refType
+      : 'manual'
+    const doc = await SupAsignacionConsulta.create({
+      tenantId: req.tenant._id,
+      titulo: titulo.slice(0, 40),
+      instrucciones: String(body.instrucciones || '').slice(0, 2000),
+      refType,
+      refId: body.refId && ObjectId.isValid(body.refId) ? body.refId : null,
+      refLabel: String(body.refLabel || '').slice(0, 200),
+      asignadoId: asignadosIds[0],
+      asignadosIds,
+      asignadoPorId: req.user._id,
+      dueAt: body.dueAt ? new Date(body.dueAt) : null,
+      status: 'pendiente',
+      activo: true,
+    })
+    res.status(201).json({ item: serializeAsignacionConsulta(doc) })
+  })
+
+  router.patch('/asignaciones-consulta/:id', async (req, res) => {
+    if (!ObjectId.isValid(req.params.id)) return res.status(400).json({ error: 'ID inválido' })
+    const doc = await SupAsignacionConsulta.findOne({
+      _id: req.params.id,
+      tenantId: req.tenant._id,
+      activo: true,
+    })
+    if (!doc) return res.status(404).json({ error: 'No encontrado' })
+    const body = req.body || {}
+    if (body.titulo != null) doc.titulo = String(body.titulo).trim().slice(0, 40)
+    if (body.instrucciones != null) doc.instrucciones = String(body.instrucciones).slice(0, 2000)
+    if (body.refLabel != null) doc.refLabel = String(body.refLabel).slice(0, 200)
+    if (body.refType && ['post', 'survey', 'document', 'policy', 'manual'].includes(body.refType)) {
+      doc.refType = body.refType
+    }
+    if (body.dueAt !== undefined) doc.dueAt = body.dueAt ? new Date(body.dueAt) : null
+    if (body.status && ['pendiente', 'visto', 'ok', 'vencido'].includes(body.status)) {
+      doc.status = body.status
+      if (body.status === 'visto' && !doc.openedAt) doc.openedAt = new Date()
+      if (body.status === 'ok') doc.okAt = new Date()
+    }
+    if (body.asignadosIds !== undefined && Array.isArray(body.asignadosIds)) {
+      const ids = [...new Set(body.asignadosIds.filter((id) => ObjectId.isValid(id)).map(String))]
+      if (!ids.length) return res.status(400).json({ error: 'Debe quedar al menos un asignado' })
+      doc.asignadosIds = ids
+      doc.asignadoId = ids[0]
+    } else if (body.asignadoId && ObjectId.isValid(body.asignadoId)) {
+      doc.asignadoId = body.asignadoId
+      const cur = resolveAsignadosIds(doc).filter((id) => id !== String(body.asignadoId))
+      doc.asignadosIds = [String(body.asignadoId), ...cur]
+    }
+    await doc.save()
+    res.json({ item: serializeAsignacionConsulta(doc) })
+  })
+
+  router.post('/asignaciones-consulta/:id/asignados', async (req, res) => {
+    if (!ObjectId.isValid(req.params.id)) return res.status(400).json({ error: 'ID inválido' })
+    const userId = req.body?.userId
+    if (!ObjectId.isValid(userId)) return res.status(400).json({ error: 'userId inválido' })
+    const doc = await SupAsignacionConsulta.findOne({
+      _id: req.params.id,
+      tenantId: req.tenant._id,
+      activo: true,
+    })
+    if (!doc) return res.status(404).json({ error: 'No encontrado' })
+    const ids = resolveAsignadosIds(doc).filter((id) => id !== String(userId))
+    ids.push(String(userId))
+    doc.asignadosIds = ids
+    doc.asignadoId = ids[0]
+    await doc.save()
+    res.json({ item: serializeAsignacionConsulta(doc) })
+  })
+
+  router.delete('/asignaciones-consulta/:id/asignados/:userId', async (req, res) => {
+    if (!ObjectId.isValid(req.params.id) || !ObjectId.isValid(req.params.userId)) {
+      return res.status(400).json({ error: 'IDs inválidos' })
+    }
+    const doc = await SupAsignacionConsulta.findOne({
+      _id: req.params.id,
+      tenantId: req.tenant._id,
+      activo: true,
+    })
+    if (!doc) return res.status(404).json({ error: 'No encontrado' })
+    const ids = resolveAsignadosIds(doc).filter((id) => id !== String(req.params.userId))
+    if (!ids.length) {
+      doc.activo = false
+      doc.asignadosIds = []
+      await doc.save()
+      return res.json({ ok: true, deletedAssignment: true, item: null })
+    }
+    doc.asignadosIds = ids
+    doc.asignadoId = ids[0]
+    await doc.save()
+    res.json({ ok: true, deletedAssignment: false, item: serializeAsignacionConsulta(doc) })
+  })
+
+  router.delete('/asignaciones-consulta/:id', async (req, res) => {
+    if (!ObjectId.isValid(req.params.id)) return res.status(400).json({ error: 'ID inválido' })
+    const doc = await SupAsignacionConsulta.findOneAndUpdate(
+      { _id: req.params.id, tenantId: req.tenant._id },
+      { $set: { activo: false } },
+      { new: true },
+    )
+    if (!doc) return res.status(404).json({ error: 'No encontrado' })
     res.json({ ok: true })
   })
 }

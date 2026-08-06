@@ -64,7 +64,7 @@ defineProps({
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.55rem;
   flex-shrink: 0;
   margin-left: auto;
 }
@@ -73,16 +73,18 @@ defineProps({
   border-radius: 10px;
   font-size: 0.8125rem;
   font-weight: 600;
-  padding: 0.55rem 0.875rem;
+  padding: 0.5rem 0.9rem;
   line-height: 1.25;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.4rem;
   border: 1px solid var(--line-2, #3a3450);
   cursor: pointer;
   white-space: nowrap;
-  box-shadow: var(--sh);
+  margin: 0;
+  box-shadow: none;
   transition: background 0.15s, box-shadow 0.15s, border-color 0.15s;
 }
 .admin-page-header__actions :deep(.btn-primary),

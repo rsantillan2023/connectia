@@ -21,6 +21,8 @@ import {
   defaultSpacePolicy,
   evaluateCreateReservation,
   canCancelReservation,
+  canCheckInReservation,
+  CHECK_IN_OPEN_MINUTES_BEFORE,
   normalizePlate,
   toDateKey,
   weekDateKeys,
@@ -375,7 +377,20 @@ router.get('/reservations/mine', requireAuth, async (req, res, next) => {
       .limit(100)
       .lean()
 
-    res.json({ items: items.map((r) => serializeReservation(r)), scope })
+    const policy = await getPolicy(req.tenant._id)
+    res.json({
+      items: items.map((r) => {
+        const check = canCheckInReservation({ reservation: r, policy, now })
+        return {
+          ...serializeReservation(r),
+          checkInAvailable: check.ok,
+          checkInMessage: check.ok ? '' : check.error || '',
+        }
+      }),
+      scope,
+      checkInOpenMinutesBefore: CHECK_IN_OPEN_MINUTES_BEFORE,
+      checkInGraceMinutes: policy.checkInGraceMinutes ?? 15,
+    })
   } catch (e) {
     next(e)
   }
@@ -577,8 +592,10 @@ router.post('/reservations/:id/check-in', requireAuth, async (req, res, next) =>
       userId: req.user._id,
     })
     if (!reservation) return res.status(404).json({ error: 'Reserva no encontrada' })
-    if (!['confirmed', 'pending'].includes(reservation.status)) {
-      return res.status(409).json({ error: 'Estado no permite check-in' })
+    const policy = await getPolicy(req.tenant._id)
+    const check = canCheckInReservation({ reservation, policy })
+    if (!check.ok) {
+      return res.status(409).json({ error: check.error || 'No se puede hacer check-in' })
     }
     reservation.status = 'checked_in'
     reservation.checkedInAt = new Date()

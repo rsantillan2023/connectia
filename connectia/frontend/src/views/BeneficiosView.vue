@@ -416,8 +416,8 @@
         <ul class="ben-tx">
           <li v-for="t in txs" :key="t.id">
             <div>
-              <strong>{{ t.concept || t.type }}</strong>
-              <span>{{ formatDate(t.createdAt) }} · {{ t.status }}</span>
+              <strong>{{ t.kindLabel || t.type }}</strong>
+              <span>{{ formatDate(t.createdAt) }} · {{ t.concept || t.status }}</span>
             </div>
             <em :class="{ neg: t.signedAmount < 0 }">
               {{ t.signedAmount > 0 ? '+' : '' }}{{ t.signedAmount }}

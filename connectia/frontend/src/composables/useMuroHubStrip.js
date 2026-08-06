@@ -1,4 +1,5 @@
 import { ref, computed, watch } from 'vue'
+import { isMuroFeedPath } from '../utils/muroFeed'
 
 const expanded = ref(false)
 const hasLinks = ref(false)
@@ -25,13 +26,12 @@ export function useMuroHubStrip() {
     hasLinks.value = Boolean(v)
   }
 
-  /** Al salir del feed del muro, volver a colapsar. */
+  /** Al salir del feed del muro (clásico o portal), volver a colapsar. */
   function bindRouteCollapse(route) {
     return watch(
       () => route.path,
       (p) => {
-        const onFeed = p === '/muro' || p === '/muro/'
-        if (!onFeed) expanded.value = false
+        if (!isMuroFeedPath(p)) expanded.value = false
       },
     )
   }

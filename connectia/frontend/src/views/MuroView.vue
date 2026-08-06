@@ -1,5 +1,14 @@
 <template>
-  <section class="feed">
+  <section class="feed" :class="{ 'feed--portal': isPortalSkin }">
+    <header v-if="isPortalSkin" class="portal-chrome">
+      <div class="portal-chrome-text">
+        <p class="portal-eyebrow">Comunicación interna</p>
+        <h1 class="portal-name">Noticias</h1>
+      </div>
+      <button type="button" class="portal-back-classic" @click="goClassicMuro">
+        Muro actual
+      </button>
+    </header>
     <div
       class="pull-indicator"
       :class="{ visible: pulling || refreshing }"
@@ -12,16 +21,26 @@
       </span>
     </div>
 
-    <HubQuickStrip compact surface="muro" class="feed-hub" @loaded="onHubLoaded" />
+    <HubQuickStrip
+      compact
+      surface="muro"
+      :skin="isPortalSkin ? 'portal' : 'classic'"
+      class="feed-hub"
+      @loaded="onHubLoaded"
+    />
 
     <!-- Franja del color del header solo si hay botón de puntos a caballo (sin beneficios no hace falta). -->
     <div
-      v-if="hubHasLinks && !hubOpen && showPtsBridge"
+      v-if="!isPortalSkin && hubHasLinks && !hubOpen && showPtsBridge"
       class="muro-hub-spacer"
       aria-hidden="true"
     />
 
-    <div v-if="showPtsBridge" class="muro-pts-bridge" :class="{ solo: !hubHasLinks }">
+    <div
+      v-if="showPtsBridge"
+      class="muro-pts-bridge"
+      :class="{ solo: !hubHasLinks || isPortalSkin }"
+    >
       <PointsHero bridge @open="goPointsEarn" />
     </div>
 
@@ -56,6 +75,15 @@
         </button>
       </div>
       <div class="feed-section-actions">
+        <RouterLink
+          v-if="!isPortalSkin"
+          to="/muro/portal"
+          class="portal-peek"
+          title="Vista portal (borrador)"
+          aria-label="Vista portal borrador"
+        >
+          v3
+        </RouterLink>
         <div class="view-toggle" role="group" aria-label="Formato de novedades">
           <button
             type="button"
@@ -196,49 +224,102 @@
     </template>
 
     <template v-if="viewMode === 'list'">
-      <PostCard
-        v-for="p in items"
-        :key="p.id"
-        :post="p"
-        @open="openPost"
-        @not-interested="askHide"
-      >
-        <template #actions>
-          <div class="card-actions">
-            <ReactionBar :model-value="p" @react="(key) => react(p, key)" />
+      <template v-if="isPortalSkin">
+        <article
+          v-for="p in items"
+          :key="p.id"
+          class="p3-card"
+          role="button"
+          tabindex="0"
+          @click="openPost(p)"
+          @keydown.enter.prevent="openPost(p)"
+        >
+          <div class="p3-img" :class="{ empty: !portalCover(p) }">
+            <img v-if="portalCover(p)" :src="portalCover(p)" :alt="p.titulo || ''" />
+            <span v-else class="p3-img-fallback" aria-hidden="true">📰</span>
+          </div>
+          <div class="p3-body">
+            <h2 class="p3-title">{{ p.titulo || 'Sin título' }}</h2>
+            <p v-if="portalExcerpt(p)" class="p3-desc">{{ portalExcerpt(p) }}</p>
+          </div>
+          <div class="p3-footer" @click.stop>
             <button
               v-if="p.commentsEnabled !== false"
               type="button"
-              class="react"
-              aria-label="Comentarios"
-              title="Comentarios"
+              class="p3-comments"
               @click="openPost(p)"
             >
-              <AppIcon name="chat" :size="20" />
-              <span class="react-count">{{ p.commentsCount || 0 }}</span>
+              Ver comentarios ({{ p.commentsCount || 0 }})
             </button>
-            <button
-              type="button"
-              class="react"
-              aria-label="Derivar por chat"
-              title="Derivar"
-              @click="openShare(p)"
-            >
-              <AppIcon name="share" :size="20" />
-            </button>
-            <button
-              type="button"
-              class="react save"
-              :class="{ on: p.saved }"
-              :aria-label="p.saved ? 'Quitar de guardados' : 'Guardar publicación'"
-              :title="p.saved ? 'Guardado' : 'Guardar'"
-              @click="toggleSave(p)"
-            >
-              <AppIcon name="bookmark" :size="20" :filled="Boolean(p.saved)" />
+            <span v-else class="p3-comments muted">Sin comentarios</span>
+            <div class="p3-icons">
+              <button
+                type="button"
+                class="p3-ico"
+                :class="{ on: p.saved }"
+                :aria-label="p.saved ? 'Quitar de guardados' : 'Guardar'"
+                @click="toggleSave(p)"
+              >
+                <AppIcon name="bookmark" :size="18" :filled="Boolean(p.saved)" />
+              </button>
+              <button type="button" class="p3-ico" aria-label="Derivar" @click="openShare(p)">
+                <AppIcon name="share" :size="18" />
+              </button>
+            </div>
+          </div>
+          <div class="p3-reacts" @click.stop>
+            <ReactionBar :model-value="p" @react="(key) => react(p, key)" />
+            <button type="button" class="react more" aria-label="No me interesa" @click="askHide(p)">
+              ···
             </button>
           </div>
-        </template>
-      </PostCard>
+        </article>
+      </template>
+      <template v-else>
+        <PostCard
+          v-for="p in items"
+          :key="p.id"
+          :post="p"
+          @open="openPost"
+          @not-interested="askHide"
+        >
+          <template #actions>
+            <div class="card-actions">
+              <ReactionBar :model-value="p" @react="(key) => react(p, key)" />
+              <button
+                v-if="p.commentsEnabled !== false"
+                type="button"
+                class="react"
+                aria-label="Comentarios"
+                title="Comentarios"
+                @click="openPost(p)"
+              >
+                <AppIcon name="chat" :size="20" />
+                <span class="react-count">{{ p.commentsCount || 0 }}</span>
+              </button>
+              <button
+                type="button"
+                class="react"
+                aria-label="Derivar por chat"
+                title="Derivar"
+                @click="openShare(p)"
+              >
+                <AppIcon name="share" :size="20" />
+              </button>
+              <button
+                type="button"
+                class="react save"
+                :class="{ on: p.saved }"
+                :aria-label="p.saved ? 'Quitar de guardados' : 'Guardar publicación'"
+                :title="p.saved ? 'Guardado' : 'Guardar'"
+                @click="toggleSave(p)"
+              >
+                <AppIcon name="bookmark" :size="20" :filled="Boolean(p.saved)" />
+              </button>
+            </div>
+          </template>
+        </PostCard>
+      </template>
     </template>
 
     <div v-if="viewMode === 'list'" ref="sentinel" class="feed-sentinel">
@@ -290,7 +371,7 @@ import { useAuthStore } from '../stores/auth'
 import { useNotifBadge } from '../composables/useNotifBadge'
 import { useChatBadge } from '../composables/useChatBadge'
 import { useMuroHubStrip } from '../composables/useMuroHubStrip'
-import { mediaKind, resolveMediaUrl } from '../utils/media'
+import { mediaKind, resolveMediaUrl, postCoverUrl } from '../utils/media'
 import { describeLoadError, friendlyErrorMessage } from '../utils/networkError'
 import FeedEmptyState from '../components/FeedEmptyState.vue'
 
@@ -317,6 +398,27 @@ const props = defineProps({
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+/** Skin portal-empleado-v3: mismos bloques, otro formato visual. */
+const isPortalSkin = computed(
+  () => route.meta?.muroSkin === 'portal' || route.name === 'muro-portal',
+)
+
+function goClassicMuro() {
+  router.push('/muro')
+}
+
+function portalCover(p) {
+  return postCoverUrl(p) || ''
+}
+
+function portalExcerpt(p) {
+  const raw = String(p?.cuerpo || p?.resumen || '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (!raw) return ''
+  return raw.length > 140 ? `${raw.slice(0, 137)}…` : raw
+}
 const { setUnread: setNotifUnread, unreadCount: notifUnread } = useNotifBadge()
 const { refreshBadge: refreshChatBadge } = useChatBadge()
 
@@ -1153,6 +1255,29 @@ onBeforeUnmount(() => observer?.disconnect())
   gap: 8px;
   flex-shrink: 0;
 }
+.portal-peek {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
+  border-radius: 6px;
+  border: 1px solid var(--cx-border, #e2e8f0);
+  background: transparent;
+  color: var(--cx-muted, #94a3b8);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  opacity: 0.55;
+  line-height: 1;
+}
+.portal-peek:hover,
+.portal-peek:focus-visible {
+  opacity: 0.9;
+  color: var(--brand-primary, #0f766e);
+}
 .view-toggle {
   display: inline-flex;
   border: 1px solid var(--cx-border);
@@ -1296,5 +1421,309 @@ onBeforeUnmount(() => observer?.disconnect())
   padding: 12px;
   font-size: 12px;
   color: var(--cx-muted);
+}
+
+/* —— Skin portal-empleado-v3 (solo /muro/portal) ——
+   Tokens y tipografía del HTML: Inter + violeta dark mode. */
+.feed--portal {
+  /* Exactos del mock :root */
+  --bg: #120e1f;
+  --bg-elev: #1b1530;
+  --surface: #241c3e;
+  --surface-2: #2e2350;
+  --primary: #8b5cf6;
+  --primary-2: #a78bfa;
+  --lilac: #c9b8ff;
+  --text: #f6f4ff;
+  --text-muted: #9e92c2;
+  --success: #34d399;
+  --warn: #fbbf24;
+  --danger: #fb7185;
+  --border: rgba(255, 255, 255, 0.08);
+  --p-bg: var(--bg);
+  --p-bg-elev: var(--bg-elev);
+  --p-surface: var(--surface);
+  --p-surface-2: var(--surface-2);
+  --p-primary: var(--primary);
+  --p-primary-2: var(--primary-2);
+  --p-lilac: var(--lilac);
+  --p-text: var(--text);
+  --p-muted: var(--text-muted);
+  --p-border: var(--border);
+  --brand-primary: var(--primary);
+  --cx-text: var(--text);
+  --cx-muted: var(--text-muted);
+  --cx-border: var(--border);
+  --cx-surface: var(--surface);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100%;
+  padding: 0 0 28px;
+}
+.feed--portal button,
+.feed--portal input,
+.feed--portal select,
+.feed--portal textarea {
+  font-family: inherit;
+}
+.feed--portal .mono {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+.feed--portal .portal-chrome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 20px 14px;
+}
+.feed--portal .portal-eyebrow {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.feed--portal .portal-name {
+  margin: 2px 0 0;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  line-height: 1.15;
+}
+.feed--portal .portal-back-classic {
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-family: 'Inter', sans-serif;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 9px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+}
+.feed--portal .feed-section-head {
+  padding: 18px 20px 10px;
+}
+.feed--portal .feed-section-title {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--text);
+}
+.feed--portal .see-all {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--primary-2);
+}
+.feed--portal .view-toggle,
+.feed--portal .filter-btn {
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+}
+.feed--portal .filter-btn {
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 11px;
+}
+.feed--portal .view-btn {
+  color: var(--text-muted);
+}
+.feed--portal .view-btn.on {
+  background: var(--primary);
+  color: #fff;
+}
+.feed--portal .filter-btn.on {
+  border-color: var(--primary);
+  color: #fff;
+  background: var(--primary);
+}
+.feed--portal .filter-summary,
+.feed--portal .feed-empty,
+.feed--portal .feed-sentinel,
+.feed--portal .pull-label {
+  color: var(--text-muted);
+  font-family: 'Inter', sans-serif;
+}
+.feed--portal .filter-clear {
+  color: var(--primary-2);
+  font-weight: 700;
+}
+.feed--portal .muro-hub-spacer {
+  background: var(--bg-elev);
+}
+.feed--portal .muro-pts-bridge {
+  margin-left: 20px;
+  margin-right: 20px;
+}
+.feed--portal .live-banner {
+  margin-left: 20px;
+  margin-right: 20px;
+  background: rgba(251, 113, 133, 0.15);
+  color: var(--danger);
+  border: 1px solid var(--border);
+}
+.feed--portal .live-banner-close {
+  color: var(--danger);
+}
+.feed--portal :deep(.stories-rail) {
+  padding-left: 20px;
+  padding-right: 20px;
+}
+.feed--portal :deep(.stories-title) {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+.feed--portal :deep(.story-label) {
+  font-family: 'Inter', sans-serif;
+  font-size: 9.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  max-width: 60px;
+}
+.feed--portal :deep(.story-ring) {
+  background: linear-gradient(135deg, var(--primary), var(--lilac));
+}
+.feed--portal :deep(.story-bubble.seen .story-ring) {
+  background: var(--surface-2);
+}
+.feed--portal :deep(.pts-hero) {
+  font-family: 'Inter', sans-serif;
+}
+.feed--portal :deep(.pts-hero-bal strong) {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-weight: 700;
+}
+.feed--portal :deep(.muro-strip),
+.feed--portal :deep(.strip-title) {
+  font-family: 'Inter', sans-serif;
+  color: var(--text);
+}
+.feed--portal .react {
+  font-family: 'Inter', sans-serif;
+  color: var(--text-muted);
+}
+.feed--portal .react.on {
+  color: var(--primary-2);
+  background: rgba(139, 92, 246, 0.18);
+}
+.feed--portal .p3-card {
+  margin: 0 20px 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  overflow: hidden;
+  cursor: pointer;
+}
+.feed--portal .p3-img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 34px;
+  background: linear-gradient(135deg, var(--primary), var(--lilac));
+}
+.feed--portal .p3-img.empty {
+  background: var(--surface-2);
+}
+.feed--portal .p3-img img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.feed--portal .p3-img-fallback {
+  font-size: 34px;
+}
+.feed--portal .p3-body {
+  padding: 14px 16px 4px;
+}
+.feed--portal .p3-title {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 15.5px;
+  font-weight: 800;
+  line-height: 1.32;
+  color: #fff;
+}
+.feed--portal .p3-desc {
+  margin: 6px 0 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 12.5px;
+  font-weight: 400;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+.feed--portal .p3-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 12px 16px 14px;
+  border-top: 1px solid var(--border);
+}
+.feed--portal .p3-comments {
+  border: 0;
+  background: none;
+  padding: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--primary-2);
+  cursor: pointer;
+}
+.feed--portal .p3-comments.muted {
+  color: var(--text-muted);
+  cursor: default;
+}
+.feed--portal .p3-icons {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.feed--portal .p3-ico {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  height: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 17px;
+  cursor: pointer;
+}
+.feed--portal .p3-ico.on {
+  color: var(--primary-2);
+}
+.feed--portal .p3-reacts {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 12px 14px;
+}
+.feed--portal .p3-reacts .react.more {
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  font-weight: 800;
+  font-family: 'Inter', sans-serif;
+}
+.feed--portal .feed-sentinel {
+  color: var(--text-muted);
 }
 </style>

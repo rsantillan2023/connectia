@@ -11,6 +11,9 @@
     "seed": "node src/scripts/seed.js",
     "seed:events": "node src/scripts/seedEvents.js",
     "seed:events:arcor": "node src/scripts/seedEventsArcorRefresh.js",
+    "seed:supervision-admin": "node src/scripts/seedSupervisionAdminDemo.js",
+    "seed:ola31": "node src/scripts/seedOla31ForTenant.js",
+    "seed:ola32": "node src/scripts/seedOla32ForTenant.js",
     "test": "node --test src/tests/**/*.test.js",
     "free-port": "powershell -ExecutionPolicy Bypass -File ./kill-4000.ps1"
   },
@@ -27,6 +30,7 @@
     "pdf-parse": "^2.4.5",
     "pdfkit": "^0.19.1",
     "web-push": "^3.6.7",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "yauzl": "^3.4.0"
   }
 }

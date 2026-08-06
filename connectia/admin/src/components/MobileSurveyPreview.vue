@@ -8,13 +8,33 @@
           <p class="msp-bar-title">{{ shortTitle }}</p>
           <p class="msp-bar-sub">Encuesta</p>
         </div>
-        <span class="msp-progress" aria-hidden="true">0/{{ questionCount }}</span>
+        <span v-if="showProgressUi" class="msp-progress" aria-hidden="true">0/{{ questionCount }}</span>
+        <span v-else class="msp-progress msp-progress--spacer" aria-hidden="true" />
       </header>
 
       <div class="msp-screen">
         <header class="msp-hero">
-          <div v-if="survey.imageUrl" class="msp-cover">
-            <img :src="survey.imageUrl" :alt="survey.titulo || 'Portada'" />
+          <div v-if="hasMedia" class="msp-media">
+            <div v-if="isCarousel" class="msp-cover msp-cover--carousel">
+              <PostMediaCarousel
+                :urls="mediaUrls"
+                :alt="survey.titulo || 'Portada'"
+                :autoplay="false"
+              />
+            </div>
+            <template v-else>
+              <div v-if="coverImages.length" class="msp-cover">
+                <img :src="coverImages[0]" :alt="survey.titulo || 'Portada'" />
+              </div>
+              <video
+                v-else-if="survey.videoUrl"
+                class="msp-cover-video"
+                :src="survey.videoUrl"
+                controls
+                playsinline
+                preload="metadata"
+              />
+            </template>
           </div>
           <p v-if="survey.anonymous" class="msp-pill">Anónima</p>
           <h2>{{ survey.titulo || 'Sin título' }}</h2>
@@ -25,15 +45,15 @@
           </p>
         </header>
 
-        <div class="msp-progress-card">
+        <div v-if="showProgressUi" class="msp-progress-card">
           <div class="msp-progress-top">
-            <span>Empezá a responder</span>
-            <span>0%</span>
+            <span>{{ isStepFlow ? 'Pregunta 1 de ' + questionCount : 'Empezá a responder' }}</span>
+            <span>{{ isStepFlow ? Math.round(100 / Math.max(questionCount, 1)) : 0 }}%</span>
           </div>
-          <div class="msp-progress-track"><span /></div>
+          <div class="msp-progress-track"><span :style="isStepFlow ? { width: `${Math.round(100 / Math.max(questionCount, 1))}%` } : undefined" /></div>
         </div>
 
-        <article v-for="(q, idx) in questions" :key="q.id || idx" class="msp-q">
+        <article v-for="(q, idx) in previewQuestions" :key="q.id || idx" class="msp-q">
           <header class="msp-q-head">
             <span class="msp-q-num">{{ idx + 1 }}</span>
             <div>
@@ -48,6 +68,10 @@
               </p>
             </div>
           </header>
+
+          <figure v-if="q.imageUrl" class="msp-q-image">
+            <img :src="q.imageUrl" :alt="`Imagen de la pregunta ${idx + 1}`" />
+          </figure>
 
           <div v-if="q.tipo === 'rating'" class="msp-rating">
             <span v-for="n in 5" :key="n">{{ n }}</span>
@@ -68,14 +92,20 @@
         </article>
 
         <p v-if="!questions.length" class="msp-empty">Agregá preguntas para ver el cuestionario.</p>
+        <p v-else-if="isStepFlow && questions.length > 1" class="msp-empty">
+          Modo una a una · se muestra la primera; el resto con Siguiente en la app.
+        </p>
       </div>
 
       <div class="msp-sticky">
-        <div class="msp-sticky-meta">
+        <div v-if="showProgressUi" class="msp-sticky-meta">
           <div class="msp-sticky-bar"><span /></div>
-          <span>0 de {{ questionCount }}</span>
+          <span>{{ isStepFlow ? `1 de ${questionCount}` : `0 de ${questionCount}` }}</span>
         </div>
-        <button type="button" class="msp-submit" disabled>Completar obligatorias</button>
+        <button v-if="isStepFlow && questionCount > 1" type="button" class="msp-submit" disabled>
+          Siguiente
+        </button>
+        <button v-else type="button" class="msp-submit" disabled>Completar obligatorias</button>
       </div>
     </div>
     <p v-if="note" class="msp-note">{{ note }}</p>
@@ -85,6 +115,8 @@
 <script setup>
 import { computed } from 'vue'
 import { useAuthStore } from '../stores/auth'
+import { communityAppPreviewStyle } from '../utils/communityAppPreviewTheme'
+import PostMediaCarousel from './PostMediaCarousel.vue'
 
 const props = defineProps({
   survey: { type: Object, required: true },
@@ -98,6 +130,27 @@ const auth = useAuthStore()
 
 const questions = computed(() => (Array.isArray(props.survey?.questions) ? props.survey.questions : []).filter((q) => q?.texto || q?.id))
 const questionCount = computed(() => questions.value.length)
+const isStepFlow = computed(() => props.survey?.questionFlow === 'one_by_one')
+const showProgressUi = computed(() => props.survey?.showProgress !== false)
+const previewQuestions = computed(() => {
+  if (!isStepFlow.value) return questions.value
+  return questions.value.slice(0, 1)
+})
+
+const coverImages = computed(() => {
+  const s = props.survey || {}
+  if (Array.isArray(s.imageUrls) && s.imageUrls.length) return s.imageUrls.filter(Boolean)
+  if (s.imageUrl) return [s.imageUrl]
+  return []
+})
+const mediaUrls = computed(() => {
+  const urls = [...coverImages.value]
+  const video = String(props.survey?.videoUrl || '').trim()
+  if (video && !urls.includes(video)) urls.push(video)
+  return urls
+})
+const isCarousel = computed(() => mediaUrls.value.length > 1)
+const hasMedia = computed(() => mediaUrls.value.length > 0)
 
 const shortTitle = computed(() => {
   const t = String(props.survey?.titulo || 'Encuesta').trim()
@@ -114,13 +167,7 @@ const scheduleHint = computed(() => {
   }
 })
 
-const brandStyle = computed(() => {
-  const b = auth.tenant?.branding || {}
-  return {
-    '--brand-primary': b.primary || 'var(--brand-primary)',
-    '--brand-secondary': b.secondary || 'var(--brand-secondary)',
-  }
-})
+const brandStyle = computed(() => communityAppPreviewStyle(auth.tenant))
 
 function typeLabel(tipo) {
   const hit = props.typeMeta.find((t) => t.id === tipo)
@@ -172,8 +219,9 @@ function placeholderFor(tipo) {
 .msp-phone {
   width: min(100%, 390px);
   border-radius: 28px;
-  border: 1px solid var(--line, var(--cx-border));
-  background: var(--panel, var(--cx-page));
+  border: 1px solid var(--cx-border, var(--line));
+  background: var(--cx-page, var(--panel));
+  color: var(--cx-text, var(--ink));
   overflow: hidden;
   box-shadow: 0 18px 50px rgba(15, 23, 42, 0.16);
   display: flex;
@@ -202,8 +250,13 @@ function placeholderFor(tipo) {
 .msp--compact .msp-screen {
   padding: 10px;
 }
-.msp--compact .msp-cover {
+.msp--compact .msp-cover,
+.msp--compact .msp-media {
   margin-bottom: 8px;
+  border-radius: 10px;
+}
+.msp--compact .msp-cover-track,
+.msp--compact .msp-cover-video {
   border-radius: 10px;
 }
 .msp--compact .msp-hero h2 {
@@ -231,8 +284,8 @@ function placeholderFor(tipo) {
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  border-bottom: 1px solid var(--line, var(--cx-border));
-  background: var(--panel, #fff);
+  border-bottom: 1px solid var(--cx-border, var(--line));
+  background: var(--cx-nav, var(--cx-surface, var(--panel)));
 }
 .msp-icon {
   width: 36px;
@@ -240,7 +293,7 @@ function placeholderFor(tipo) {
   border-radius: 12px;
   display: grid;
   place-items: center;
-  color: var(--ink, #0f172a);
+  color: var(--cx-text, var(--ink, #0f172a));
   font-size: 16px;
 }
 .msp-brand {
@@ -254,11 +307,12 @@ function placeholderFor(tipo) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: var(--cx-text, var(--ink));
 }
 .msp-bar-sub {
   margin: 2px 0 0;
   font-size: 10px;
-  color: var(--ink-soft, #64748b);
+  color: var(--cx-muted, var(--ink-soft, #64748b));
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -271,25 +325,43 @@ function placeholderFor(tipo) {
   background: color-mix(in srgb, var(--brand-primary) 14%, transparent);
   color: var(--brand-primary);
 }
+.msp-progress--spacer {
+  visibility: hidden;
+  min-width: 2.5rem;
+}
 .msp-screen {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   padding: 14px 14px 18px;
   background:
-    radial-gradient(120% 60% at 10% -10%, color-mix(in srgb, var(--brand-primary) 10%, transparent), transparent 55%),
-    var(--panel-2, #f8fafc);
+    radial-gradient(120% 60% at 10% -10%, var(--cx-page-glow-a, color-mix(in srgb, var(--brand-primary) 18%, transparent)), transparent 55%),
+    radial-gradient(90% 50% at 100% 0%, var(--cx-page-glow-b, color-mix(in srgb, var(--brand-secondary) 12%, transparent)), transparent 50%),
+    var(--cx-page, var(--panel-2, #f8fafc));
+  color: var(--cx-text, var(--ink));
 }
 .msp-hero {
   margin-bottom: 12px;
 }
-.msp-cover {
+.msp-media {
   margin: 0 0 12px;
+}
+.msp-cover-video {
+  width: 100%;
+  border-radius: 14px;
+  aspect-ratio: 16 / 9;
+  background: #0f172a;
+  border: 1px solid var(--line, #e2e8f0);
+}
+.msp-cover {
   border-radius: 14px;
   overflow: hidden;
   aspect-ratio: 16 / 9;
   background: #e2e8f0;
   border: 1px solid var(--line, #e2e8f0);
+}
+.msp-cover--carousel {
+  min-height: 0;
 }
 .msp-cover img {
   width: 100%;
@@ -350,7 +422,7 @@ function placeholderFor(tipo) {
   display: block;
   width: 0;
   height: 100%;
-  background: var(--brand-primary);
+  background: linear-gradient(90deg, var(--brand-primary), var(--brand-secondary));
 }
 .msp-q {
   display: flex;
@@ -359,8 +431,8 @@ function placeholderFor(tipo) {
   margin-bottom: 10px;
   padding: 12px;
   border-radius: 14px;
-  border: 1px solid var(--line, #e2e8f0);
-  background: var(--panel, #fff);
+  border: 1px solid var(--cx-border, var(--line, #e2e8f0));
+  background: var(--cx-surface, var(--panel, #fff));
 }
 .msp-q-head {
   display: flex;
@@ -386,13 +458,26 @@ function placeholderFor(tipo) {
   line-height: 1.35;
 }
 .msp-q-label em {
-  color: #dc2626;
+  color: var(--cx-danger, #dc2626);
   font-style: normal;
 }
 .msp-q-hint {
   margin: 3px 0 0;
   font-size: 0.68rem;
-  color: var(--ink-soft, #64748b);
+  color: var(--cx-muted, var(--ink-soft, #64748b));
+}
+.msp-q-image {
+  margin: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--line, #e2e8f0);
+  background: var(--panel-2, #f8fafc);
+}
+.msp-q-image img {
+  display: block;
+  width: 100%;
+  max-height: 160px;
+  object-fit: cover;
 }
 .msp-rating {
   display: grid;
@@ -471,8 +556,8 @@ function placeholderFor(tipo) {
   display: grid;
   gap: 8px;
   padding: 10px 14px 14px;
-  border-top: 1px solid var(--line, #e2e8f0);
-  background: var(--panel, #fff);
+  border-top: 1px solid var(--cx-border, var(--line, #e2e8f0));
+  background: var(--cx-surface, var(--panel, #fff));
 }
 .msp-sticky-meta {
   display: flex;
@@ -480,20 +565,20 @@ function placeholderFor(tipo) {
   gap: 10px;
   font-size: 0.7rem;
   font-weight: 600;
-  color: var(--ink-soft, #64748b);
+  color: var(--cx-muted, var(--ink-soft, #64748b));
 }
 .msp-sticky-bar {
   flex: 1;
   height: 5px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--ink-soft, #94a3b8) 18%, transparent);
+  background: color-mix(in srgb, var(--cx-muted, var(--ink-soft, #94a3b8)) 18%, transparent);
   overflow: hidden;
 }
 .msp-sticky-bar span {
   display: block;
   width: 0;
   height: 100%;
-  background: var(--brand-primary);
+  background: linear-gradient(90deg, var(--brand-primary), var(--brand-secondary));
 }
 .msp-submit {
   border: 0;

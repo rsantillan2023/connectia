@@ -49,10 +49,11 @@ salaSchema.index({ tenantId: 1, nombre: 1 })
 const colaboradorSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    /** Código del rol de cobertura (catálogo SupCoberturaRol), no el supervisionRole del User. */
     role: {
       type: String,
-      enum: ['operario', 'supervisor', 'plataforma_comercial', 'gestor', 'admin_mod'],
       default: 'operario',
+      maxlength: 40,
     },
   },
   { _id: false },
@@ -63,12 +64,19 @@ const clienteSalaSchema = new mongoose.Schema(
     tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
     clienteId: { type: mongoose.Schema.Types.ObjectId, ref: 'SupCliente', required: true },
     salaId: { type: mongoose.Schema.Types.ObjectId, ref: 'SupSala', required: true },
+    /** Título corto visible en la card (antes de la jerarquía). */
+    titulo: { type: String, default: '', maxlength: 40 },
+    /** Qué se cubre / qué hay que hacer en este punto. */
+    descripcion: { type: String, default: '', maxlength: 4000 },
+    /** Checklist / plantilla sugerida para esta cobertura. */
+    templateId: { type: mongoose.Schema.Types.ObjectId, ref: 'SupTemplate', default: null },
     colaboradores: { type: [colaboradorSchema], default: [] },
     activo: { type: Boolean, default: true },
   },
   { timestamps: true },
 )
-clienteSalaSchema.index({ tenantId: 1, clienteId: 1, salaId: 1 }, { unique: true })
+/** Varias coberturas válidas sobre el mismo cliente↔sala (distintos objetivos/títulos). */
+clienteSalaSchema.index({ tenantId: 1, clienteId: 1, salaId: 1 })
 
 const medicionTplSchema = new mongoose.Schema(
   {
@@ -77,6 +85,9 @@ const medicionTplSchema = new mongoose.Schema(
     tipo: { type: String, default: 'check', maxlength: 40 },
     obligatorio: { type: Boolean, default: true },
     orden: { type: Number, default: 0 },
+    /** Evidencia pedida al completar este ítem en campo. */
+    requiereFoto: { type: Boolean, default: false },
+    requiereTexto: { type: Boolean, default: false },
   },
   { _id: false },
 )
@@ -116,6 +127,21 @@ const categoriaSchema = new mongoose.Schema(
   { timestamps: true },
 )
 categoriaSchema.index({ tenantId: 1, nombre: 1 })
+
+/** Roles específicos de cobertura (cliente↔sala), independientes del supervisionRole del usuario. */
+const coberturaRolSchema = new mongoose.Schema(
+  {
+    tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
+    codigo: { type: String, required: true, maxlength: 40 },
+    nombre: { type: String, required: true, maxlength: 120 },
+    descripcion: { type: String, default: '', maxlength: 500 },
+    orden: { type: Number, default: 0 },
+    activo: { type: Boolean, default: true },
+  },
+  { timestamps: true },
+)
+coberturaRolSchema.index({ tenantId: 1, codigo: 1 }, { unique: true })
+coberturaRolSchema.index({ tenantId: 1, nombre: 1 })
 
 const pilarSchema = new mongoose.Schema(
   {
@@ -253,10 +279,92 @@ const tareaSchema = new mongoose.Schema(
     fechaCancelacion: { type: Date, default: null },
     completadoPorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     canceladoPorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    /** Si la tarea nació de un programa recurrente. */
+    recurrenciaId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'SupVisitaRecurrencia',
+      default: null,
+      index: true,
+    },
   },
   { timestamps: true },
 )
 tareaSchema.index({ tenantId: 1, status: 1, fechaLimite: 1 })
+
+/** Programa recurrente que genera visitas (SupTarea) automáticamente. */
+const visitaRecurrenciaSchema = new mongoose.Schema(
+  {
+    tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
+    titulo: { type: String, required: true, maxlength: 40 },
+    descripcion: { type: String, default: '', maxlength: 4000 },
+    salaId: { type: mongoose.Schema.Types.ObjectId, ref: 'SupSala', required: true, index: true },
+    clienteId: { type: mongoose.Schema.Types.ObjectId, ref: 'SupCliente', default: null },
+    templateId: { type: mongoose.Schema.Types.ObjectId, ref: 'SupTemplate', default: null },
+    asignadoId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    /** Varios asignados al programa (asignadoId se mantiene como el primero, compat). */
+    asignadosIds: { type: [mongoose.Schema.Types.ObjectId], ref: 'User', default: [] },
+    creadorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    prioridad: { type: String, enum: ['alta', 'media', 'baja'], default: 'media' },
+    requiereFoto: { type: Boolean, default: false },
+    /** Ventana en horas desde la generación hasta la fecha límite de la tarea. */
+    plazoHoras: { type: Number, default: 24, min: 1, max: 24 * 30 },
+    frecuencia: {
+      type: String,
+      enum: ['diaria', 'semanal', 'semanal_custom', 'mensual', 'mensual_custom'],
+      required: true,
+    },
+    /** 0=domingo … 6=sábado (semanal / mensual_custom). */
+    diaSemana: { type: Number, default: 1, min: 0, max: 6 },
+    /** Varios días (semanal_custom): 0=dom … 6=sáb. */
+    diasSemana: { type: [Number], default: [] },
+    /** 1–28 (solo mensual; se evita 29–31 por meses cortos). */
+    diaMes: { type: Number, default: 1, min: 1, max: 28 },
+    /** Semanas del mes 1–4 (mensual_custom). */
+    semanasMes: { type: [Number], default: [] },
+    /** Hora local aproximada HH:mm (servidor usa UTC del cálculo). */
+    horaLocal: { type: String, default: '09:00', maxlength: 5 },
+    enabled: { type: Boolean, default: true, index: true },
+    lastRunAt: { type: Date, default: null },
+    nextRunAt: { type: Date, default: null, index: true },
+    activo: { type: Boolean, default: true },
+  },
+  { timestamps: true },
+)
+visitaRecurrenciaSchema.index({ tenantId: 1, enabled: 1, nextRunAt: 1 })
+
+/** Asignación de consulta/OK: leer pub, encuesta, doc, política, etc. */
+const asignacionConsultaSchema = new mongoose.Schema(
+  {
+    tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
+    titulo: { type: String, required: true, maxlength: 40 },
+    instrucciones: { type: String, default: '', maxlength: 2000 },
+    /** Qué se asigna (contenido del sistema o manual). */
+    refType: {
+      type: String,
+      enum: ['post', 'survey', 'document', 'policy', 'manual'],
+      default: 'manual',
+    },
+    refId: { type: mongoose.Schema.Types.ObjectId, default: null },
+    /** Etiqueta legible del contenido (útil si no hay refId). */
+    refLabel: { type: String, default: '', maxlength: 200 },
+    asignadoId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    /** Varios asignados a la consulta (asignadoId = primero, compat). */
+    asignadosIds: { type: [mongoose.Schema.Types.ObjectId], ref: 'User', default: [] },
+    asignadoPorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    dueAt: { type: Date, default: null },
+    status: {
+      type: String,
+      enum: ['pendiente', 'visto', 'ok', 'vencido'],
+      default: 'pendiente',
+      index: true,
+    },
+    openedAt: { type: Date, default: null },
+    okAt: { type: Date, default: null },
+    activo: { type: Boolean, default: true },
+  },
+  { timestamps: true },
+)
+asignacionConsultaSchema.index({ tenantId: 1, asignadoId: 1, status: 1 })
 
 const comentarioSchema = new mongoose.Schema(
   {
@@ -274,9 +382,12 @@ export const SupSala = mongoose.model('SupSala', salaSchema)
 export const SupClienteSala = mongoose.model('SupClienteSala', clienteSalaSchema)
 export const SupTemplate = mongoose.model('SupTemplate', templateSchema)
 export const SupTarea = mongoose.model('SupTarea', tareaSchema)
+export const SupVisitaRecurrencia = mongoose.model('SupVisitaRecurrencia', visitaRecurrenciaSchema)
+export const SupAsignacionConsulta = mongoose.model('SupAsignacionConsulta', asignacionConsultaSchema)
 export const SupTareaComentario = mongoose.model('SupTareaComentario', comentarioSchema)
 export const SupSubcadena = mongoose.model('SupSubcadena', subcadenaSchema)
 export const SupCategoria = mongoose.model('SupCategoria', categoriaSchema)
+export const SupCoberturaRol = mongoose.model('SupCoberturaRol', coberturaRolSchema)
 export const SupPilar = mongoose.model('SupPilar', pilarSchema)
 export const SupMedicion = mongoose.model('SupMedicion', medicionCatalogSchema)
 export const SupItemMedicion = mongoose.model('SupItemMedicion', itemMedicionSchema)
@@ -285,6 +396,33 @@ export const SupTemplateEstado = mongoose.model('SupTemplateEstado', templateEst
 export const SupUbicacion = mongoose.model('SupUbicacion', ubicacionSchema)
 export const SupAdjunto = mongoose.model('SupAdjunto', adjuntoSchema)
 export const SupRolePermisos = mongoose.model('SupRolePermisos', rolePermisosSchema)
+
+/**
+ * Quita el índice unique viejo cliente↔sala (si existe) y alinea índices al schema.
+ * Permite varias coberturas con distintos objetivos en el mismo punto.
+ */
+export async function ensureSupClienteSalaIndexes() {
+  try {
+    const col = SupClienteSala.collection
+    const indexes = await col.indexes()
+    for (const idx of indexes) {
+      if (!idx.unique) continue
+      const k = idx.key || {}
+      if (k.tenantId === 1 && k.clienteId === 1 && k.salaId === 1 && !k.titulo) {
+        await col.dropIndex(idx.name)
+      }
+    }
+  } catch (err) {
+    if (err?.codeName !== 'IndexNotFound' && err?.code !== 27) {
+      console.warn('[supervision] drop unique cliente-sala:', err?.message || err)
+    }
+  }
+  try {
+    await SupClienteSala.syncIndexes()
+  } catch (err) {
+    console.warn('[supervision] syncIndexes cliente-sala:', err?.message || err)
+  }
+}
 
 export function serializeCadena(d) {
   if (!d) return null
@@ -325,6 +463,18 @@ export function serializeNamed(d, extra = {}) {
   }
 }
 
+export function serializeCoberturaRol(d) {
+  if (!d) return null
+  return {
+    id: String(d._id),
+    codigo: d.codigo || '',
+    nombre: d.nombre,
+    descripcion: d.descripcion || '',
+    orden: d.orden || 0,
+    activo: d.activo !== false,
+  }
+}
+
 export function serializeAdjunto(d) {
   if (!d) return null
   return {
@@ -345,13 +495,19 @@ export function serializeClienteSala(d) {
   if (!d) return null
   return {
     id: String(d._id),
+    tipoAsignacion: 'cobertura',
     clienteId: String(d.clienteId),
     salaId: String(d.salaId),
+    titulo: d.titulo || '',
+    descripcion: d.descripcion || '',
+    templateId: d.templateId ? String(d.templateId) : null,
     colaboradores: (d.colaboradores || []).map((c) => ({
       userId: String(c.userId),
       role: c.role,
     })),
     activo: d.activo !== false,
+    createdAt: d.createdAt,
+    updatedAt: d.updatedAt,
   }
 }
 
@@ -392,9 +548,81 @@ export function serializeTarea(d, extras = {}) {
     fechaAsignacion: d.fechaAsignacion,
     fechaCompletado: d.fechaCompletado,
     fechaCancelacion: d.fechaCancelacion,
+    recurrenciaId: d.recurrenciaId ? String(d.recurrenciaId) : null,
     createdAt: d.createdAt,
     updatedAt: d.updatedAt,
     ...extras,
+  }
+}
+
+export function resolveAsignadosIds(d) {
+  const ids = []
+  const seen = new Set()
+  const push = (id) => {
+    if (!id) return
+    const s = String(id)
+    if (seen.has(s)) return
+    seen.add(s)
+    ids.push(s)
+  }
+  for (const id of d?.asignadosIds || []) push(id)
+  push(d?.asignadoId)
+  return ids
+}
+
+export function serializeVisitaRecurrencia(d) {
+  if (!d) return null
+  const asignadosIds = resolveAsignadosIds(d)
+  return {
+    id: String(d._id),
+    tipoAsignacion: 'visita',
+    titulo: d.titulo,
+    descripcion: d.descripcion || '',
+    salaId: d.salaId ? String(d.salaId) : null,
+    clienteId: d.clienteId ? String(d.clienteId) : null,
+    templateId: d.templateId ? String(d.templateId) : null,
+    asignadoId: asignadosIds[0] || null,
+    asignadosIds,
+    creadorId: d.creadorId ? String(d.creadorId) : null,
+    prioridad: d.prioridad || 'media',
+    requiereFoto: Boolean(d.requiereFoto),
+    plazoHoras: Number(d.plazoHoras) || 24,
+    frecuencia: d.frecuencia,
+    diaSemana: d.diaSemana,
+    diasSemana: Array.isArray(d.diasSemana) ? d.diasSemana.map(Number) : [],
+    diaMes: d.diaMes,
+    semanasMes: Array.isArray(d.semanasMes) ? d.semanasMes.map(Number) : [],
+    horaLocal: d.horaLocal || '09:00',
+    enabled: d.enabled !== false,
+    lastRunAt: d.lastRunAt || null,
+    nextRunAt: d.nextRunAt || null,
+    activo: d.activo !== false,
+    createdAt: d.createdAt,
+    updatedAt: d.updatedAt,
+  }
+}
+
+export function serializeAsignacionConsulta(d) {
+  if (!d) return null
+  const asignadosIds = resolveAsignadosIds(d)
+  return {
+    id: String(d._id),
+    tipoAsignacion: 'consulta',
+    titulo: d.titulo,
+    instrucciones: d.instrucciones || '',
+    refType: d.refType || 'manual',
+    refId: d.refId ? String(d.refId) : null,
+    refLabel: d.refLabel || '',
+    asignadoId: asignadosIds[0] || null,
+    asignadosIds,
+    asignadoPorId: d.asignadoPorId ? String(d.asignadoPorId) : null,
+    dueAt: d.dueAt || null,
+    status: d.status || 'pendiente',
+    openedAt: d.openedAt || null,
+    okAt: d.okAt || null,
+    activo: d.activo !== false,
+    createdAt: d.createdAt,
+    updatedAt: d.updatedAt,
   }
 }
 

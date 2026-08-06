@@ -15,6 +15,7 @@ import {
   refreshTeamScope,
   TEAM_MODULES,
 } from '../lib/teamScope.js'
+import { seedSupervisionAdminDemo } from '../lib/supervisionAdminSeed.js'
 
 const router = Router()
 const ObjectId = mongoose.Types.ObjectId
@@ -45,6 +46,17 @@ router.post('/ensure-menu', async (req, res) => {
   req.tenant.capabilities = [...set]
   await req.tenant.save()
   res.json({ ok: true, capabilities: req.tenant.capabilities })
+})
+
+/** Seed rico supervisión + equipos para la comunidad actual. Body: { force?: boolean } */
+router.post('/seed-demo', async (req, res, next) => {
+  try {
+    const force = Boolean(req.body?.force)
+    const result = await seedSupervisionAdminDemo(req.tenant, { force })
+    res.json(result)
+  } catch (e) {
+    next(e)
+  }
 })
 
 router.get('/candidates/users', async (req, res) => {

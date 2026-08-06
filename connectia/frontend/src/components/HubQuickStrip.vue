@@ -2,7 +2,7 @@
   <section
     v-if="!loading && categories.length"
     class="mp-hub"
-    :class="{ compact, collapsed: collapsible && !hubOpen }"
+    :class="{ compact, collapsed: collapsible && !hubOpen, 'skin-portal': isPortalSkin }"
   >
     <p v-if="toast" class="mp-toast">{{ toast }}</p>
 
@@ -99,12 +99,15 @@ const props = defineProps({
   showEmpty: { type: Boolean, default: false },
   /** muro = franja del feed (respeta showOnMuro); hub = /accesos completo */
   surface: { type: String, default: '' },
+  /** classic = muro actual; portal = skin portal-empleado-v3 */
+  skin: { type: String, default: 'classic' },
 })
 
 const emit = defineEmits(['loaded'])
 
 const isMuroSurface = props.surface === 'muro' || (props.compact && !props.surface)
 const collapsible = computed(() => isMuroSurface)
+const isPortalSkin = computed(() => props.skin === 'portal')
 
 const { expanded: hubOpen, setHasLinks } = useMuroHubStrip()
 
@@ -609,5 +612,110 @@ defineExpose({ load, loading, categories })
   width: 100%;
   border: 0;
   background: #f8fafc;
+}
+
+/* —— Skin portal (muro jefe): grilla tipo qa-grid del mock —— */
+.mp-hub.compact.skin-portal {
+  --mp-ink: var(--text, #f6f4ff);
+  --mp-muted: var(--text-muted, #9e92c2);
+  --mp-accent: var(--primary, #8b5cf6);
+  font-family: 'Inter', system-ui, sans-serif;
+  background: transparent;
+  padding: 4px 0 14px;
+}
+.mp-hub.compact.skin-portal.collapsed {
+  background: transparent;
+}
+.mp-hub.compact.skin-portal .mp-shell {
+  margin: 0 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent;
+}
+.mp-hub.compact.skin-portal .mp-tabs {
+  width: auto;
+  max-width: 100%;
+  gap: 6px;
+  padding: 0 0 12px;
+  border-bottom: 0;
+  overflow-x: auto;
+}
+.mp-hub.compact.skin-portal .mp-tab {
+  flex: 0 0 auto;
+  min-width: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0;
+  padding: 7px 11px;
+  border-radius: 20px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  background: var(--surface, #241c3e);
+  color: var(--text-muted, #9e92c2);
+}
+.mp-hub.compact.skin-portal .mp-tab.on {
+  font-weight: 700;
+  color: #fff;
+  background: var(--primary, #8b5cf6);
+  border-color: var(--primary, #8b5cf6);
+  padding-bottom: 7px;
+}
+.mp-hub.compact.skin-portal .mp-tab.on::after {
+  display: none;
+}
+.mp-hub.compact.skin-portal .mp-card {
+  padding: 0;
+  background: transparent;
+}
+.mp-hub.compact.skin-portal .mp-actions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+  overflow: visible;
+  padding: 0;
+  justify-content: stretch;
+  align-items: start;
+}
+.mp-hub.compact.skin-portal .mp-action {
+  --tile-accent: var(--accent, var(--primary, #8b5cf6));
+  flex: none;
+  min-width: 0;
+  max-width: none;
+  width: auto;
+  min-height: 0;
+  padding: 0;
+  gap: 6px;
+  border-radius: 0;
+  background: transparent;
+  color: var(--tile-accent);
+  box-shadow: none;
+}
+.mp-hub.compact.skin-portal .mp-action-ico {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: var(--surface, #241c3e);
+  color: var(--tile-accent);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  box-shadow: none;
+}
+.mp-hub.compact.skin-portal .mp-action-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.25;
+  color: var(--text-muted, #9e92c2);
+  -webkit-line-clamp: 2;
+}
+.mp-hub.compact.skin-portal .mp-empty {
+  grid-column: 1 / -1;
+  margin: 4px 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted, #9e92c2);
 }
 </style>
