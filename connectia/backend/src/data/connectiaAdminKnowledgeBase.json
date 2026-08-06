@@ -1,0 +1,264 @@
+{
+  "meta": {
+    "version": "1.0.0",
+    "lastUpdated": "2026-07-30",
+    "product": "Connectyx Admin",
+    "source": "AdminShell routes + Funciones de Administración + paridad Hiryx aitalentKnowledgeBase"
+  },
+  "overview": "Connectyx Admin es el panel de la comunidad: gestión de miembros, contenido, trámites, beneficios, reservas y configuración. El menú completo está en «Funciones de Administración» (header). El asistente del rail izquierdo usa esta base + artículos publicados en /asistente-kb.",
+  "equivalencias": [
+    {
+      "nombres": ["Dashboard", "Inicio", "Home", "Tablero"],
+      "ruta": "/",
+      "nota": "Resumen de la comunidad. No es la bandeja de solicitudes ni Usuarios."
+    },
+    {
+      "nombres": ["Usuarios", "Miembros", "Colaboradores", "Empleados"],
+      "ruta": "/usuarios",
+      "nota": "Alta/edición de usuarios de la comunidad."
+    },
+    {
+      "nombres": ["Base de conocimientos", "KB", "FAQs del bot", "Asistente KB"],
+      "ruta": "/asistente-kb",
+      "nota": "ABM de artículos que alimentan al asistente U y Admin."
+    },
+    {
+      "nombres": ["Mapa del sitio", "Funciones", "Funciones de Administración", "Menú completo"],
+      "ruta": null,
+      "nota": "Se abre con el botón «Funciones de Administración» del header; no es una ruta."
+    },
+    {
+      "nombres": ["Bandeja", "Solicitudes Admin", "Trámites"],
+      "ruta": "/solicitudes",
+      "nota": "Gestión de solicitudes de la comunidad (no «Mis solicitudes» de la app U)."
+    },
+    {
+      "nombres": ["Publicaciones", "Muro Admin", "Posts"],
+      "ruta": "/publicaciones",
+      "nota": "Crear y moderar publicaciones del muro."
+    },
+    {
+      "nombres": ["Datos útiles", "Directorio"],
+      "ruta": "/directorio",
+      "nota": "Fichas de contactos / datos útiles visibles en la app."
+    }
+  ],
+  "articles": [
+    {
+      "id": "navegacion-admin",
+      "titulo": "Cómo navegar el Admin",
+      "aliases": ["navegacion", "menú", "funciones", "mapa del sitio", "dónde está", "layout"],
+      "tags": ["navegacion", "shell", "header"],
+      "ruta": null,
+      "categoria": "guia",
+      "cuerpo": "El layout del Admin sigue el patrón Hiryx: chatbot a la izquierda, header fijo, sidebar derecho por hover y modal «Funciones de Administración» con todo el mapa del sitio. Para ir a una pantalla: usá Funciones, el asistente («dónde están los usuarios»), o los pines del header/sidebar. El FAB «¿Necesitás ayuda?» abre el asistente maximizado."
+    },
+    {
+      "id": "usuarios",
+      "titulo": "Gestión de usuarios",
+      "aliases": ["usuarios", "miembros", "colaboradores", "empleados", "alta usuario"],
+      "tags": ["personas", "usuarios"],
+      "ruta": "/usuarios",
+      "categoria": "guia",
+      "cuerpo": "En Usuarios (/usuarios) listás, filtrás y editás miembros de la comunidad (activo, roles, área). También está en Funciones → Personas/Empleados. Para legajos detallados usá Legajos RRHH (/legajos)."
+    },
+    {
+      "id": "legajos",
+      "titulo": "Legajos RRHH",
+      "aliases": ["legajo", "legajos", "ficha rrhh"],
+      "tags": ["rrhh", "personas"],
+      "ruta": "/legajos",
+      "categoria": "guia",
+      "cuerpo": "Legajos RRHH (/legajos) concentra datos de ficha del colaborador. Podés usar borradores con IA si está configurada. Catálogos de apoyo: /catalogos-rrhh. Onboarding/egreso: /onboarding."
+    },
+    {
+      "id": "solicitudes-bandeja",
+      "titulo": "Bandeja de solicitudes",
+      "aliases": ["solicitudes", "bandeja", "tramites", "trámites", "tickets"],
+      "tags": ["solicitudes", "procesos"],
+      "ruta": "/solicitudes",
+      "categoria": "guia",
+      "cuerpo": "La bandeja Admin (/solicitudes) gestiona solicitudes de la comunidad. Configurá plantillas en Tipos (/tipos-solicitud), estados en /estados-solicitud y flujos en Workflows (/workflows). Para pedir datos a un grupo: /enviar-solicitud."
+    },
+    {
+      "id": "tipos-solicitud",
+      "titulo": "Tipos / plantillas de solicitud",
+      "aliases": ["tipos de solicitud", "plantillas solicitud", "formulario solicitud"],
+      "tags": ["solicitudes", "config"],
+      "ruta": "/tipos-solicitud",
+      "categoria": "guia",
+      "cuerpo": "En Tipos de solicitud (/tipos-solicitud) definís plantillas (campos, audiencia, área). Los miembros las usan desde la app o el asistente U. Los workflows de aprobación se vinculan en /workflows."
+    },
+    {
+      "id": "workflows",
+      "titulo": "Flujos de aprobación",
+      "aliases": ["workflow", "aprobacion", "aprobación", "flujo"],
+      "tags": ["procesos", "aprobaciones"],
+      "ruta": "/workflows",
+      "categoria": "guia",
+      "cuerpo": "Workflows (/workflows) define pasos de aprobación para solicitudes, licencias u orígenes configurados. Asigná responsables por capability/rol. Desde la bandeja se avanza cada paso."
+    },
+    {
+      "id": "licencias-admin",
+      "titulo": "Licencias y vacaciones (Admin)",
+      "aliases": ["licencias", "vacaciones", "permisos", "tipos de licencia", "feriados"],
+      "tags": ["rrhh", "licencias"],
+      "ruta": "/licencias",
+      "categoria": "guia",
+      "cuerpo": "Admin → Licencias (/licencias) para ver/gestionar pedidos. Tipos: /tipos-licencia. Feriados: /feriados. Ausentismos: /ausentismos. Los miembros piden vacaciones desde la app U o el asistente de la comunidad (no desde este chatbot Admin)."
+    },
+    {
+      "id": "publicaciones",
+      "titulo": "Publicaciones del muro",
+      "aliases": ["publicaciones", "muro", "posts", "noticias", "publicar"],
+      "tags": ["contenido"],
+      "ruta": "/publicaciones",
+      "categoria": "guia",
+      "cuerpo": "En Publicaciones (/publicaciones) creás y editás posts del muro (audiencia, categorías, borradores IA). Stories: /stories. Categorías: /categorias-publicaciones. Newsletters: /newsletters."
+    },
+    {
+      "id": "base-conocimientos",
+      "titulo": "Base de conocimientos del asistente",
+      "aliases": ["base de conocimientos", "kb", "faq", "artículos del bot", "asistente-kb"],
+      "tags": ["ia", "kb", "asistente"],
+      "ruta": "/asistente-kb",
+      "categoria": "guia",
+      "cuerpo": "ABM en /asistente-kb: publicá guías, FAQs y políticas del tenant. Esos artículos alimentan al asistente de la app miembro y al chatbot Admin (junto con esta base de producto). Si falta una respuesta frecuente, sumá un artículo publicado."
+    },
+    {
+      "id": "asistente-admin",
+      "titulo": "Qué hace el asistente del Admin",
+      "aliases": ["asistente", "chatbot", "soofia", "ayuda", "bot admin"],
+      "tags": ["ia", "asistente"],
+      "ruta": null,
+      "categoria": "faq",
+      "cuerpo": "El rail izquierdo es el asistente Admin: consulta la base de producto + artículos KB del tenant, indica rutas («dónde están…») y no ejecuta trámites personales (vacaciones/reservas) — eso es de la app U. Controles: reiniciar, maximizar, reducir. FAB «¿Necesitás ayuda?» abre maximizado. Ayudas rápidas debajo del chat."
+    },
+    {
+      "id": "documentos-admin",
+      "titulo": "Documentos (Admin)",
+      "aliases": ["documentos", "docs", "biblioteca", "pdfs"],
+      "tags": ["documentos"],
+      "ruta": "/documentos",
+      "categoria": "guia",
+      "cuerpo": "Documentos (/documentos) publica archivos visibles para audiencias. Pueden indexarse hacia la KB del bot. Políticas: /politicas. Ayuda U: /ayuda."
+    },
+    {
+      "id": "beneficios",
+      "titulo": "Beneficios",
+      "aliases": ["beneficios", "billetera", "partners", "puntos"],
+      "tags": ["beneficios"],
+      "ruta": "/beneficios",
+      "categoria": "guia",
+      "cuerpo": "Beneficios (/beneficios): catálogo, partners, reglas de puntos y reportes. Visible según capabilities del admin."
+    },
+    {
+      "id": "reservas",
+      "titulo": "Reserva de espacios",
+      "aliases": ["reservas", "salas", "cochera", "espacios", "oficina"],
+      "tags": ["espacios"],
+      "ruta": "/reservas",
+      "categoria": "guia",
+      "cuerpo": "Reservas (/reservas): sedes, recursos (salas, cocheras, puestos) y pendientes. Los miembros reservan desde /espacios o /oficina en la app U, o vía asistente U."
+    },
+    {
+      "id": "eventos",
+      "titulo": "Eventos",
+      "aliases": ["eventos", "rsvp", "calendario"],
+      "tags": ["eventos"],
+      "ruta": "/eventos",
+      "categoria": "guia",
+      "cuerpo": "Eventos (/eventos): alta, audiencia, RSVP y avisos. Usá borradores IA si está configurada."
+    },
+    {
+      "id": "directorio",
+      "titulo": "Datos útiles / directorio",
+      "aliases": ["directorio", "datos utiles", "datos útiles", "contactos"],
+      "tags": ["directorio"],
+      "ruta": "/directorio",
+      "categoria": "guia",
+      "cuerpo": "Datos útiles (/directorio): fichas de contacto o información práctica para la comunidad. Importación asistida por IA disponible según config."
+    },
+    {
+      "id": "notificaciones",
+      "titulo": "Notificaciones",
+      "aliases": ["notificaciones", "avisos", "push", "copy ia"],
+      "tags": ["comunicaciones"],
+      "ruta": "/notificaciones",
+      "categoria": "guia",
+      "cuerpo": "Notificaciones (/notificaciones): plantillas y copy (con IA). Saludos automáticos: /saludos. Centro de comunicaciones multi-canal: /comunicaciones."
+    },
+    {
+      "id": "comunicaciones",
+      "titulo": "Centro de comunicaciones",
+      "aliases": ["comunicaciones", "email", "whatsapp", "sms", "plantillas"],
+      "tags": ["comunicaciones"],
+      "ruta": "/comunicaciones",
+      "categoria": "guia",
+      "cuerpo": "Comunicaciones (/comunicaciones): tipos, plantillas (IA), envío email/WhatsApp/SMS e historial/outbox. Paridad con el centro de comunicaciones de Hiryx, adaptado a comunidad Connectia."
+    },
+    {
+      "id": "menu-dinamico",
+      "titulo": "Menú dinámico de la app",
+      "aliases": ["menu", "menú", "navegacion app", "ítems de menú"],
+      "tags": ["config"],
+      "ruta": "/menu",
+      "categoria": "guia",
+      "cuerpo": "Menú (/menu): orden y visibilidad de ítems de la app miembro (canal U) y referencias Admin. Comunidad/branding: /comunidad. Parámetros: /parametros. Roles: /roles."
+    },
+    {
+      "id": "comunidad-branding",
+      "titulo": "Comunidad y branding",
+      "aliases": ["comunidad", "branding", "tenant", "logo", "marca"],
+      "tags": ["config"],
+      "ruta": "/comunidad",
+      "categoria": "guia",
+      "cuerpo": "Comunidad (/comunidad): datos del tenant, marca y configuración general de la comunidad. No confundir con el muro (/publicaciones)."
+    },
+    {
+      "id": "roles",
+      "titulo": "Roles y permisos",
+      "aliases": ["roles", "permisos", "capabilities", "capacidades"],
+      "tags": ["seguridad", "config"],
+      "ruta": "/roles",
+      "categoria": "guia",
+      "cuerpo": "Roles (/roles): asigná capabilities que habilitan pantallas y acciones Admin. Sin el capability correspondiente, el ítem no aparece en Funciones."
+    },
+    {
+      "id": "encuestas",
+      "titulo": "Encuestas",
+      "aliases": ["encuestas", "pulse", "cuestionarios"],
+      "tags": ["engagement"],
+      "ruta": "/encuestas",
+      "categoria": "guia",
+      "cuerpo": "Encuestas (/encuestas): creación y resultados. Emociones/engagement: /emociones. Relevamientos (si aplica): /relevamientos."
+    },
+    {
+      "id": "moderacion",
+      "titulo": "Moderación",
+      "aliases": ["moderacion", "moderación", "comentarios", "chat moderacion"],
+      "tags": ["moderacion"],
+      "ruta": "/moderacion-comentarios",
+      "categoria": "guia",
+      "cuerpo": "Moderación de comentarios: /moderacion-comentarios. Moderación de chat interno: /chat-moderacion."
+    },
+    {
+      "id": "onboarding",
+      "titulo": "Onboarding y egreso",
+      "aliases": ["onboarding", "egreso", "alta", "bienvenida", "day0"],
+      "tags": ["rrhh", "onboarding"],
+      "ruta": "/onboarding",
+      "categoria": "guia",
+      "cuerpo": "Onboarding y egreso (/onboarding): flujos de ingreso/salida del colaborador. Relacionado con legajos y, a futuro, puente Hiryx → Connectia."
+    },
+    {
+      "id": "reportes",
+      "titulo": "Reportes",
+      "aliases": ["reportes", "métricas", "metricas", "analytics"],
+      "tags": ["reportes"],
+      "ruta": "/reportes",
+      "categoria": "guia",
+      "cuerpo": "Reportes (/reportes): métricas de uso/comunidad según módulos habilitados. El Dashboard (/) muestra un resumen ejecutivo."
+    }
+  ]
+}

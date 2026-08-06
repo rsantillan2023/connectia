@@ -28,7 +28,9 @@ import { seedHubKindsForTenant } from './seedHubKinds.js'
 import { seedNotificationsForTenant } from './seedNotifications.js'
 import { seedGreetingsForTenant } from './seedGreetings.js'
 import { seedDirectoryForTenant } from '../lib/directorySeed.js'
+import { DEFAULT_CAPS } from '../constants/moduleCatalog.js'
 import { seedBenefitsForTenant } from '../lib/benefitsSeed.js'
+import { seedStoriesForTenant } from '../lib/storiesSeed.js'
 import { postLedgerEntry } from '../lib/walletService.js'
 import { syncKbSource } from '../services/kbIndex.js'
 import {
@@ -109,7 +111,12 @@ export async function seedGenericTenant({ tenant, passwordHash, profile: profile
   tenant.loginMethods = tenant.loginMethods?.length ? tenant.loginMethods : ['password', 'id']
   tenant.capabilities = tenant.capabilities?.length
     ? tenant.capabilities
-    : ['muro', 'solicitudes', 'encuestas', 'docs', 'hub', 'chat', 'menu.dynamic', 'beneficios', 'beneficios.billetera']
+    : tenant.licensedCapabilities?.length
+      ? [...tenant.licensedCapabilities]
+      : [...DEFAULT_CAPS]
+  if (!tenant.licensedCapabilities?.length) {
+    tenant.licensedCapabilities = [...tenant.capabilities]
+  }
   tenant.timezone = profile.timezone || 'America/Argentina/Buenos_Aires'
   tenant.uxShell = tenant.uxShell || 'connectia'
   tenant.ugc = { enabled: true, requireApproval: true }
@@ -192,6 +199,7 @@ export async function seedGenericTenant({ tenant, passwordHash, profile: profile
         'admin.tipos-solicitud',
         'admin.usuarios',
         'admin.organizacion',
+        'admin.reportes',
         'admin.ayuda',
         'admin.politicas',
         'admin.workflows',
@@ -531,6 +539,41 @@ export async function seedGenericTenant({ tenant, passwordHash, profile: profile
         { key: 'detalle', label: 'Detalle', tipo: 'textarea', required: true, orden: 40 },
       ],
     },
+    {
+      key: 'turno_carnet',
+      nombre: 'Turno carnet',
+      descripcion: 'Pedido de turno para tramitar carnet / credencial (ex-gap 32.03).',
+      area: 'RRHH',
+      orden: 50,
+      audience: { mode: 'all', areaIds: [], groupIds: [] },
+      campos: [
+        {
+          key: 'tipo_carnet',
+          label: 'Tipo de carnet',
+          tipo: 'select',
+          required: true,
+          orden: 10,
+          opciones: ['Credencial de acceso', 'Carnet de identificación', 'Otro'],
+        },
+        { key: 'fecha_preferida', label: 'Fecha preferida', tipo: 'date', required: true, orden: 20 },
+        {
+          key: 'franja',
+          label: 'Franja horaria',
+          tipo: 'select',
+          required: true,
+          orden: 30,
+          opciones: ['Mañana', 'Tarde', 'Indistinto'],
+        },
+        {
+          key: 'motivo',
+          label: 'Motivo',
+          tipo: 'textarea',
+          required: true,
+          orden: 40,
+          placeholder: 'Alta, renovación, extravío…',
+        },
+      ],
+    },
   ]
 
   const typesByKey = {}
@@ -647,6 +690,10 @@ export async function seedGenericTenant({ tenant, passwordHash, profile: profile
   }
 
   const surveyTitulo = `Clima laboral — pulse ${brand}`
+  const SURVEY_IMG_CLIMA =
+    'https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200&q=80'
+  const SURVEY_IMG_ONBOARD =
+    'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=1200&q=80'
   let survey = await Survey.findOne({ tenantId: tenant._id, titulo: surveyTitulo })
   if (!survey) {
     const invitedCount = await User.countDocuments({ tenantId: tenant._id, activo: true })
@@ -654,6 +701,7 @@ export async function seedGenericTenant({ tenant, passwordHash, profile: profile
       tenantId: tenant._id,
       titulo: surveyTitulo,
       descripcion: `Encuesta de clima para el equipo de ${brand}. Tus respuestas ayudan a priorizar acciones.`,
+      imageUrl: SURVEY_IMG_CLIMA,
       status: 'published',
       publishedAt: new Date(),
       version: 1,
@@ -695,6 +743,58 @@ export async function seedGenericTenant({ tenant, passwordHash, profile: profile
         },
       ],
     })
+  } else if (!survey.imageUrl) {
+    survey.imageUrl = SURVEY_IMG_CLIMA
+    await survey.save()
+  }
+
+  const onboardTitulo = `Bienvenida ${brand} — primer día`
+  let onboardSurvey = await Survey.findOne({ tenantId: tenant._id, titulo: onboardTitulo })
+  if (!onboardSurvey) {
+    const invitedCount = await User.countDocuments({ tenantId: tenant._id, activo: true })
+    onboardSurvey = await Survey.create({
+      tenantId: tenant._id,
+      titulo: onboardTitulo,
+      descripcion: `Encuesta corta de bienvenida para nuevos ingresos en ${brand}.`,
+      imageUrl: SURVEY_IMG_ONBOARD,
+      status: 'published',
+      purpose: 'onboarding',
+      publishedAt: new Date(),
+      version: 1,
+      audience: { mode: 'all', areaIds: [], groupIds: [] },
+      audienceSnapshot: {
+        invitedCount,
+        capturedAt: new Date(),
+        mode: 'all',
+        areaIds: [],
+        groupIds: [],
+      },
+      anonymous: false,
+      authorId: comunicacion._id,
+      authorName: `${comunicacion.nombre} ${comunicacion.apellido}`,
+      questions: [
+        {
+          id: 'q_ob_kit',
+          texto: '¿Recibiste tu kit / accesos de bienvenida?',
+          tipo: 'single',
+          required: true,
+          grupo: 'Ingreso',
+          opciones: ['Sí', 'Parcialmente', 'Aún no'],
+        },
+        {
+          id: 'q_ob_ayuda',
+          texto: '¿Qué necesitás para arrancar con confianza?',
+          tipo: 'textarea',
+          required: false,
+          grupo: 'Ingreso',
+          opciones: [],
+        },
+      ],
+    })
+  } else if (!onboardSurvey.imageUrl) {
+    onboardSurvey.imageUrl = SURVEY_IMG_ONBOARD
+    if (onboardSurvey.purpose !== 'onboarding') onboardSurvey.purpose = 'onboarding'
+    await onboardSurvey.save()
   }
 
   if (survey && juan) {
@@ -1022,6 +1122,18 @@ export async function seedGenericTenant({ tenant, passwordHash, profile: profile
 
   const directorySeed = await seedDirectoryForTenant(tenant._id, { brandName: brand })
   const benefitsSeed = await seedBenefitsForTenant(tenant._id, { brandName: brand })
+  const storiesSeed = await seedStoriesForTenant(tenant._id, {
+    brandName: brand,
+    variant: 'default',
+    authorId: comunicacion?._id || admin?._id,
+    authorName: comunicacion
+      ? `${comunicacion.nombre} ${comunicacion.apellido}`.trim()
+      : 'seed',
+    force: false,
+  })
+  console.log(
+    `[seedGeneric] Stories: ${storiesSeed.created} nuevas · ${storiesSeed.skipped} omitidas`,
+  )
 
   // Saldo demo para miembros (idempotente por usuario)
   for (const u of [juan, sofia, carlos, usersByUsuario['maria.lopez']].filter(Boolean)) {
@@ -1039,6 +1151,43 @@ export async function seedGenericTenant({ tenant, passwordHash, profile: profile
   const { ensureDefaultPointsRules } = await import('../lib/pointsRules.js')
   await ensureDefaultPointsRules(tenant._id, { createdBy: admin?._id })
 
+  const { seedOla36ForTenant } = await import('../lib/ola36Seed.js')
+  const ola36 = await seedOla36ForTenant(tenant._id, {
+    brandName: brand,
+    createdBy: admin?._id,
+    ensureSpaces: true,
+  })
+  console.log(
+    `[seedGeneric] Ola 36: plantillas +${ola36.templates} · NL ${ola36.newsletterRules} · clientes +${ola36.clients} · pubs +${ola36.posts} · espacios +${ola36.spaceExtras}`,
+  )
+
+  const { seedPedidosForTenant, tenantWantsPedidos } = await import('../lib/pedidosSeed.js')
+  if (tenantWantsPedidos(tenant)) {
+    const ped = await seedPedidosForTenant(tenant, {
+      force: false,
+      brandName: brand,
+    })
+    console.log(
+      `[seedGeneric] Ola 25: cats +${ped.categoriesCreated} · arts +${ped.articlesCreated} · alarma ${ped.alarmCreated ? 'sí' : '—'}`,
+    )
+  } else {
+    console.log('[seedGeneric] Ola 25 omitida (pack sin módulo pedidos; activar pack todo o cap pedidos)')
+  }
+
+  const { seedServiciosForTenant, tenantWantsServicios } = await import('../lib/serviciosSeed.js')
+  if (tenantWantsServicios(tenant)) {
+    const srv = await seedServiciosForTenant(tenant, {
+      force: false,
+      brandName: brand,
+      variant: 'default',
+    })
+    console.log(
+      `[seedGeneric] Ola 43: áreas +${srv.areasCreated} · ítems +${srv.itemsCreated} · req +${srv.requestsCreated}`,
+    )
+  } else {
+    console.log('[seedGeneric] Ola 43 omitida (pack sin módulo servicios)')
+  }
+
   console.log(`[seedGeneric] ${empCodigo} listo — admin ${adminUsuario} / ${DEFAULT_SEED_PASSWORD}`)
 
   return {
@@ -1048,6 +1197,7 @@ export async function seedGenericTenant({ tenant, passwordHash, profile: profile
     industry: profile.industry,
     directory: directorySeed,
     benefits: benefitsSeed,
+    stories: storiesSeed,
     users: userDefs.map((u) => ({ usuario: u.usuario, idExterno: u.idExterno, roles: u.roles })),
     credentials: {
       empCodigo,

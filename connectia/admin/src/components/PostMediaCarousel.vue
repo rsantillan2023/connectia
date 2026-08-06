@@ -126,7 +126,7 @@ onBeforeUnmount(clear)
   height: 100%;
   min-height: inherit;
   overflow: hidden;
-  background: var(--cx-surface-2, #0f172a);
+  background: var(--cx-surface-2, var(--ink));
   touch-action: pan-y;
   user-select: none;
 }
@@ -166,7 +166,7 @@ onBeforeUnmount(clear)
   cursor: pointer;
 }
 .pcar-dot.on {
-  background: #fff;
+  background: var(--panel);
   width: 16px;
 }
 .pcar-count {

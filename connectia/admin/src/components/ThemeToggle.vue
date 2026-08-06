@@ -1,16 +1,46 @@
 <template>
   <button
-    v-if="theme.canToggle"
     type="button"
-    class="inline-flex items-center gap-1.5 rounded-lg border border-slate-600 bg-slate-800/80 px-2.5 py-1.5 text-xs font-medium text-slate-100 hover:border-teal-500/50 transition"
-    :title="theme.resolved === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
+    class="theme-toggle"
+    :title="tooltip"
+    :aria-label="tooltip"
     @click="theme.toggle()"
   >
-    Modo {{ theme.resolved === 'dark' ? 'claro' : 'oscuro' }}
+    <i :class="theme.resolved === 'dark' ? 'fas fa-sun' : 'fas fa-moon'" aria-hidden="true"></i>
   </button>
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { useThemeStore } from '../stores/theme'
+
 const theme = useThemeStore()
+const tooltip = computed(() =>
+  theme.resolved === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro',
+)
 </script>
+
+<style scoped>
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid transparent;
+  background: transparent;
+  color: inherit;
+  border-radius: 0.5rem;
+  padding: 0;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.theme-toggle:hover {
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+.theme-toggle:focus-visible {
+  outline: 2px solid color-mix(in srgb, currentColor 45%, transparent);
+  outline-offset: 2px;
+}
+</style>

@@ -2,7 +2,7 @@
   <section class="perfil">
     <header class="perfil-head">
       <h1>Mi perfil</h1>
-      <p>{{ auth.tenant?.nombre || 'Tu cuenta en Connectia' }}</p>
+      <p>{{ auth.tenant?.nombre || 'Tu cuenta en Connectyx' }}</p>
     </header>
 
     <div class="perfil-card">
@@ -835,7 +835,7 @@ onMounted(load)
   margin: -4px 0 0;
   font-size: 0.8rem;
   font-weight: 700;
-  color: #0f766e;
+  color: var(--brand-primary, #0f766e);
 }
 .perfil-row {
   display: flex;
@@ -861,7 +861,7 @@ onMounted(load)
 }
 .perfil-ok {
   margin: 0;
-  color: #0f766e;
+  color: var(--brand-primary, #0f766e);
   font-size: 0.9rem;
   font-weight: 600;
 }

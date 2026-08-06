@@ -1,5 +1,14 @@
 <template>
-  <section class="feed">
+  <section class="feed" :class="{ 'feed--portal': isPortalSkin }">
+    <header v-if="isPortalSkin" class="portal-chrome">
+      <div class="portal-chrome-text">
+        <p class="portal-eyebrow">Comunicación interna</p>
+        <h1 class="portal-name">Noticias</h1>
+      </div>
+      <button type="button" class="portal-back-classic" @click="goClassicMuro">
+        Muro actual
+      </button>
+    </header>
     <div
       class="pull-indicator"
       :class="{ visible: pulling || refreshing }"
@@ -12,7 +21,45 @@
       </span>
     </div>
 
-    <HubQuickStrip compact surface="muro" class="feed-hub" />
+    <HubQuickStrip
+      compact
+      surface="muro"
+      :skin="isPortalSkin ? 'portal' : 'classic'"
+      class="feed-hub"
+      @loaded="onHubLoaded"
+    />
+
+    <!-- Franja del color del header solo si hay botón de puntos a caballo (sin beneficios no hace falta). -->
+    <div
+      v-if="!isPortalSkin && hubHasLinks && !hubOpen && showPtsBridge"
+      class="muro-hub-spacer"
+      aria-hidden="true"
+    />
+
+    <div
+      v-if="showPtsBridge"
+      class="muro-pts-bridge"
+      :class="{ solo: !hubHasLinks || isPortalSkin }"
+    >
+      <PointsHero bridge @open="goPointsEarn" />
+    </div>
+
+    <div v-if="liveCount > 0 && !liveBannerDismissed" class="live-banner">
+      <RouterLink to="/en-vivo" class="live-banner-link">
+        <span class="live-dot" aria-hidden="true" />
+        Ver emisiones en vivo
+      </RouterLink>
+      <button
+        type="button"
+        class="live-banner-close"
+        aria-label="Cerrar"
+        @click="dismissLiveBanner"
+      >
+        ×
+      </button>
+    </div>
+
+    <StoriesRail ref="storiesRail" />
 
     <header class="feed-section-head">
       <div class="feed-section-left">
@@ -28,6 +75,15 @@
         </button>
       </div>
       <div class="feed-section-actions">
+        <RouterLink
+          v-if="!isPortalSkin"
+          to="/muro/portal"
+          class="portal-peek"
+          title="Vista portal (borrador)"
+          aria-label="Vista portal borrador"
+        >
+          v3
+        </RouterLink>
         <div class="view-toggle" role="group" aria-label="Formato de novedades">
           <button
             type="button"
@@ -70,8 +126,27 @@
       <button type="button" class="filter-clear" @click="clearFilters">Quitar filtros</button>
     </p>
 
-    <p v-if="error" class="feed-banner">{{ error }}</p>
+    <p v-if="error && items.length" class="feed-banner">{{ error }}</p>
     <div v-if="loading && !items.length && !refreshing" class="feed-empty">Cargando novedades…</div>
+
+    <FeedEmptyState
+      v-else-if="!loading && !items.length && loadIssue"
+      :kind="loadIssue.kind"
+      :title="loadIssue.title"
+      :text="loadIssue.text"
+      @retry="load(true)"
+    />
+    <FeedEmptyState
+      v-else-if="!loading && !items.length"
+      kind="empty"
+      icon="inbox"
+      :title="filtersActive ? 'Sin resultados' : 'Todavía no hay novedades'"
+      :text="
+        filtersActive
+          ? 'No hay publicaciones que coincidan con el filtro.'
+          : 'Cuando haya información en el muro, va a aparecer acá.'
+      "
+    />
 
     <NovedadesCarousel
       v-if="viewMode === 'carousel' && items.length"
@@ -81,14 +156,14 @@
       @need-more="load(false)"
     />
 
-    <template v-if="viewMode === 'carousel'">
+    <template v-if="viewMode === 'carousel' && !(!items.length && loadIssue)">
       <MuroStripSection
         title="Beneficios"
         tone="beneficio"
         default-kicker="Beneficio"
-        empty-text="No hay beneficios por ahora."
+        collapsible
+        collapse-key="cx.muro.strip.beneficios"
         :items="beneficioCards"
-        :loading="beneficiosLoading"
         @see-all="router.push('/beneficios')"
         @open="openBeneficio"
       />
@@ -96,117 +171,157 @@
         title="Agenda"
         tone="agenda"
         default-kicker="Evento"
-        empty-text="No hay eventos próximos."
+        collapsible
+        collapse-key="cx.muro.strip.agenda"
         :items="agendaCards"
-        :loading="agendaLoading"
         @see-all="router.push('/agenda')"
         @open="openAgenda"
       />
       <MuroStripSection
-        title="Mis solicitudes"
+        title="Solicitudes y aprobaciones"
         tone="solicitud"
-        default-kicker="Solicitud"
-        empty-text="Todavía no tenés solicitudes."
-        :items="solicitudCards"
-        :loading="solicitudesLoading"
-        @see-all="router.push('/solicitudes')"
-        @open="openSolicitud"
+        default-kicker="Pendiente"
+        default-icon="inbox"
+        variant="tiles"
+        collapsible
+        collapse-key="cx.muro.strip.solicitudes"
+        :items="procesoCards"
+        @see-all="seeAllProcesos"
+        @open="openProceso"
       />
       <MuroStripSection
         title="Encuestas"
         tone="encuesta"
         default-kicker="Encuesta"
-        empty-text="No hay encuestas abiertas."
+        collapsible
+        collapse-key="cx.muro.strip.encuestas"
         :items="encuestaCards"
-        :loading="encuestasLoading"
         @see-all="router.push('/encuestas')"
         @open="openEncuesta"
       />
       <MuroStripSection
         title="Avisos"
         tone="aviso"
+        variant="pager"
         default-kicker="Aviso"
-        empty-text="No hay avisos por ahora."
+        collapsible
+        collapse-key="cx.muro.strip.avisos"
         :items="avisoCards"
-        :loading="avisosLoading"
         @see-all="router.push('/avisos')"
         @open="openAviso"
       />
       <MuroStripSection
         title="Chat"
         tone="chat"
+        variant="avatars"
         default-kicker="Chat"
-        empty-text="Todavía no tenés conversaciones."
+        collapsible
+        collapse-key="cx.muro.strip.chat"
         :items="chatCards"
-        :loading="chatsLoading"
         @see-all="router.push('/chat')"
         @open="openChat"
       />
     </template>
 
     <template v-if="viewMode === 'list'">
-      <PostCard
-        v-for="p in items"
-        :key="p.id"
-        :post="p"
-        @open="openPost"
-        @not-interested="askHide"
-      >
-        <template #actions>
-          <div class="card-actions">
-            <ReactionBar :model-value="p" @react="(key) => react(p, key)" />
+      <template v-if="isPortalSkin">
+        <article
+          v-for="p in items"
+          :key="p.id"
+          class="p3-card"
+          role="button"
+          tabindex="0"
+          @click="openPost(p)"
+          @keydown.enter.prevent="openPost(p)"
+        >
+          <div class="p3-img" :class="{ empty: !portalCover(p) }">
+            <img v-if="portalCover(p)" :src="portalCover(p)" :alt="p.titulo || ''" />
+            <span v-else class="p3-img-fallback" aria-hidden="true">📰</span>
+          </div>
+          <div class="p3-body">
+            <h2 class="p3-title">{{ p.titulo || 'Sin título' }}</h2>
+            <p v-if="portalExcerpt(p)" class="p3-desc">{{ portalExcerpt(p) }}</p>
+          </div>
+          <div class="p3-footer" @click.stop>
             <button
               v-if="p.commentsEnabled !== false"
               type="button"
-              class="react"
-              aria-label="Comentarios"
-              title="Comentarios"
+              class="p3-comments"
               @click="openPost(p)"
             >
-              <AppIcon name="chat" :size="20" />
-              <span class="react-count">{{ p.commentsCount || 0 }}</span>
+              Ver comentarios ({{ p.commentsCount || 0 }})
             </button>
-            <button
-              type="button"
-              class="react"
-              aria-label="Derivar por chat"
-              title="Derivar"
-              @click="openShare(p)"
-            >
-              <AppIcon name="share" :size="20" />
-            </button>
-            <button
-              type="button"
-              class="react save"
-              :class="{ on: p.saved }"
-              :aria-label="p.saved ? 'Quitar de guardados' : 'Guardar publicación'"
-              :title="p.saved ? 'Guardado' : 'Guardar'"
-              @click="toggleSave(p)"
-            >
-              <AppIcon name="bookmark" :size="20" :filled="Boolean(p.saved)" />
+            <span v-else class="p3-comments muted">Sin comentarios</span>
+            <div class="p3-icons">
+              <button
+                type="button"
+                class="p3-ico"
+                :class="{ on: p.saved }"
+                :aria-label="p.saved ? 'Quitar de guardados' : 'Guardar'"
+                @click="toggleSave(p)"
+              >
+                <AppIcon name="bookmark" :size="18" :filled="Boolean(p.saved)" />
+              </button>
+              <button type="button" class="p3-ico" aria-label="Derivar" @click="openShare(p)">
+                <AppIcon name="share" :size="18" />
+              </button>
+            </div>
+          </div>
+          <div class="p3-reacts" @click.stop>
+            <ReactionBar :model-value="p" @react="(key) => react(p, key)" />
+            <button type="button" class="react more" aria-label="No me interesa" @click="askHide(p)">
+              ···
             </button>
           </div>
-        </template>
-      </PostCard>
+        </article>
+      </template>
+      <template v-else>
+        <PostCard
+          v-for="p in items"
+          :key="p.id"
+          :post="p"
+          @open="openPost"
+          @not-interested="askHide"
+        >
+          <template #actions>
+            <div class="card-actions">
+              <ReactionBar :model-value="p" @react="(key) => react(p, key)" />
+              <button
+                v-if="p.commentsEnabled !== false"
+                type="button"
+                class="react"
+                aria-label="Comentarios"
+                title="Comentarios"
+                @click="openPost(p)"
+              >
+                <AppIcon name="chat" :size="20" />
+                <span class="react-count">{{ p.commentsCount || 0 }}</span>
+              </button>
+              <button
+                type="button"
+                class="react"
+                aria-label="Derivar por chat"
+                title="Derivar"
+                @click="openShare(p)"
+              >
+                <AppIcon name="share" :size="20" />
+              </button>
+              <button
+                type="button"
+                class="react save"
+                :class="{ on: p.saved }"
+                :aria-label="p.saved ? 'Quitar de guardados' : 'Guardar publicación'"
+                :title="p.saved ? 'Guardado' : 'Guardar'"
+                @click="toggleSave(p)"
+              >
+                <AppIcon name="bookmark" :size="20" :filled="Boolean(p.saved)" />
+              </button>
+            </div>
+          </template>
+        </PostCard>
+      </template>
     </template>
 
-    <div v-if="viewMode === 'list' && !loading && !items.length" class="feed-empty">
-      {{
-        filtersActive
-          ? 'No hay novedades que coincidan con el filtro.'
-          : 'Todavía no hay publicaciones en tu muro.'
-      }}
-    </div>
-    <p
-      v-else-if="viewMode === 'carousel' && !loading && !items.length"
-      class="carousel-empty"
-    >
-      {{
-        filtersActive
-          ? 'No hay novedades que coincidan con el filtro.'
-          : 'Todavía no hay novedades.'
-      }}
-    </p>
     <div v-if="viewMode === 'list'" ref="sentinel" class="feed-sentinel">
       <span v-if="loadingMore">Cargando más…</span>
     </div>
@@ -229,6 +344,7 @@
       :q="filters.q"
       :tipo="filters.tipo"
       :origin="filters.origin"
+      :section="filters.section"
       @close="filterOpen = false"
       @apply="applyFilters"
     />
@@ -247,14 +363,20 @@ import SharePostSheet from '../components/SharePostSheet.vue'
 import GuardadosFilterSheet from '../components/GuardadosFilterSheet.vue'
 import NovedadesCarousel from '../components/NovedadesCarousel.vue'
 import MuroStripSection from '../components/MuroStripSection.vue'
+import StoriesRail from '../components/StoriesRail.vue'
+import PointsHero from '../components/PointsHero.vue'
 import ReactionBar from '../components/ReactionBar.vue'
 import { usePullToRefresh } from '../composables/usePullToRefresh'
 import { useAuthStore } from '../stores/auth'
 import { useNotifBadge } from '../composables/useNotifBadge'
 import { useChatBadge } from '../composables/useChatBadge'
-import { mediaKind, resolveMediaUrl } from '../utils/media'
+import { useMuroHubStrip } from '../composables/useMuroHubStrip'
+import { mediaKind, resolveMediaUrl, postCoverUrl } from '../utils/media'
+import { describeLoadError, friendlyErrorMessage } from '../utils/networkError'
+import FeedEmptyState from '../components/FeedEmptyState.vue'
 
 const VIEW_KEY = 'cx.muro.novedadesView'
+const LIVE_BANNER_DISMISS_KEY = 'cx.muro.live_banner_dismiss'
 const TIPO_LABELS = {
   noticia: 'Noticia',
   aviso: 'Aviso',
@@ -276,10 +398,62 @@ const props = defineProps({
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
+/** Skin portal-empleado-v3: mismos bloques, otro formato visual. */
+const isPortalSkin = computed(
+  () => route.meta?.muroSkin === 'portal' || route.name === 'muro-portal',
+)
+
+function goClassicMuro() {
+  router.push('/muro')
+}
+
+function portalCover(p) {
+  return postCoverUrl(p) || ''
+}
+
+function portalExcerpt(p) {
+  const raw = String(p?.cuerpo || p?.resumen || '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (!raw) return ''
+  return raw.length > 140 ? `${raw.slice(0, 137)}…` : raw
+}
 const { setUnread: setNotifUnread, unreadCount: notifUnread } = useNotifBadge()
 const { refreshBadge: refreshChatBadge } = useChatBadge()
 
 const items = ref([])
+const liveCount = ref(0)
+const loadIssue = ref(null)
+const liveBannerDismissed = ref(
+  typeof sessionStorage !== 'undefined' && sessionStorage.getItem(LIVE_BANNER_DISMISS_KEY) === '1',
+)
+
+function dismissLiveBanner() {
+  liveBannerDismissed.value = true
+  try {
+    sessionStorage.setItem(LIVE_BANNER_DISMISS_KEY, '1')
+  } catch {
+    /* ignore */
+  }
+}
+/** Hay franja de enlaces en el muro (si no, el botón de puntos no sube bajo el header). */
+const hubHasLinks = ref(false)
+const { expanded: hubOpen, setHasLinks } = useMuroHubStrip()
+
+/** Misma regla que PointsHero: sin beneficios no reservar spacer/puente (caso 3). */
+const showPtsBridge = computed(() => {
+  const u = auth.user?.capabilities || []
+  const tCaps = auth.tenant?.capabilities || []
+  const caps = [...new Set([...u, ...tCaps])]
+  return caps.includes('beneficios.billetera') || caps.includes('beneficios')
+})
+
+function onHubLoaded(payload) {
+  const has = Boolean(payload?.hasLinks ?? payload?.categories?.length)
+  hubHasLinks.value = has
+  setHasLinks(has)
+}
 const page = ref(1)
 const total = ref(0)
 const loading = ref(true)
@@ -292,20 +466,16 @@ const hideTarget = ref(null)
 const hiding = ref(false)
 const shareTarget = ref(null)
 const filterOpen = ref(false)
-const filters = reactive({ q: '', tipo: '', origin: '' })
+const filters = reactive({ q: '', tipo: '', origin: '', section: '', knowledge: false })
+const storiesRail = ref(null)
 const viewMode = ref(readViewMode())
 const avisos = ref([])
-const avisosLoading = ref(false)
 const chats = ref([])
-const chatsLoading = ref(false)
 const beneficios = ref([])
-const beneficiosLoading = ref(false)
 const agenda = ref([])
-const agendaLoading = ref(false)
 const solicitudes = ref([])
-const solicitudesLoading = ref(false)
+const aprobaciones = ref([])
 const encuestas = ref([])
-const encuestasLoading = ref(false)
 let observer
 let stripsLoaded = false
 
@@ -364,30 +534,58 @@ const avisoCards = computed(() =>
     title: n.title || 'Aviso',
     subtitle: n.body || '',
     unread: !n.readAt,
-    kicker: n.readAt ? 'Aviso' : 'Sin leer',
+    kicker: 'Aviso',
     tone: 'aviso',
     icon: 'bell',
     raw: n,
   })),
 )
 
-const chatCards = computed(() =>
-  chats.value.map((c) => ({
-    id: c.id,
-    title: c.title || 'Chat',
-    subtitle: c.lastMessagePreview || 'Sin mensajes',
-    unread: Boolean(c.unread),
-    kicker: c.kind === 'group' ? 'Grupo' : 'Chat',
-    tone: 'chat',
-    icon: 'chat',
-    raw: c,
-  })),
-)
+const chatCards = computed(() => {
+  const meId = String(auth.user?.id || auth.user?._id || '')
+  const list = [...chats.value].sort((a, b) => {
+    const ua = Number(Boolean(a.unread))
+    const ub = Number(Boolean(b.unread))
+    if (ub !== ua) return ub - ua
+    return new Date(b.lastMessageAt || 0) - new Date(a.lastMessageAt || 0)
+  })
+  return list.slice(0, 16).map((c) => {
+    const peers = (c.participants || []).filter((p) => String(p?.id || '') !== meId)
+    const peer = peers.find((p) => p?.nombre || p?.displayName || p?.usuario) || peers[0]
+    const nombre = String(peer?.nombre || '').trim()
+    const apellido = String(peer?.apellido || '').trim()
+    let nameLines = []
+    if (c.kind === 'direct' && (nombre || apellido)) {
+      nameLines = [nombre, apellido].filter(Boolean)
+    } else {
+      const full = String(c.title || peer?.displayName || peer?.usuario || 'Chat').trim()
+      const parts = full.split(/\s+/).filter(Boolean)
+      nameLines = parts.length >= 2 ? [parts[0], parts.slice(1).join(' ')] : [full || 'Chat']
+    }
+    const name = nameLines.join(' ') || 'Chat'
+    const initials = nameLines
+      .slice(0, 2)
+      .map((w) => w[0])
+      .join('')
+      .toUpperCase() || '?'
+    return {
+      id: c.id,
+      title: name,
+      nameLines: nameLines.slice(0, 2),
+      initials,
+      imageUrl: resolveMediaUrl(c.avatarUrl || peer?.avatarUrl || ''),
+      unread: Boolean(c.unread),
+      unreadCount: Number(c.unreadCount) || (c.unread ? 1 : 0),
+      tone: 'chat',
+      raw: c,
+    }
+  })
+})
 
 const beneficioCards = computed(() =>
   beneficios.value.map((b) => ({
     id: b.id,
-    title: b.titulo || 'Beneficio',
+    title: b.displayTitle || b.nombreComercial || b.titulo || 'Beneficio',
     subtitle: b.costoPuntos
       ? `${b.costoPuntos} pts${b.kindLabel ? ` · ${b.kindLabel}` : ''}`
       : b.kindLabel || b.descripcion || '',
@@ -410,19 +608,83 @@ const agendaCards = computed(() =>
   })),
 )
 
+const SOLICITUD_STATUS_ICONS = {
+  abierta: 'inbox',
+  en_proceso: 'sparkles',
+  a_completar: 'alert',
+  en_espera: 'clock',
+  escalada: 'alert',
+  resuelta: 'check',
+  cerrada: 'check',
+  cancelada: 'close',
+}
+
+const APROBACION_STATUS_ICONS = {
+  pendiente: 'clock',
+  en_curso: 'sparkles',
+  aprobado: 'check',
+  rechazado: 'close',
+  cancelado: 'close',
+}
+
+const APROBACION_STATUS_LABELS = {
+  pendiente: 'Pendiente',
+  en_curso: 'En curso',
+  aprobado: 'Aprobado',
+  rechazado: 'Rechazado',
+  cancelado: 'Cancelado',
+}
+
 const solicitudCards = computed(() =>
-  solicitudes.value.map((r) => ({
-    id: r.id,
-    title: r.titulo || r.codigo || 'Solicitud',
-    subtitle: [r.estadoLabel || r.estado, r.tipoNombre].filter(Boolean).join(' · '),
-    unread: Boolean(r.needsCompletion),
-    kicker: r.codigo || 'Solicitud',
-    tone: 'solicitud',
-    icon: 'inbox',
-    imageUrl: stripImageUrl(r.mediaUrl, r.imageUrl, r.coverUrl),
-    raw: r,
-  })),
+  solicitudes.value.map((r) => {
+    const statusKey = String(r.estado || '').trim()
+    return {
+      id: `sol-${r.id}`,
+      kind: 'solicitud',
+      title: r.titulo || r.codigo || 'Solicitud',
+      subtitle: [r.estadoLabel || r.estado, r.tipoNombre].filter(Boolean).join(' · '),
+      unread: Boolean(r.needsCompletion),
+      kicker: r.codigo || 'Solicitud',
+      tone: 'solicitud',
+      icon: 'inbox',
+      typeLabel: r.tipoNombre || r.tipo?.nombre || 'Solicitud',
+      typeIcon: 'clipboard',
+      statusKey,
+      statusLabel: r.estadoLabel || r.estado || '',
+      statusIcon: SOLICITUD_STATUS_ICONS[statusKey] || 'inbox',
+      imageUrl: stripImageUrl(r.mediaUrl, r.imageUrl, r.coverUrl),
+      raw: r,
+    }
+  }),
 )
+
+const aprobacionCards = computed(() =>
+  aprobaciones.value.map((a) => {
+    const statusKey = String(a.status || '').trim()
+    const typeLabel = a.origen?.moduleLabel || a.definitionName || 'Aprobación'
+    return {
+      id: `apr-${a.id}`,
+      kind: 'aprobacion',
+      title: a.origen?.titulo || a.definitionName || 'Aprobación pendiente',
+      subtitle: [a.solicitanteName, a.currentStep?.nombre].filter(Boolean).join(' · '),
+      unread: Boolean(a.canDecide),
+      kicker: 'Aprobación',
+      tone: 'solicitud',
+      icon: 'check',
+      typeLabel,
+      typeIcon: 'check',
+      statusKey,
+      statusLabel: a.canDecide
+        ? 'Para aprobar'
+        : APROBACION_STATUS_LABELS[statusKey] || a.status || 'Pendiente',
+      statusIcon: a.canDecide ? 'alert' : APROBACION_STATUS_ICONS[statusKey] || 'check',
+      raw: a,
+    }
+  }),
+)
+
+/** Aprobaciones primero (acción), luego solicitudes. */
+const procesoCards = computed(() => [...aprobacionCards.value, ...solicitudCards.value].slice(0, 16))
 
 const encuestaCards = computed(() => {
   const sorted = [...encuestas.value].sort((a, b) => Number(Boolean(a.answered)) - Number(Boolean(b.answered)))
@@ -441,7 +703,7 @@ const encuestaCards = computed(() => {
 })
 
 const filtersActive = computed(
-  () => Boolean(filters.q?.trim() || filters.tipo || filters.origin),
+  () => Boolean(filters.q?.trim() || filters.tipo || filters.origin || filters.section || filters.knowledge),
 )
 
 const filterSummary = computed(() => {
@@ -449,6 +711,8 @@ const filterSummary = computed(() => {
   if (filters.q?.trim()) parts.push(`“${filters.q.trim()}”`)
   if (filters.tipo) parts.push(TIPO_LABELS[filters.tipo] || filters.tipo)
   if (filters.origin) parts.push(ORIGIN_LABELS[filters.origin] || filters.origin)
+  if (filters.section) parts.push(filters.section)
+  if (filters.knowledge) parts.push('Conocimiento')
   return parts.length ? `Filtro: ${parts.join(' · ')}` : ''
 })
 
@@ -475,19 +739,42 @@ function applyFilters(next) {
   filters.q = String(next?.q || '').trim()
   filters.tipo = next?.tipo || ''
   filters.origin = next?.origin || ''
+  filters.section = String(next?.section || '').trim()
+  filters.knowledge = Boolean(next?.knowledge)
   load(true)
 }
 
 function clearFilters() {
-  applyFilters({ q: '', tipo: '', origin: '' })
+  applyFilters({ q: '', tipo: '', origin: '', section: '', knowledge: false })
+}
+
+/** Deep links externos: /muro?tipo=&origin=&section=&knowledge=1&q= (Ola 3 · 04.15) */
+function syncFiltersFromRoute() {
+  const q = route.query
+  const knowledgeRaw = String(q.knowledge ?? q.isKnowledge ?? '').toLowerCase()
+  filters.tipo = typeof q.tipo === 'string' ? q.tipo.trim().toLowerCase() : filters.tipo
+  filters.origin = typeof q.origin === 'string' ? q.origin.trim().toLowerCase() : filters.origin
+  filters.section = typeof q.section === 'string' ? q.section.trim() : filters.section
+  if (q.knowledge != null || q.isKnowledge != null) {
+    filters.knowledge =
+      knowledgeRaw === '1' ||
+      knowledgeRaw === 'true' ||
+      knowledgeRaw === 'si' ||
+      knowledgeRaw === 'sí' ||
+      knowledgeRaw === 'yes'
+  }
+  if (typeof q.q === 'string' && q.q.trim()) filters.q = q.q.trim()
 }
 
 function openPost(p) {
   if (p?.id) router.push(`/muro/${p.id}`)
 }
 
+function goPointsEarn() {
+  router.push('/beneficios')
+}
+
 async function loadAvisos() {
-  avisosLoading.value = true
   try {
     const { data } = await api.get('/notifications', {
       params: { page: 1, limit: 12, status: 'all' },
@@ -497,13 +784,10 @@ async function loadAvisos() {
     if (data?.unreadCount != null) setNotifUnread(Number(data.unreadCount) || 0)
   } catch {
     avisos.value = []
-  } finally {
-    avisosLoading.value = false
   }
 }
 
 async function loadChats() {
-  chatsLoading.value = true
   try {
     const { data } = await api.get('/chats', {
       headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
@@ -512,13 +796,10 @@ async function loadChats() {
     await refreshChatBadge()
   } catch {
     chats.value = []
-  } finally {
-    chatsLoading.value = false
   }
 }
 
 async function loadBeneficios() {
-  beneficiosLoading.value = true
   try {
     const { data } = await api.get('/benefits', {
       headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
@@ -526,13 +807,10 @@ async function loadBeneficios() {
     beneficios.value = Array.isArray(data?.items) ? data.items.slice(0, 12) : []
   } catch {
     beneficios.value = []
-  } finally {
-    beneficiosLoading.value = false
   }
 }
 
 async function loadAgenda() {
-  agendaLoading.value = true
   try {
     const from = new Date()
     from.setHours(0, 0, 0, 0)
@@ -549,27 +827,38 @@ async function loadAgenda() {
     agenda.value = Array.isArray(data?.items) ? data.items.slice(0, 12) : []
   } catch {
     agenda.value = []
-  } finally {
-    agendaLoading.value = false
   }
 }
 
-async function loadSolicitudes() {
-  solicitudesLoading.value = true
+async function loadProcesos() {
   try {
-    const { data } = await api.get('/requests', {
-      headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
-    })
-    solicitudes.value = Array.isArray(data?.items) ? data.items.slice(0, 12) : []
+    const [solRes, aprRes] = await Promise.allSettled([
+      api.get('/requests', {
+        headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+      }),
+      api.get('/approvals', {
+        params: { scope: 'mine', page: 1, limit: 12 },
+        headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
+      }),
+    ])
+    solicitudes.value =
+      solRes.status === 'fulfilled' && Array.isArray(solRes.value?.data?.items)
+        ? solRes.value.data.items.slice(0, 12)
+        : []
+    const aprItems =
+      aprRes.status === 'fulfilled' && Array.isArray(aprRes.value?.data?.items)
+        ? aprRes.value.data.items
+        : []
+    // Priorizar las que el usuario puede decidir; si no hay flag, traer las abiertas
+    const pending = aprItems.filter((a) => a.canDecide || ['pendiente', 'en_curso'].includes(a.status))
+    aprobaciones.value = (pending.length ? pending : aprItems).slice(0, 12)
   } catch {
     solicitudes.value = []
-  } finally {
-    solicitudesLoading.value = false
+    aprobaciones.value = []
   }
 }
 
 async function loadEncuestas() {
-  encuestasLoading.value = true
   try {
     const { data } = await api.get('/surveys', {
       headers: { 'Cache-Control': 'no-cache', Pragma: 'no-cache' },
@@ -577,8 +866,6 @@ async function loadEncuestas() {
     encuestas.value = Array.isArray(data?.items) ? data.items.slice(0, 12) : []
   } catch {
     encuestas.value = []
-  } finally {
-    encuestasLoading.value = false
   }
 }
 
@@ -588,7 +875,7 @@ async function loadStrips({ force = false } = {}) {
   await Promise.all([
     loadBeneficios(),
     loadAgenda(),
-    loadSolicitudes(),
+    loadProcesos(),
     loadEncuestas(),
     loadAvisos(),
     loadChats(),
@@ -638,7 +925,28 @@ function openAgenda(card) {
   router.push('/agenda')
 }
 
-function openSolicitud(card) {
+function seeAllProcesos() {
+  if (aprobacionCards.value.length && !solicitudCards.value.length) {
+    router.push('/aprobaciones')
+    return
+  }
+  if (solicitudCards.value.length && !aprobacionCards.value.length) {
+    router.push('/solicitudes')
+    return
+  }
+  router.push('/aprobaciones')
+}
+
+function openProceso(card) {
+  if (card?.kind === 'aprobacion') {
+    const a = card?.raw || card
+    if (a?.origen?.deepLink && String(a.origen.deepLink).startsWith('/') && a.origen.deepLink !== '/aprobaciones') {
+      router.push(a.origen.deepLink)
+      return
+    }
+    router.push('/aprobaciones')
+    return
+  }
   const r = card?.raw || card
   if (r?.id) router.push(`/solicitudes/${r.id}`)
   else router.push('/solicitudes')
@@ -652,6 +960,7 @@ function openEncuesta(card) {
 
 async function load(reset, { keepList = false } = {}) {
   error.value = ''
+  if (reset && !keepList) loadIssue.value = null
   if (reset) {
     page.value = 1
     // En pull-to-refresh no ocultamos la lista (evita parpadeo)
@@ -668,6 +977,8 @@ async function load(reset, { keepList = false } = {}) {
         q: currentQ() || undefined,
         tipo: filters.tipo || undefined,
         origin: filters.origin || undefined,
+        section: filters.section || undefined,
+        knowledge: filters.knowledge ? 1 : undefined,
         // evita respuestas cacheadas del navegador al refrescar
         ...(reset ? { _t: Date.now() } : {}),
       },
@@ -681,12 +992,15 @@ async function load(reset, { keepList = false } = {}) {
     total.value = data.total || 0
     hasMore.value = items.value.length < total.value
     if (next.length) page.value += 1
+    loadIssue.value = null
   } catch (e) {
-    error.value =
-      e.response?.status === 401
-        ? 'Sesión inválida. Cerrá sesión e ingresá de nuevo.'
-        : e.response?.data?.error || 'No se pudo cargar el muro.'
-    if (reset && !keepList) items.value = []
+    const issue = describeLoadError(e, 'No se pudo cargar el muro.')
+    if (reset && !keepList) {
+      loadIssue.value = issue
+      items.value = []
+    } else {
+      error.value = issue.text
+    }
   } finally {
     loading.value = false
     loadingMore.value = false
@@ -699,7 +1013,7 @@ async function react(p, key) {
     const idx = items.value.findIndex((x) => x.id === p.id)
     if (idx >= 0 && data.post) items.value[idx] = data.post
   } catch (e) {
-    error.value = e.response?.data?.error || 'No se pudo reaccionar'
+    error.value = friendlyErrorMessage(e, 'No se pudo reaccionar')
   }
 }
 
@@ -709,7 +1023,7 @@ async function toggleSave(p) {
     const idx = items.value.findIndex((x) => x.id === p.id)
     if (idx >= 0 && data.post) items.value[idx] = data.post
   } catch (e) {
-    error.value = e.response?.data?.error || 'No se pudo guardar'
+    error.value = friendlyErrorMessage(e, 'No se pudo guardar')
   }
 }
 
@@ -728,7 +1042,7 @@ async function confirmHide() {
     total.value = Math.max(0, total.value - 1)
     hideTarget.value = null
   } catch (e) {
-    error.value = e.response?.data?.error || 'No se pudo ocultar la publicación'
+    error.value = friendlyErrorMessage(e, 'No se pudo ocultar la publicación')
   } finally {
     hiding.value = false
   }
@@ -738,6 +1052,7 @@ const { pullDistance, refreshing, pulling, ready } = usePullToRefresh({
   getScrollEl: () => document.querySelector('.u-main'),
   onRefresh: async () => {
     await load(true, { keepList: true })
+    storiesRail.value?.reload?.()
     if (viewMode.value === 'carousel') await loadStrips({ force: true })
   },
   threshold: 72,
@@ -749,8 +1064,11 @@ const indicatorHeight = computed(() => {
 })
 
 watch(
-  () => [props.searchQuery, route.query.q],
-  () => load(true),
+  () => [props.searchQuery, route.query.q, route.query.tipo, route.query.origin, route.query.section, route.query.knowledge],
+  () => {
+    syncFiltersFromRoute()
+    load(true)
+  },
 )
 
 watch(viewMode, (mode) => {
@@ -758,8 +1076,18 @@ watch(viewMode, (mode) => {
 })
 
 onMounted(() => {
+  syncFiltersFromRoute()
   load(true)
   if (viewMode.value === 'carousel') loadStrips()
+  api
+    .get('/live/active')
+    .then(({ data }) => {
+      const n = Array.isArray(data?.items) ? data.items.length : data?.liveNow ? 1 : 0
+      liveCount.value = n
+    })
+    .catch(() => {
+      liveCount.value = 0
+    })
   const root = document.querySelector('.u-main')
   observer = new IntersectionObserver(
     (entries) => {
@@ -815,7 +1143,78 @@ onBeforeUnmount(() => observer?.disconnect())
   }
 }
 .feed-hub {
+  position: relative;
+  z-index: 1;
   margin: 0;
+  overflow: visible;
+}
+.muro-hub-spacer {
+  height: 44px;
+  margin: 0;
+  background: var(--brand-primary, #0f766e);
+  pointer-events: none;
+}
+.muro-pts-bridge {
+  position: relative;
+  z-index: 5;
+  margin: -28px 16px 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.muro-pts-bridge.solo {
+  margin: 12px 16px 8px;
+}
+.muro-pts-bridge :deep(.pts-hero) {
+  pointer-events: auto;
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+}
+.live-banner {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 8px 16px 0;
+  padding: 4px 4px 4px 12px;
+  border-radius: 12px;
+  background: #fef2f2;
+  color: #991b1b;
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+.live-banner-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  padding: 6px 0;
+  color: inherit;
+  text-decoration: none;
+}
+.live-banner-close {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #991b1b;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.live-banner-close:hover {
+  background: rgba(153, 27, 27, 0.08);
+}
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #dc2626;
+  box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.2);
 }
 .feed-section-head {
   display: flex;
@@ -855,6 +1254,29 @@ onBeforeUnmount(() => observer?.disconnect())
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
+}
+.portal-peek {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
+  border-radius: 6px;
+  border: 1px solid var(--cx-border, #e2e8f0);
+  background: transparent;
+  color: var(--cx-muted, #94a3b8);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  opacity: 0.55;
+  line-height: 1;
+}
+.portal-peek:hover,
+.portal-peek:focus-visible {
+  opacity: 0.9;
+  color: var(--brand-primary, #0f766e);
 }
 .view-toggle {
   display: inline-flex;
@@ -999,5 +1421,309 @@ onBeforeUnmount(() => observer?.disconnect())
   padding: 12px;
   font-size: 12px;
   color: var(--cx-muted);
+}
+
+/* —— Skin portal-empleado-v3 (solo /muro/portal) ——
+   Tokens y tipografía del HTML: Inter + violeta dark mode. */
+.feed--portal {
+  /* Exactos del mock :root */
+  --bg: #120e1f;
+  --bg-elev: #1b1530;
+  --surface: #241c3e;
+  --surface-2: #2e2350;
+  --primary: #8b5cf6;
+  --primary-2: #a78bfa;
+  --lilac: #c9b8ff;
+  --text: #f6f4ff;
+  --text-muted: #9e92c2;
+  --success: #34d399;
+  --warn: #fbbf24;
+  --danger: #fb7185;
+  --border: rgba(255, 255, 255, 0.08);
+  --p-bg: var(--bg);
+  --p-bg-elev: var(--bg-elev);
+  --p-surface: var(--surface);
+  --p-surface-2: var(--surface-2);
+  --p-primary: var(--primary);
+  --p-primary-2: var(--primary-2);
+  --p-lilac: var(--lilac);
+  --p-text: var(--text);
+  --p-muted: var(--text-muted);
+  --p-border: var(--border);
+  --brand-primary: var(--primary);
+  --cx-text: var(--text);
+  --cx-muted: var(--text-muted);
+  --cx-border: var(--border);
+  --cx-surface: var(--surface);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100%;
+  padding: 0 0 28px;
+}
+.feed--portal button,
+.feed--portal input,
+.feed--portal select,
+.feed--portal textarea {
+  font-family: inherit;
+}
+.feed--portal .mono {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+.feed--portal .portal-chrome {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 20px 14px;
+}
+.feed--portal .portal-eyebrow {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.feed--portal .portal-name {
+  margin: 2px 0 0;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  line-height: 1.15;
+}
+.feed--portal .portal-back-classic {
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-family: 'Inter', sans-serif;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 9px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+}
+.feed--portal .feed-section-head {
+  padding: 18px 20px 10px;
+}
+.feed--portal .feed-section-title {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--text);
+}
+.feed--portal .see-all {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--primary-2);
+}
+.feed--portal .view-toggle,
+.feed--portal .filter-btn {
+  border-color: var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+}
+.feed--portal .filter-btn {
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 11px;
+}
+.feed--portal .view-btn {
+  color: var(--text-muted);
+}
+.feed--portal .view-btn.on {
+  background: var(--primary);
+  color: #fff;
+}
+.feed--portal .filter-btn.on {
+  border-color: var(--primary);
+  color: #fff;
+  background: var(--primary);
+}
+.feed--portal .filter-summary,
+.feed--portal .feed-empty,
+.feed--portal .feed-sentinel,
+.feed--portal .pull-label {
+  color: var(--text-muted);
+  font-family: 'Inter', sans-serif;
+}
+.feed--portal .filter-clear {
+  color: var(--primary-2);
+  font-weight: 700;
+}
+.feed--portal .muro-hub-spacer {
+  background: var(--bg-elev);
+}
+.feed--portal .muro-pts-bridge {
+  margin-left: 20px;
+  margin-right: 20px;
+}
+.feed--portal .live-banner {
+  margin-left: 20px;
+  margin-right: 20px;
+  background: rgba(251, 113, 133, 0.15);
+  color: var(--danger);
+  border: 1px solid var(--border);
+}
+.feed--portal .live-banner-close {
+  color: var(--danger);
+}
+.feed--portal :deep(.stories-rail) {
+  padding-left: 20px;
+  padding-right: 20px;
+}
+.feed--portal :deep(.stories-title) {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+.feed--portal :deep(.story-label) {
+  font-family: 'Inter', sans-serif;
+  font-size: 9.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  max-width: 60px;
+}
+.feed--portal :deep(.story-ring) {
+  background: linear-gradient(135deg, var(--primary), var(--lilac));
+}
+.feed--portal :deep(.story-bubble.seen .story-ring) {
+  background: var(--surface-2);
+}
+.feed--portal :deep(.pts-hero) {
+  font-family: 'Inter', sans-serif;
+}
+.feed--portal :deep(.pts-hero-bal strong) {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-weight: 700;
+}
+.feed--portal :deep(.muro-strip),
+.feed--portal :deep(.strip-title) {
+  font-family: 'Inter', sans-serif;
+  color: var(--text);
+}
+.feed--portal .react {
+  font-family: 'Inter', sans-serif;
+  color: var(--text-muted);
+}
+.feed--portal .react.on {
+  color: var(--primary-2);
+  background: rgba(139, 92, 246, 0.18);
+}
+.feed--portal .p3-card {
+  margin: 0 20px 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 22px;
+  overflow: hidden;
+  cursor: pointer;
+}
+.feed--portal .p3-img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 34px;
+  background: linear-gradient(135deg, var(--primary), var(--lilac));
+}
+.feed--portal .p3-img.empty {
+  background: var(--surface-2);
+}
+.feed--portal .p3-img img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.feed--portal .p3-img-fallback {
+  font-size: 34px;
+}
+.feed--portal .p3-body {
+  padding: 14px 16px 4px;
+}
+.feed--portal .p3-title {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 15.5px;
+  font-weight: 800;
+  line-height: 1.32;
+  color: #fff;
+}
+.feed--portal .p3-desc {
+  margin: 6px 0 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 12.5px;
+  font-weight: 400;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+.feed--portal .p3-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 12px 16px 14px;
+  border-top: 1px solid var(--border);
+}
+.feed--portal .p3-comments {
+  border: 0;
+  background: none;
+  padding: 0;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--primary-2);
+  cursor: pointer;
+}
+.feed--portal .p3-comments.muted {
+  color: var(--text-muted);
+  cursor: default;
+}
+.feed--portal .p3-icons {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.feed--portal .p3-ico {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  height: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 17px;
+  cursor: pointer;
+}
+.feed--portal .p3-ico.on {
+  color: var(--primary-2);
+}
+.feed--portal .p3-reacts {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 12px 14px;
+}
+.feed--portal .p3-reacts .react.more {
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  font-weight: 800;
+  font-family: 'Inter', sans-serif;
+}
+.feed--portal .feed-sentinel {
+  color: var(--text-muted);
 }
 </style>

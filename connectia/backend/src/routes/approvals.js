@@ -7,6 +7,7 @@ import {
   listApprovalsForUser,
   enrichApprovalsWithOrigin,
 } from '../services/workflowRuntime.js'
+import { scheduleAwardPoints } from '../lib/pointsRules.js'
 
 const router = Router()
 
@@ -65,6 +66,13 @@ router.post('/:id/decide', requireAuth, async (req, res, next) => {
       instanceId: req.params.id,
       decision,
       comentario: req.body?.comentario,
+    })
+    scheduleAwardPoints({
+      tenant: req.tenant,
+      userId: req.user._id,
+      event: 'approval_decided',
+      entityId: `${req.params.id}:${decision}`,
+      meta: { decision },
     })
     res.json({ approval: serializeInstance(inst, { user: req.user }) })
   } catch (e) {

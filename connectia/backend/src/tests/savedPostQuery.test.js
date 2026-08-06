@@ -26,6 +26,15 @@ describe('parseSavedListQuery', () => {
     assert.equal(parsed.origin, 'member')
     assert.equal(parsed.hasFilters, true)
   })
+  it('acepta section y knowledge para deep links', () => {
+    const parsed = parseSavedListQuery({
+      section: 'Deporte',
+      knowledge: '1',
+    })
+    assert.equal(parsed.section, 'Deporte')
+    assert.equal(parsed.knowledge, true)
+    assert.equal(parsed.hasFilters, true)
+  })
 })
 
 describe('savedPostFilterClauses', () => {
@@ -40,6 +49,13 @@ describe('savedPostFilterClauses', () => {
     assert.deepEqual(clauses[1], { origin: 'admin' })
     assert.equal(clauses[2].$or.length, 2)
     assert.match(clauses[2].$or[0].titulo.$regex, /vacaciones/)
+  })
+
+  it('agrega section e isKnowledge', () => {
+    const clauses = savedPostFilterClauses({ section: 'moda', knowledge: true })
+    assert.equal(clauses.length, 2)
+    assert.equal(clauses[0].section.$options, 'i')
+    assert.deepEqual(clauses[1], { isKnowledge: true })
   })
 
   it('cubre todos los tipos conocidos', () => {

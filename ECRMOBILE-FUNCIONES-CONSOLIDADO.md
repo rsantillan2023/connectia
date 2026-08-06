@@ -607,7 +607,7 @@ Nunca debe asumirse un catálogo completo visible para todos los usuarios del su
 | §19 Alarmas | Módulo **vertical** (pánico/incidente). Default menú off. Emp.60 = label “Feedback de vecinos”. |
 | §22 Farmacias / terminal | **No núcleo.** Capability `info.externalFeeds`; o link en §46. No MVP genérico. |
 | §23 Supervisor comercial | **Vertical campo/Geopop.** Pack opcional; no MVP horizontal. |
-| §36 Live | **Diferir** post-MVP (fase 2+). |
+| §36 Live | **Ingest propio (RTMP/WebRTC/CDN)** diferido fase 2+. **URL externa** (YouTube Live / Vimeo / HLS) = Track B de **Ola 26** (opcional, no bloquea DoD). |
 | §38 LMS/OKR/desempeño completo | **Diferir** motor full; en MVP solo lo que ya exista (skills §14) + links §46 a Talent si aplica. |
 | §39 Marketplace/referidos | **Diferir** marketplace; reconocimientos/pulso pueden ir fase 2 sobre encuestas §15. |
 | Belgrano | **Descartar** hardcode; si hace falta monitoreo → job + alertas configurables. |
@@ -636,8 +636,25 @@ Nunca debe asumirse un catálogo completo visible para todos los usuarios del su
 |---------------|----------------------|
 | **Núcleo MVP** | §1 auth · §2 empresas/branding · §3 perfil · §4 muro (+ stories) · §5–§7 · §8 chat texto · §9 solicitudes · §15 encuestas · §17 docs · §24 IA asistente · §27–§29 · §28 menú/selector · §33 adapters críticos · §40 políticas · §41 bandeja aprobaciones básica · §43 seguridad mínima · §45 UX · §46 hub accesos · packs no-regresión Claro/Grido/ECR/EPEC |
 | **Vertical opcional** | §11–§14 RRHH/campo · §18 beneficios · §19 alarmas · §20 pedidos · §23 supervisor · §30 custom · §31 WTA · §34–§35 espacios |
-| **Diferir (fase 2+)** | §36 live · §38 talento full · §39 marketplace · chat A/V · §22 feeds externos como módulo propio |
+| **Diferir (fase 2+)** | §36 ingest nativo (RTMP/WebRTC) · §38 talento full · §39 marketplace · chat A/V · §22 feeds externos como módulo propio · MQTT legado TV (reemplazado por HTTP/SSE en Ola 26) |
 | **Descartar / no migrar** | Belgrano hardcode · Swagger ejecutable público · skins YOMOB/SOOFIA como productos · demo dashboards |
+
+### H. Modo TV + Live (Ola 26) — decisiones que desbloquean
+
+| Tema | Decisión Connectia |
+|------|-------------------|
+| Alcance DoD Ola 26 | **Track A (§25) + Track B (§36 URL externa).** Ingest nativo → fuera de ola. |
+| Cap / default | Caps `tv.mode` + `admin.tv` (+ `live.stream` / `admin.live` si Track B). **Off** por defecto (add-on / bajo demanda). |
+| Emparejamiento | Código **6 dígitos**, un uso, TTL **5 min**, **5** intentos, rate-limit por IP+device. Confirmación en U autenticada. |
+| Transporte pairing | **HTTP** (crear/consultar estado) + **SSE** opcional para push de “vinculado”. **No MQTT** en MVP (legacy gap cerrado por modernización). |
+| Credencial TV | Token opaco de dispositivo scope `tv:device`; **no** hereda privilegios del usuario que emparejó; revocable desde admin. Refresh **30 días** o hasta revocar. |
+| Playlist | ABM admin: ítems `image` · `video` · `youtube` · `text` (ticker) · `post` (pub publicada del tenant). Orden + duración + vigencia. |
+| Reproducción | Kiosk `/tv` sin chrome de app; precarga siguiente; ítem inválido → **saltar + reportar** (nunca pantalla negra); sin playlist → pantalla segura (logo tenant + mensaje). |
+| Feed | Manifiesto versionado + **ETag**/304; assets HTTPS; heartbeat cada **60 s**. |
+| Config TV | Orientación, mute, timezone tenant, playlist asignada, fallback; políticas corporativas no sobrescribibles por el dispositivo. |
+| Live Track B | Emisión = metadata (título, cover, audiencia selector, `startsAt`/`endsAt`) + **`streamUrl`** externa (YouTube/Vimeo/HLS). Player U embebe URL. Badge LIVE en muro/home si hay emisión activa y el usuario está en audiencia. |
+| Live fuera de ola | Co-hosts, chat del live, DVR/replay propio, RTMP ingest, métricas concurrentes finas → fase 2 / demanda comercial. |
+| ≠ Ola 36 backlog | **Ola 36** = mejoras referenciadas (`36.a`–`36.p` Connectyx). **§36** = live streaming. No mezclar IDs. |
 
 ---
 
@@ -919,10 +936,10 @@ La capa **U** (app colaborador) es una **PWA** que debe funcionar en:
 - Endpoint `GET /alarms/testBelgrano` sin auth: monitorea pagos wallet y alerta WhatsApp.
 - **No replicar tal cual** en reingeniería: es caso operativo hardcodeado (auth, rate limit, parametrización = Gap/riesgo). Ver §19 / §32.
 
-### I. CODESAC (variante de encuestas en ruta)
+### I. CODESAC (retirado)
 
-- Flujos de orden/pedidos ligados a encuestas (PWA).
-- Tratar como **modalidad de encuesta**, no como Emp_Id fijo, salvo que negocio confirme tenant único. Ver §15.
+- **Retirado:** ya no se usa. Los pedidos viven en un **sistema ad hoc de pedidos** (no como variante de encuesta).
+- No migrar ni reimplementar en Connectia §15.
 
 ### J. Resto de clientes — solo branding / configuración
 
@@ -4429,6 +4446,14 @@ Replicar A para bandeja y acciones. S autoriza, persiste estados, hilos, adjunto
 #### Objetivo del módulo
 Administrar la planificación, consulta, ejecución y supervisión de turnos y marcas de asistencia, incluyendo validación de identidad, geolocalización, trazabilidad e integraciones operativas.
 
+#### Objetivo de producto Connectia (Ola 18) — ancla para no confundirse
+1. **Presencia laboral verificable:** el colaborador, desde el móvil, **marca su geolocalización** (entrada / salida / presencia) para que el **empleador o supervisor sepa que está en el lugar de trabajo asignado** (instalación, sede o geocerca del turno/servicio), con radio y tolerancia configurables por comunidad.
+2. **Turnos y planificación:** consultar “mi turno”, ABM de turnos/lugares en admin, historial y novedades.
+3. **Excepciones:** marcas fuera de rango, justificación; verticalmente Geopop, DNI/QR, panel ECR, domingos.
+4. **No es** el check-in de oficina/coworking (§34·§35 / ola 21 `OfficeDay`), ni el RSVP de eventos (§6), ni el `geopoint` de encuestas (§15). Modelos y APIs propios de asistencia.
+
+> Spec operativa de entrega Connectia: **`CONNECTIA-STATUS.md` → Ola 18** (requisitos núcleo, criterios, caps, fuera de alcance).
+
 #### Actores
 - Operario/colaborador
 - Supervisor o líder
@@ -4445,6 +4470,7 @@ Recrear la experiencia móvil y los contratos de servicio para consultar turnos,
 - Las tolerancias horarias y geográficas son configurables por empresa; nunca deben codificarse como constantes globales.
 - Las operaciones de marcación deben ser idempotentes para evitar duplicados por reintentos o sincronización offline.
 - El supervisor solo puede operar sobre colaboradores incluidos en su alcance organizacional vigente.
+- Sin GPS o precisión insuficiente: no fingir ubicación; el servidor valida geocerca; política `allow|block|justify` ante fuera de rango.
 
 **Gaps transversales del grupo:** Definir proveedor maestro de turnos y marcas, tolerancias por cliente, precedencia entre Geopop y GeoVictoria, política offline, precisión GPS mínima, tratamiento de dispositivos con hora alterada y catálogo definitivo de estados.
 
@@ -6221,7 +6247,7 @@ Diseñar APIs y experiencias seguras por dominio del legajo, con permisos a nive
 
 
 > **Función corporativa objetivo (reingeniería):** hacer **simple** generar encuestas a empleados mediante **cuestionarios armados fácilmente con IA**, publicarlos a la comunidad segmentada, **ver resultados** y **medir la participación completa** (invitados vs respondieron vs pendientes).  
-> Hoy el inventario legacy incluye ejecución en campo, offline, facility y variantes CODESAC; el **diseño asistido por IA** y el **tablero de participación** deben tratarse como capacidad explícita a entregar (el “admin de encuestas” actual está parcialmente fuera de estos repos → no dejar el gap sin cerrar en el sistema nuevo).
+> Hoy el inventario legacy incluye ejecución en campo, offline y facility (**CODESAC / pedidos-en-encuesta: retirado** — pedidos van a sistema ad hoc); el **diseño asistido por IA** y el **tablero de participación** deben tratarse como capacidad explícita a entregar (el “admin de encuestas” actual está parcialmente fuera de estos repos → no dejar el gap sin cerrar en el sistema nuevo).
 
 | Función | Descripción | Capas |
 |---------|-------------|:-----:|
@@ -6235,8 +6261,8 @@ Diseñar APIs y experiencias seguras por dominio del legajo, con permisos a nive
 | Medición de participación completa | % respondidos, pendientes, recordatorios, meta/cierre por participación | A S |
 | Encuestas embebidas en publicaciones | Respuesta desde el muro | U S |
 | Envío respuesta encuesta (API) | Simple y múltiple | S |
-| Admin de encuestas (diseño / publicación) | Backoffice de cuestionarios (hoy referenciado como externo; en reingeniería debe quedar integrado o con contrato claro) | A |
-| Variantes CODESAC / pedidos en encuesta | Rutas y pedidos ligados a encuestas | U |
+| Admin de encuestas (diseño / publicación) | Backoffice legado externo → **retirado**; campo = **Ola 37** Relevamientos (add-on); corporativo = Admin Encuestas ola 5 | A |
+| ~~Variantes CODESAC / pedidos en encuesta~~ | **Retirado** — pedidos = sistema ad hoc (no encuesta) | — |
 
 ### Especificación funcional detallada
 
@@ -6256,7 +6282,7 @@ Diseñar APIs y experiencias seguras por dominio del legajo, con permisos a nive
 - Entregar el flujo **crear con IA → revisar → publicar a audiencia → responder en U → resultados + participación**.
 - Conservar motor de formularios versionado (agenda, validación, check-in/out, offline, reporting).
 - No acoplar formularios a pantallas fijas; tipología de preguntas extensible.
-- Cerrar el gap del admin externo: o se integra el diseño en A o se documenta API/contrato estable.
+- Cerrar el gap del admin externo: **resuelto por producto** — Encuestas corporativas en A (ola 5); inspecciones/campo en **Ola 37** Relevamientos (add-on). No reabrir sistema externo.
 
 **Reglas transversales del grupo:**
 - Cada encuesta pertenece a un suscriptor y solo llega a la audiencia configurada (selector de funciones).
@@ -6269,7 +6295,7 @@ Diseñar APIs y experiencias seguras por dominio del legajo, con permisos a nive
 - La sincronización utiliza identificadores cliente e idempotencia, y nunca sobrescribe silenciosamente conflictos.
 - Check-in/out y evidencias geográficas deben registrar precisión, permiso, origen y momento de captura.
 
-**Gaps transversales del grupo:** El admin de encuestas legacy está fuera de estos repos. En reingeniería: integrar diseño+IA+participación en A/S; definir lenguaje de formularios, versionado, lógica condicional, límites multimedia, resolución de conflictos, retención, anonimato, gobierno de prompts IA y contratos CODESAC.
+**Gaps transversales del grupo:** Admin de encuestas legacy externo → **retirado**. Corporativo cerrado en ola 5. Campo/inspecciones → **Ola 37** (`37.REL.*`, add-on). **CODESAC retirado** (pedidos = sistema ad hoc).
 
 ##### Función: Armar cuestionario con IA
 - **Propósito:** Permitir al gestor crear un cuestionario para empleados de forma **simple**, generando borrador de preguntas/opciones con **IA** a partir de un objetivo en lenguaje natural, y editarlo antes de publicar.
@@ -6700,8 +6726,9 @@ Diseñar APIs y experiencias seguras por dominio del legajo, con permisos a nive
   - Resuelto con defaults ADR-GAPS (TTL/sesión/authz/paginación/idempotencia/timezone según aplique). Detalle original: No se evidencia interfaz de usuario; definir consumidores, casos de autoservicio y alcance del front-end. Ver [ADR-GAPS](#decisiones-de-producto-resueltas-adr-gaps).
   - Resuelto con defaults ADR-GAPS (TTL/sesión/authz/paginación/idempotencia/timezone según aplique). Detalle original: Confirmar campos exactos, estados, permisos, parámetros por empresa, volumen, retención y métricas; el inventario solo acredita la capacidad. Ver [ADR-GAPS](#decisiones-de-producto-resueltas-adr-gaps).
 
-##### Función: Admin de encuestas externo
-- **Propósito:** Permitir referenciado (fuera de estos repos), dentro del módulo de encuestas e inspecciones, con seguridad multiempresa, trazabilidad y comportamiento consistente entre las capas indicadas (—).
+##### Función: Admin de encuestas externo — RETIRADO → Ola 37
+> **Estado:** retirado como gap de §15 / ola 5. La funcionalidad de **relevamiento / inspección de campo** (diseño avanzado, rutas, agenda diaria, evidencias) se especifica como **add-on** en **Ola 37** (`37.REL.*`), distinto de Encuestas corporativas. **No** reabrir el backoffice legado.
+- **Propósito (legado, no vigente):** Permitir referenciado (fuera de estos repos), dentro del módulo de encuestas e inspecciones, con seguridad multiempresa, trazabilidad y comportamiento consistente entre las capas indicadas (—).
 - **Flujo paso a paso:**
   1. El actor ingresa a **Admin de encuestas externo** desde el menú habilitado para su empresa y rol.
   2. El sistema valida sesión, tenant, permisos funcionales y alcance sobre el recurso o las personas involucradas.
@@ -6755,8 +6782,9 @@ Diseñar APIs y experiencias seguras por dominio del legajo, con permisos a nive
   - Resuelto con defaults ADR-GAPS (TTL/sesión/authz/paginación/idempotencia/timezone según aplique). Detalle original: Documentar contrato externo, ambientes, credenciales, cuotas, códigos de error, reintentos, webhooks y conciliación. Ver [ADR-GAPS](#decisiones-de-producto-resueltas-adr-gaps).
   - Resuelto con defaults ADR-GAPS (TTL/sesión/authz/paginación/idempotencia/timezone según aplique). Detalle original: Confirmar campos exactos, estados, permisos, parámetros por empresa, volumen, retención y métricas; el inventario solo acredita la capacidad. Ver [ADR-GAPS](#decisiones-de-producto-resueltas-adr-gaps).
 
-##### Función: Variantes CODESAC / pedidos en encuesta
-- **Propósito:** Permitir rutas y pedidos ligados a encuestas, dentro del módulo de encuestas e inspecciones, con seguridad multiempresa, trazabilidad y comportamiento consistente entre las capas indicadas (U).
+##### Función: Variantes CODESAC / pedidos en encuesta — RETIRADO
+> **Estado:** retirado. No implementar en Connectia. Los pedidos se gestionan en un **sistema ad hoc de pedidos**, no como modalidad de encuesta §15.
+- **Propósito (legado, no vigente):** Permitir rutas y pedidos ligados a encuestas, dentro del módulo de encuestas e inspecciones, con seguridad multiempresa, trazabilidad y comportamiento consistente entre las capas indicadas (U).
 - **Flujo paso a paso:**
   1. El actor ingresa a **Variantes CODESAC / pedidos en encuesta** desde el menú habilitado para su empresa y rol.
   2. El sistema valida sesión, tenant, permisos funcionales y alcance sobre el recurso o las personas involucradas.
@@ -11354,7 +11382,7 @@ Cada gap debe pasar por discovery, decisión registrada y criterio de entrada. L
 | **ECR Salud** | Portal salud embebido | U S | JWT + URL `/users/ecr/salud` | Completa (§30) |
 | **SAP / ECR jobs** | Aprobación e impacto de trámites en consultas | S A | `/jobs/sap/approver|approval|impactor` | Parcial (§9) |
 | **API asignaciones (Geopop)** | Supervisor comercial / tareas | U | `VUE_APP_API_ASIGNACIONES` | Gap (§23) |
-| **CODESAC / pedidos en ruta** | Encuestas ligadas a paradas/pedidos | U | Variantes encuesta | Gap (§15) |
+| ~~CODESAC / pedidos en ruta~~ | Retirado — pedidos = sistema ad hoc | — | No migrar | **Retirado** |
 
 ### 33.5 Contenido, mapas, IA y beneficios
 

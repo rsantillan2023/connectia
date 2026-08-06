@@ -1,7 +1,7 @@
 <template>
   <div class="u-root">
     <div class="u-phone">
-      <!-- Top bar: logo · Hola Nombre · Connectia · lupa · avisos (hamburguesa solo en footer) -->
+      <!-- Top bar: logo comunidad · Connectyx centrado · lupa · avisos -->
       <header class="u-topbar">
         <div class="u-topbar-start">
           <button
@@ -21,23 +21,28 @@
               {{ tenantInitial }}
             </span>
           </button>
-          <div class="u-topbar-greet">
-            <p class="u-hello">Hola, {{ greetName }}</p>
-          </div>
         </div>
 
+        <span class="u-product-mark" :title="PRODUCT_NAME" :aria-label="PRODUCT_NAME">
+          <img
+            class="u-product-logo u-product-logo--topbar"
+            :src="PRODUCT_LOGO_ON_BRAND"
+            :alt="PRODUCT_NAME"
+          />
+        </span>
+
         <div class="u-topbar-end">
-          <span class="u-connectia-mark" title="Connectia" aria-label="Connectia">
-            <span class="u-connectia-word">Connectia</span>
-          </span>
           <button
+            v-if="showMuroHubBtn"
             type="button"
-            class="u-tile-btn"
-            :aria-label="showSearch ? 'Cerrar búsqueda' : 'Buscar'"
-            :aria-pressed="showSearch"
-            @click="toggleSearch"
+            class="u-tile-btn u-hub-btn"
+            :class="{ on: muroHubOpen }"
+            :aria-label="muroHubOpen ? 'Ocultar enlaces' : 'Abrir enlaces'"
+            :title="muroHubOpen ? 'Ocultar enlaces' : 'Abrir enlaces'"
+            :aria-pressed="muroHubOpen"
+            @click="toggleMuroHub"
           >
-            <AppIcon name="search" :size="20" />
+            <AppIcon name="grid" :size="24" />
           </button>
           <button
             type="button"
@@ -46,7 +51,7 @@
             title="Avisos"
             @click="router.push('/avisos')"
           >
-            <AppIcon name="bell" :size="20" />
+            <AppIcon name="bell" :size="26" />
             <span v-if="hasUnread" class="u-notif-badge">{{ badgeLabel }}</span>
           </button>
         </div>
@@ -71,48 +76,51 @@
         <RouterView :search-query="searchQ" />
       </main>
 
-      <!-- Footer: Home · Chat · Asistente · Menú -->
-      <nav v-if="!hideTabbar" class="u-tabbar" aria-label="Navegación principal">
-        <RouterLink
-          to="/muro"
-          class="u-tab"
-          :class="{ 'is-active': isActive('/muro') }"
-          @click="onTabClick('/muro', $event)"
-        >
-          <span class="u-tab-ico" aria-hidden="true">
-            <AppIcon name="home" :size="22" />
-          </span>
-          <span class="u-tab-label">Home</span>
-        </RouterLink>
-        <RouterLink
-          to="/chat"
-          class="u-tab u-tab--primary"
-          :class="{ 'is-active': isActive('/chat') }"
-          @click="onTabClick('/chat', $event)"
-        >
-          <span class="u-tab-ico u-tab-ico--primary" aria-hidden="true">
-            <AppIcon name="chat" :size="22" />
-            <span v-if="hasChatUnread" class="u-tab-badge">{{ chatBadgeLabel }}</span>
-          </span>
-          <span class="u-tab-label">Chat</span>
-        </RouterLink>
-        <RouterLink
-          to="/asistente"
-          class="u-tab"
-          :class="{ 'is-active': isActive('/asistente') }"
-          @click="onTabClick('/asistente', $event)"
-        >
-          <span class="u-tab-ico" aria-hidden="true">
-            <AppIcon name="sparkles" :size="22" />
-          </span>
-          <span class="u-tab-label">Asistente</span>
-        </RouterLink>
-        <button type="button" class="u-tab" @click="drawerOpen = true">
-          <span class="u-tab-ico" aria-hidden="true">
-            <AppIcon name="menu" :size="22" />
-          </span>
-          <span class="u-tab-label">Menú</span>
-        </button>
+      <!-- Footer: botonera dinámica (menú) o default Home · Chat · Asistente · Menú -->
+      <nav
+        v-if="!hideTabbar"
+        class="u-tabbar"
+        :style="{ gridTemplateColumns: `repeat(${tabbarItems.length}, 1fr)` }"
+        aria-label="Navegación principal"
+      >
+        <template v-for="tab in tabbarItems" :key="tab.key">
+          <button
+            v-if="tab.isMenu"
+            type="button"
+            class="u-tab"
+            @click="drawerOpen = true"
+          >
+            <span class="u-tab-ico" aria-hidden="true">
+              <AppIcon name="menu" :size="22" />
+            </span>
+            <span class="u-tab-label">{{ tab.label }}</span>
+          </button>
+          <button
+            v-else-if="tab.actionType === 'compose_post'"
+            type="button"
+            class="u-tab"
+            :class="{ 'u-tab--primary': tab.primary }"
+            @click="onComposeTab(tab)"
+          >
+            <span class="u-tab-ico" :class="{ 'u-tab-ico--primary': tab.primary }" aria-hidden="true">
+              <AppIcon :name="tab.icon || 'plus'" :size="22" />
+            </span>
+            <span class="u-tab-label">{{ tab.label }}</span>
+          </button>
+          <RouterLink
+            v-else
+            :to="tab.route"
+            class="u-tab"
+            :class="{ 'is-active': isActive(tab.route), 'u-tab--primary': tab.primary }"
+            @click="onTabClick(tab.route, $event)"
+          >
+            <span class="u-tab-ico" :class="{ 'u-tab-ico--primary': tab.primary }" aria-hidden="true">
+              <AppIcon :name="tab.icon || 'home'" :size="22" />
+              <span v-if="tab.route === '/chat' && hasChatUnread" class="u-tab-badge">{{ chatBadgeLabel }}</span>
+            </span>
+            <span class="u-tab-label">{{ tab.label }}</span>
+          </RouterLink>
+        </template>
       </nav>
 
       <!-- Crear: flotante solo en el muro -->
@@ -134,6 +142,7 @@
       <PostComposerSheet
         v-if="composerOpen"
         :require-approval="ugcRequireApproval"
+        :initial-tipo="composerInitialTipo"
         @close="closeComposer"
         @created="onComposerCreated"
       />
@@ -146,7 +155,11 @@
         <aside class="u-drawer" role="dialog" aria-modal="true" aria-label="Menú">
           <div class="u-drawer-head">
             <button type="button" class="u-drawer-brand u-drawer-brand-btn" @click="goPerfil">
-              <p class="u-brand">Connectia</p>
+              <img
+                class="u-product-logo u-product-logo--drawer"
+                :src="PRODUCT_LOGO_LIGHT"
+                :alt="PRODUCT_NAME"
+              />
               <div class="u-drawer-brand-row">
                 <img
                   v-if="brandLogoUrl"
@@ -169,7 +182,7 @@
                 v-if="entry.type === 'link'"
                 :to="entry.route"
                 class="u-drawer-link"
-                @click="drawerOpen = false"
+                @click="onMenuItemClick(entry, $event)"
               >
                 <AppIcon :name="iconFor(entry.key, entry.icon)" :size="20" />
                 <span>{{ entry.label }}</span>
@@ -193,7 +206,7 @@
                     :key="item.key"
                     :to="item.route"
                     class="u-drawer-link u-drawer-link--child"
-                    @click="drawerOpen = false"
+                    @click="onMenuItemClick(item, $event)"
                   >
                     <AppIcon :name="iconFor(item.key, item.icon)" :size="18" />
                     <span>{{ item.label }}</span>
@@ -228,7 +241,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '../services/api'
 import { useAuthStore } from '../stores/auth'
@@ -242,12 +255,17 @@ import ConfirmSheet from '../components/ConfirmSheet.vue'
 import { useUgcComposer } from '../composables/useUgcComposer'
 import { useNotifBadge } from '../composables/useNotifBadge'
 import { useChatBadge } from '../composables/useChatBadge'
+import { useMuroHubStrip } from '../composables/useMuroHubStrip'
 import { iconFor } from '../utils/navIcons'
+import { filterMenuByActiveModules } from '../utils/menuModuleCaps'
 import { resolveMediaUrl } from '../utils/media'
+import { isMuroFeedPath } from '../utils/muroFeed'
+import { PRODUCT_LOGO_LIGHT, PRODUCT_LOGO_ON_BRAND, PRODUCT_NAME } from '../constants/brand'
 
 const DEFAULT_MENU = [
   { key: 'muro', label: 'Publicaciones', route: '/muro', icon: 'home' },
   { key: 'mis-publicaciones', label: 'Mis publicaciones', route: '/muro/mias', icon: 'inbox' },
+  { key: 'conocimiento', label: 'Conocimiento', route: '/conocimiento', icon: 'file' },
   { key: 'guardados', label: 'Mis guardados', route: '/guardados', icon: 'bookmark' },
   { key: 'solicitudes', label: 'Mis solicitudes', route: '/solicitudes', icon: 'inbox' },
   { key: 'aprobaciones', label: 'Aprobaciones', route: '/aprobaciones', icon: 'check' },
@@ -268,7 +286,7 @@ const DEFAULT_MENU = [
   { key: 'perfil', label: 'Mi perfil', route: '/perfil', icon: 'user' },
 ]
 
-/** Grupo colapsable del drawer: feed + publicaciones propias + guardados */
+/** Grupo colapsable del drawer: feed + publicaciones propias + guardados + conocimiento */
 const MURO_GROUP = {
   id: 'muro',
   label: 'Muro',
@@ -280,21 +298,25 @@ const MURO_GROUP = {
       r === '/muro' ||
       r === '/muro/mias' ||
       r === '/guardados' ||
+      r === '/conocimiento' ||
       k === 'muro' ||
+      k === 'conocimiento' ||
       k.includes('mis-publicaciones') ||
-      k.includes('guardados')
+      k.includes('guardados') ||
+      k.includes('conocimiento')
     )
   },
-  order: ['/muro', '/muro/mias', '/guardados'],
+  order: ['/muro', '/muro/mias', '/guardados', '/conocimiento'],
 }
 
 const MURO_LABELS = {
   '/muro': 'Publicaciones',
   '/muro/mias': 'Mis publicaciones',
   '/guardados': 'Mis guardados',
+  '/conocimiento': 'Conocimiento',
 }
 
-/** Grupo colapsable: vacaciones/permisos + ausencias (ola 17) */
+/** Grupo colapsable: vacaciones/permisos + ausencias + fichaje (ola 17/18) */
 const LICENCIAS_GROUP = {
   id: 'licencias',
   label: 'Licencias y ausencias',
@@ -305,43 +327,104 @@ const LICENCIAS_GROUP = {
     return (
       r === '/licencias' ||
       r === '/ausencias' ||
+      r === '/mi-asistencia' ||
       k === 'licencias' ||
       k === 'ausencias' ||
-      k.includes('ausentismo')
+      k === 'asistencia' ||
+      k.includes('ausentismo') ||
+      k.includes('asistencia') ||
+      k.includes('fichaje')
     )
   },
-  order: ['/licencias', '/ausencias'],
+  order: ['/licencias', '/ausencias', '/mi-asistencia'],
   labels: {
     '/licencias': 'Vacaciones',
     '/ausencias': 'Ausencias',
+    '/mi-asistencia': 'Mi asistencia',
   },
 }
 
-/** Grupo colapsable: mis solicitudes + aprobaciones */
+/** Grupo colapsable: mis solicitudes + aprobaciones + reportar incidente + pedidos + servicios + reserva + oficina */
 const PROCESOS_GROUP = {
   id: 'procesos',
-  label: 'Procesos',
+  label: 'Trámites',
   icon: 'inbox',
   match: (item) => {
     const r = String(item.route || '')
     const k = String(item.key || '').toLowerCase()
+    const label = String(item.label || '').toLowerCase()
+    if (k.startsWith('admin.')) return false
     return (
       r === '/solicitudes' ||
       r === '/aprobaciones' ||
+      r === '/alarma' ||
+      r === '/pedidos' ||
+      r === '/servicios' ||
+      r === '/espacios' ||
+      r === '/oficina' ||
       k === 'solicitudes' ||
       k === 'aprobaciones' ||
+      k === 'alarma' ||
+      k === 'pedidos' ||
+      k === 'servicios' ||
+      k === 'espacios' ||
+      k === 'oficina' ||
       k.includes('solicitud') ||
-      k.includes('aprobacion')
+      k.includes('aprobacion') ||
+      k.includes('alarma') ||
+      k.includes('espacio') ||
+      k.includes('oficina') ||
+      label === 'reportes' ||
+      label.includes('reportar incidente') ||
+      label.includes('reserva de activos')
     )
   },
-  order: ['/solicitudes', '/aprobaciones'],
+  order: [
+    '/solicitudes',
+    '/aprobaciones',
+    '/alarma',
+    '/pedidos',
+    '/servicios',
+    '/espacios',
+    '/oficina',
+  ],
   labels: {
     '/solicitudes': 'Mis solicitudes',
     '/aprobaciones': 'Aprobaciones',
+    '/alarma': 'Reportar Incidente',
+    '/pedidos': 'Pedidos',
+    '/servicios': 'Servicios',
+    '/espacios': 'Reserva de Activos',
+    '/oficina': 'Oficina',
   },
 }
 
-/** Grupo colapsable: beneficios, directorio, docs, asistente, chat, encuestas */
+/** Grupo colapsable: catálogo de beneficios + cómo sumar puntos */
+const BENEFICIOS_GROUP = {
+  id: 'beneficios',
+  label: 'Beneficios',
+  icon: 'gift',
+  match: (item) => {
+    const r = String(item.route || '')
+    const k = String(item.key || '').toLowerCase()
+    const label = String(item.label || '').toLowerCase()
+    return (
+      r === '/beneficios' ||
+      r.startsWith('/beneficios?') ||
+      k === 'beneficios' ||
+      k === 'beneficios.earn' ||
+      k.includes('beneficio') ||
+      /c[oó]mo sumar/.test(label)
+    )
+  },
+  order: ['/beneficios', '/beneficios?tab=earn'],
+  labels: {
+    '/beneficios': 'Beneficios',
+    '/beneficios?tab=earn': 'Cómo sumar puntos',
+  },
+}
+
+/** Grupo colapsable: directorio, docs, asistente, emparejar TV, en vivo, enlaces (chat y encuestas van sueltos) */
 const HERRAMIENTAS_GROUP = {
   id: 'herramientas',
   label: 'Herramientas',
@@ -349,36 +432,41 @@ const HERRAMIENTAS_GROUP = {
   match: (item) => {
     const r = String(item.route || '')
     const k = String(item.key || '').toLowerCase()
+    const label = String(item.label || '').toLowerCase()
+    if (k.startsWith('admin.')) return false
     return (
-      r === '/beneficios' ||
       r === '/directorio' ||
       r === '/docs' ||
       r === '/asistente' ||
-      r === '/chat' ||
-      r === '/encuestas' ||
-      k === 'beneficios' ||
+      r === '/tv/emparejar' ||
+      r === '/en-vivo' ||
+      r === '/accesos' ||
       k === 'directorio' ||
       k === 'docs' ||
       k === 'asistente' ||
-      k === 'chat' ||
-      k === 'encuestas' ||
-      k.includes('beneficio') ||
+      k === 'tv-emparejar' ||
+      k === 'en-vivo' ||
+      k === 'hub' ||
       k.includes('directorio') ||
-      k.includes('encuesta')
+      k.includes('emparejar') ||
+      k.includes('en-vivo') ||
+      label.includes('emparejar tv') ||
+      label === 'en vivo' ||
+      label === 'enlaces'
     )
   },
-  order: ['/beneficios', '/directorio', '/docs', '/asistente', '/chat', '/encuestas'],
+  order: ['/directorio', '/docs', '/asistente', '/tv/emparejar', '/en-vivo', '/accesos'],
   labels: {
-    '/beneficios': 'Beneficios',
     '/directorio': 'Directorio',
     '/docs': 'Mis documentos',
     '/asistente': 'Asistente',
-    '/chat': 'Chat',
-    '/encuestas': 'Encuestas',
+    '/tv/emparejar': 'Emparejar TV',
+    '/en-vivo': 'En vivo',
+    '/accesos': 'Enlaces',
   },
 }
 
-/** Grupo colapsable: bienvenida, políticas, mi legajo */
+/** Grupo colapsable: bienvenida, políticas, mi legajo, organigrama, mi desarrollo, cultura */
 const RRHH_GROUP = {
   id: 'rrhh',
   label: 'RRHH',
@@ -386,23 +474,36 @@ const RRHH_GROUP = {
   match: (item) => {
     const r = String(item.route || '')
     const k = String(item.key || '').toLowerCase()
+    if (k.startsWith('admin.')) return false
     return (
       r === '/bienvenida' ||
       r === '/politicas' ||
       r === '/mi-legajo' ||
+      r === '/organigrama' ||
+      r === '/mi-desarrollo' ||
+      r === '/cultura' ||
       k === 'bienvenida' ||
       k === 'politicas' ||
       k === 'mi-legajo' ||
+      k === 'organigrama' ||
+      k === 'mi-desarrollo' ||
+      k === 'cultura' ||
       k.includes('legajo') ||
       k.includes('politica') ||
-      k.includes('onboarding')
+      k.includes('onboarding') ||
+      k.includes('organigrama') ||
+      k.includes('desarrollo') ||
+      k.includes('cultura')
     )
   },
-  order: ['/bienvenida', '/politicas', '/mi-legajo'],
+  order: ['/bienvenida', '/politicas', '/mi-legajo', '/organigrama', '/mi-desarrollo', '/cultura'],
   labels: {
     '/bienvenida': 'Bienvenida',
     '/politicas': 'Políticas',
     '/mi-legajo': 'Mi legajo',
+    '/organigrama': 'Organigrama',
+    '/mi-desarrollo': 'Mi desarrollo',
+    '/cultura': 'Cultura',
   },
 }
 
@@ -430,6 +531,37 @@ const NOTIFICACIONES_GROUP = {
   },
 }
 
+/** Grupo colapsable: supervisión + mi equipo + mis tareas + agenda */
+const MI_ACTIVIDAD_GROUP = {
+  id: 'mi-actividad',
+  label: 'Mi Actividad',
+  icon: 'list',
+  match: (item) => {
+    const r = String(item.route || '')
+    const k = String(item.key || '').toLowerCase()
+    if (k.startsWith('admin.')) return false
+    if (r === '/supervision/ecr' || k === 'supervision.ecr') return false
+    return (
+      r === '/supervision' ||
+      r === '/supervision/mis-tareas' ||
+      r === '/mi-equipo' ||
+      r === '/agenda' ||
+      k === 'supervision' ||
+      k === 'supervision.mis-tareas' ||
+      k === 'mi-equipo' ||
+      k === 'agenda' ||
+      k.includes('agenda')
+    )
+  },
+  order: ['/supervision', '/mi-equipo', '/supervision/mis-tareas', '/agenda'],
+  labels: {
+    '/supervision': 'Supervisión',
+    '/mi-equipo': 'Mi equipo',
+    '/supervision/mis-tareas': 'Mis tareas',
+    '/agenda': 'Agenda',
+  },
+}
+
 const auth = useAuthStore()
 const theme = useThemeStore()
 const router = useRouter()
@@ -445,21 +577,80 @@ const {
   onCreated: onComposerCreated,
 } = useUgcComposer()
 
+const composerInitialTipo = ref('')
+
+const DEFAULT_TABBAR = [
+  { key: 'tab-muro', label: 'Home', route: '/muro', icon: 'home', actionType: 'navigate' },
+  { key: 'tab-chat', label: 'Chat', route: '/chat', icon: 'chat', actionType: 'navigate', primary: true },
+  { key: 'tab-asistente', label: 'Asistente', route: '/asistente', icon: 'sparkles', actionType: 'navigate' },
+]
+
+const tabbarItems = computed(() => {
+  const configured = (menu.value || [])
+    .filter((i) => i.showInTabbar)
+    .sort((a, b) => (Number(a.tabOrder) || 100) - (Number(b.tabOrder) || 100))
+    .slice(0, 4)
+    .map((i) => ({
+      key: i.key || i.route,
+      label: i.label,
+      route: i.route || '/muro',
+      icon: iconFor(i.key, i.icon),
+      actionType: i.actionType === 'compose_post' ? 'compose_post' : 'navigate',
+      actionParams: i.actionParams || {},
+      primary: i.route === '/chat' || i.key === 'chat',
+    }))
+  const tabs = configured.length ? configured : DEFAULT_TABBAR.map((t) => ({ ...t }))
+  const hasMenu = tabs.some((t) => t.isMenu || t.key === 'tab-menu' || t.label === 'Menú')
+  if (!hasMenu) {
+    tabs.push({ key: 'tab-menu', label: 'Menú', isMenu: true, icon: 'menu' })
+  }
+  return tabs.slice(0, 5)
+})
+
+function onComposeTab(tab) {
+  const tipo = String(tab?.actionParams?.tipo || '').trim()
+  composerInitialTipo.value = tipo
+  if (!ugcEnabled.value) {
+    router.push('/muro')
+    return
+  }
+  openComposer()
+}
+
+function onMenuItemClick(item, ev) {
+  if (item?.actionType === 'compose_post') {
+    ev?.preventDefault?.()
+    drawerOpen.value = false
+    onComposeTab(item)
+    return
+  }
+  drawerOpen.value = false
+}
+
 const { hasUnread, badgeLabel, refreshBadge } = useNotifBadge()
 const {
   hasUnread: hasChatUnread,
   badgeLabel: chatBadgeLabel,
   refreshBadge: refreshChatBadge,
 } = useChatBadge()
+const {
+  expanded: muroHubOpen,
+  hasLinks: muroHubHasLinks,
+  toggle: toggleMuroHub,
+  bindRouteCollapse,
+} = useMuroHubStrip()
+bindRouteCollapse(route)
 
 const menu = ref([...DEFAULT_MENU])
 const openGroups = reactive({
   muro: false,
   procesos: false,
   licencias: false,
+  beneficios: false,
   herramientas: false,
   rrhh: false,
   notificaciones: false,
+  'mi-actividad': false,
 })
 const drawerOpen = ref(false)
 const logoutConfirmOpen = ref(false)
@@ -490,9 +681,20 @@ function ensureMuroMenuItems(items) {
       icon: 'inbox',
     })
   }
-  if (!has('/guardados')) {
+  if (!has('/conocimiento')) {
     const miasIdx = next.findIndex((i) => i.route === '/muro/mias')
     const at = miasIdx >= 0 ? miasIdx + 1 : insertAt
+    next.splice(at, 0, {
+      key: 'conocimiento',
+      label: 'Conocimiento',
+      route: '/conocimiento',
+      icon: 'file',
+    })
+  }
+  if (!has('/guardados')) {
+    const concIdx = next.findIndex((i) => i.route === '/conocimiento')
+    const miasIdx = next.findIndex((i) => i.route === '/muro/mias')
+    const at = concIdx >= 0 ? concIdx + 1 : miasIdx >= 0 ? miasIdx + 1 : insertAt
     next.splice(at, 0, {
       key: 'guardados',
       label: 'Mis guardados',
@@ -541,6 +743,13 @@ function normalizeHerramientasItem(item) {
   return { ...item, label }
 }
 
+function normalizeBeneficiosItem(item) {
+  const route = String(item.route || '')
+  const label = BENEFICIOS_GROUP.labels[route]
+  if (!label) return item
+  return { ...item, label }
+}
+
 function normalizeRrhhItem(item) {
   const route = String(item.route || '')
   const label = RRHH_GROUP.labels[route]
@@ -555,6 +764,21 @@ function normalizeNotificacionesItem(item) {
   return { ...item, label }
 }
 
+function normalizeMiActividadItem(item) {
+  const route = String(item.route || '')
+  const label = MI_ACTIVIDAD_GROUP.labels[route]
+  if (!label) return item
+  return { ...item, label }
+}
+
+function sessionCapsSet() {
+  return new Set([...(auth.user?.capabilities || []), ...(auth.tenant?.capabilities || [])])
+}
+
+function tenantHasModule(capId) {
+  return sessionCapsSet().has(capId)
+}
+
 /** Garantiza Vacaciones + Ausencias (ola 17) en tenants con menú viejo. */
 function ensureLicenciasMenuItems(items) {
   const next = items.map(normalizeLicenciasItem)
@@ -563,7 +787,7 @@ function ensureLicenciasMenuItems(items) {
     (i) => i.route === '/solicitudes' || String(i.key).includes('solicitud'),
   )
   const at = solIdx >= 0 ? solIdx + 1 : next.length
-  if (!has('/licencias')) {
+  if (tenantHasModule('licencias') && !has('/licencias')) {
     next.splice(at, 0, {
       key: 'licencias',
       label: 'Vacaciones',
@@ -573,7 +797,7 @@ function ensureLicenciasMenuItems(items) {
   }
   const licIdx = next.findIndex((i) => i.route === '/licencias')
   const ausAt = licIdx >= 0 ? licIdx + 1 : at + 1
-  if (!has('/ausencias')) {
+  if (tenantHasModule('ausentismos') && !has('/ausencias')) {
     next.splice(ausAt, 0, {
       key: 'ausencias',
       label: 'Ausencias',
@@ -584,30 +808,155 @@ function ensureLicenciasMenuItems(items) {
   return next
 }
 
-/** Garantiza Beneficios (ola 20) en el drawer U. */
+/** Garantiza Beneficios (ola 20) + Cómo sumar puntos en el drawer U. */
 function ensureBeneficiosMenuItems(items) {
   const next = [...items]
-  if (
-    next.some(
-      (i) =>
-        i.route === '/beneficios' ||
-        String(i.key || '').includes('beneficio') ||
-        String(i.label || '')
-          .toLowerCase()
-          .includes('beneficio'),
+  if (!tenantHasModule('beneficios')) return next
+  const hasBen = next.some(
+    (i) =>
+      i.route === '/beneficios' ||
+      String(i.key || '') === 'beneficios' ||
+      String(i.label || '')
+        .toLowerCase()
+        .includes('beneficio'),
+  )
+  if (!hasBen) {
+    const dirIdx = next.findIndex(
+      (i) => i.route === '/directorio' || String(i.key).includes('directorio'),
     )
-  ) {
-    return next
+    const hubIdx = next.findIndex(
+      (i) => i.route === '/accesos' || String(i.key).includes('hub') || String(i.key).includes('acceso'),
+    )
+    const item = { key: 'beneficios', label: 'Beneficios', route: '/beneficios', icon: 'gift' }
+    const at = dirIdx >= 0 ? dirIdx + 1 : hubIdx >= 0 ? hubIdx : next.length
+    next.splice(at, 0, item)
   }
-  const dirIdx = next.findIndex(
-    (i) => i.route === '/directorio' || String(i.key).includes('directorio'),
+  if (!tenantHasModule('beneficios.billetera')) {
+    return next.filter(
+      (i) =>
+        i.route !== '/beneficios?tab=earn' &&
+        String(i.key || '') !== 'beneficios.earn' &&
+        !/c[oó]mo sumar/i.test(String(i.label || '')),
+    )
+  }
+  const hasEarn = next.some(
+    (i) =>
+      i.route === '/beneficios?tab=earn' ||
+      String(i.key || '') === 'beneficios.earn' ||
+      /c[oó]mo sumar/i.test(String(i.label || '')),
+  )
+  if (!hasEarn) {
+    const benIdx = next.findIndex(
+      (i) => i.route === '/beneficios' || String(i.key || '') === 'beneficios',
+    )
+    const earn = {
+      key: 'beneficios.earn',
+      label: 'Cómo sumar puntos',
+      route: '/beneficios?tab=earn',
+      icon: 'sparkles',
+    }
+    if (benIdx >= 0) next.splice(benIdx + 1, 0, earn)
+    else next.push(earn)
+  }
+  return next
+}
+
+/** Garantiza Reserva de Activos (/espacios) en el drawer U. Oficina queda oculta (mismo motor vía /espacios). */
+function ensureEspaciosMenuItems(items) {
+  const next = [...items].filter((i) => {
+    const route = String(i.route || '')
+    const key = String(i.key || '').toLowerCase()
+    const label = String(i.label || '').toLowerCase()
+    if (route === '/oficina' || route.startsWith('/oficina/')) return false
+    if (key === 'oficina') return false
+    // Evitar ocultar ítems genéricos que solo digan "oficina" en otro sentido
+    if (label === 'oficina') return false
+    return true
+  })
+  const hasEspacios = next.some(
+    (i) =>
+      i.route === '/espacios' ||
+      String(i.key || '') === 'espacios' ||
+      String(i.key || '').includes('espacio') ||
+      /espacio|reserva de activos/i.test(String(i.label || '')),
+  )
+  const benIdx = next.findIndex(
+    (i) => i.route === '/beneficios' || String(i.key || '').includes('beneficio'),
   )
   const hubIdx = next.findIndex(
     (i) => i.route === '/accesos' || String(i.key).includes('hub') || String(i.key).includes('acceso'),
   )
-  const item = { key: 'beneficios', label: 'Beneficios', route: '/beneficios', icon: 'gift' }
-  const at = dirIdx >= 0 ? dirIdx + 1 : hubIdx >= 0 ? hubIdx : next.length
-  next.splice(at, 0, item)
+  let at = benIdx >= 0 ? benIdx + 1 : hubIdx >= 0 ? hubIdx : next.length
+  if (tenantHasModule('espacios') && !hasEspacios) {
+    next.splice(at, 0, {
+      key: 'espacios',
+      label: 'Reserva de Activos',
+      route: '/espacios',
+      icon: 'calendar',
+    })
+  } else if (hasEspacios) {
+    const idx = next.findIndex((i) => i.route === '/espacios' || String(i.key || '') === 'espacios')
+    if (idx >= 0) next[idx] = { ...next[idx], label: 'Reserva de Activos', icon: next[idx].icon || 'calendar' }
+  }
+  return next
+}
+
+/** Garantiza Mi asistencia (ola 18) en el drawer U, junto a licencias/ausencias. */
+function ensureAsistenciaMenuItems(items) {
+  const next = [...items]
+  const has = next.some(
+    (i) =>
+      i.route === '/mi-asistencia' ||
+      String(i.key || '') === 'asistencia' ||
+      String(i.label || '')
+        .toLowerCase()
+        .includes('asistencia') ||
+      String(i.label || '')
+        .toLowerCase()
+        .includes('fichaje'),
+  )
+  if (has) return next
+  const ausIdx = next.findIndex(
+    (i) => i.route === '/ausencias' || String(i.key || '').includes('ausencia'),
+  )
+  const licIdx = next.findIndex(
+    (i) => i.route === '/licencias' || String(i.key || '').includes('licencia'),
+  )
+  const at = ausIdx >= 0 ? ausIdx + 1 : licIdx >= 0 ? licIdx + 1 : next.length
+  next.splice(at, 0, {
+    key: 'asistencia',
+    label: 'Mi asistencia',
+    route: '/mi-asistencia',
+    icon: 'pin',
+  })
+  return next
+}
+
+/** Garantiza Organigrama (ola 22) dentro del bloque RRHH del drawer U. */
+function ensureOrganigramaMenuItems(items) {
+  const next = [...items]
+  const has = next.some(
+    (i) =>
+      i.route === '/organigrama' ||
+      String(i.key || '') === 'organigrama' ||
+      String(i.label || '')
+        .toLowerCase()
+        .includes('organigrama'),
+  )
+  if (has) return next
+  const legIdx = next.findIndex(
+    (i) => i.route === '/mi-legajo' || String(i.key || '').includes('legajo'),
+  )
+  const polIdx = next.findIndex(
+    (i) => i.route === '/politicas' || String(i.key || '').includes('politica'),
+  )
+  const at = legIdx >= 0 ? legIdx + 1 : polIdx >= 0 ? polIdx + 1 : next.length
+  next.splice(at, 0, {
+    key: 'organigrama',
+    label: 'Organigrama',
+    route: '/organigrama',
+    icon: 'user',
+  })
   return next
 }
 
@@ -673,18 +1022,22 @@ const DRAWER_GROUPS = [
   MURO_GROUP,
   PROCESOS_GROUP,
   LICENCIAS_GROUP,
+  BENEFICIOS_GROUP,
   HERRAMIENTAS_GROUP,
   RRHH_GROUP,
   NOTIFICACIONES_GROUP,
+  MI_ACTIVIDAD_GROUP,
 ]
 
 function normalizeGroupItem(group, item) {
   if (group.id === 'muro') return normalizeMuroItem(item)
   if (group.id === 'licencias') return normalizeLicenciasItem(item)
   if (group.id === 'procesos') return normalizeProcesosItem(item)
+  if (group.id === 'beneficios') return normalizeBeneficiosItem(item)
   if (group.id === 'herramientas') return normalizeHerramientasItem(item)
   if (group.id === 'rrhh') return normalizeRrhhItem(item)
   if (group.id === 'notificaciones') return normalizeNotificacionesItem(item)
+  if (group.id === 'mi-actividad') return normalizeMiActividadItem(item)
   return item
 }
 
@@ -781,15 +1134,6 @@ const brandLogoUrl = computed(() => {
   return resolveMediaUrl(raw)
 })
 
-const greetName = computed(() => {
-  const u = auth.user || {}
-  const full = String(u.nombre || '').trim()
-  if (full) return full.split(/\s+/)[0]
-  const user = String(u.usuario || '').trim()
-  if (user) return user
-  return 'vos'
-})
-
 const tenantInitial = computed(() => {
   const n = String(auth.tenant?.nombre || 'C').trim()
   return (n[0] || 'C').toUpperCase()
@@ -809,10 +1153,12 @@ const immersiveMain = computed(() => {
 
 const showCrearFab = computed(() => {
   if (hideTabbar.value) return false
-  const p = route.path || ''
-  // Solo en el feed del muro (no en detalle /muro/:id ni /muro/mias)
-  return p === '/muro' || p === '/muro/'
+  // Feed muro clásico o portal (no detalle /muro/:id ni /muro/mias)
+  return isMuroFeedPath(route.path || '')
 })
+
+/** Ícono de enlaces junto a la campana (solo feed muro, si hay links). */
+const showMuroHubBtn = computed(() => showCrearFab.value && muroHubHasLinks.value)
 
 function isActive(path) {
   return route.path === path || route.path.startsWith(path + '/')
@@ -840,7 +1186,8 @@ function toggleSearch() {
 }
 
 function goSearch() {
-  if (route.name !== 'muro') router.push({ name: 'muro', query: { q: searchQ.value } })
+  if (route.name === 'muro' || route.name === 'muro-portal') return
+  router.push({ name: 'muro', query: { q: searchQ.value } })
 }
 
 watch(
@@ -866,9 +1213,15 @@ onMounted(async () => {
     const items = Array.isArray(data?.items) ? data.items : []
     let next = items.length > 0 ? items : [...DEFAULT_MENU]
     next = ensureAgendaMenuItems(
-      ensureBeneficiosMenuItems(
-        ensureOnboardingMenuItems(
-          ensureLicenciasMenuItems(ensureHelpMenuItems(ensureMuroMenuItems(next))),
+      ensureOrganigramaMenuItems(
+        ensureAsistenciaMenuItems(
+          ensureEspaciosMenuItems(
+            ensureBeneficiosMenuItems(
+              ensureOnboardingMenuItems(
+                ensureLicenciasMenuItems(ensureHelpMenuItems(ensureMuroMenuItems(next))),
+              ),
+            ),
+          ),
         ),
       ),
     )
@@ -923,18 +1276,51 @@ onMounted(async () => {
       if (solIdx >= 0) next.splice(solIdx + 1, 0, item)
       else next.push(item)
     }
-    menu.value = next
+    menu.value = filterMenuByActiveModules(next, [
+      ...(auth.user?.capabilities || []),
+      ...(auth.tenant?.capabilities || []),
+    ])
   } catch {
-    menu.value = ensureAgendaMenuItems(
-      ensureBeneficiosMenuItems(
-        ensureOnboardingMenuItems(
-          ensureLicenciasMenuItems(ensureHelpMenuItems(ensureMuroMenuItems([...DEFAULT_MENU]))),
+    menu.value = filterMenuByActiveModules(
+      ensureAgendaMenuItems(
+        ensureOrganigramaMenuItems(
+          ensureAsistenciaMenuItems(
+            ensureEspaciosMenuItems(
+              ensureBeneficiosMenuItems(
+                ensureOnboardingMenuItems(
+                  ensureLicenciasMenuItems(ensureHelpMenuItems(ensureMuroMenuItems([...DEFAULT_MENU]))),
+                ),
+              ),
+            ),
+          ),
         ),
       ),
+      [...(auth.user?.capabilities || []), ...(auth.tenant?.capabilities || [])],
     )
   }
   refreshBadge()
   refreshChatBadge()
+})
+
+const NOTIF_BADGE_MS = 60_000
+let notifBadgeTimer = null
+function onNotifVisibility() {
+  if (document.visibilityState === 'visible') refreshBadge()
+}
+onMounted(() => {
+  document.addEventListener('visibilitychange', onNotifVisibility)
+  if (!notifBadgeTimer) {
+    notifBadgeTimer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') refreshBadge()
+    }, NOTIF_BADGE_MS)
+  }
+})
+onUnmounted(() => {
+  document.removeEventListener('visibilitychange', onNotifVisibility)
+  if (notifBadgeTimer) {
+    clearInterval(notifBadgeTimer)
+    notifBadgeTimer = null
+  }
 })
 
 watch(
@@ -1009,10 +1395,10 @@ async function confirmLogout() {
 
 .u-topbar {
   flex-shrink: 0;
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
   padding: 12px 14px 14px;
   padding-top: max(18px, calc(env(safe-area-inset-top) + 10px));
   background: var(--brand-primary, #0f766e);
@@ -1026,12 +1412,12 @@ async function confirmLogout() {
   align-items: center;
   gap: 10px;
   min-width: 0;
-  flex: 1;
+  justify-self: start;
 }
 
 .u-avatar-logo {
-  width: 40px;
-  height: 40px;
+  width: 48px;
+  height: 48px;
   border-radius: 999px;
   border: 2px solid color-mix(in srgb, #fff 55%, transparent);
   background: #fff;
@@ -1050,53 +1436,45 @@ async function confirmLogout() {
   background: #fff;
 }
 .u-avatar-logo-fallback {
-  font-size: 1rem;
+  font-size: 1.1rem;
   font-weight: 800;
   color: var(--brand-primary, #0f766e);
   font-family: var(--font-display);
 }
 
-.u-topbar-greet {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-.u-hello {
-  margin: 0;
-  font-size: 1.28rem;
-  font-weight: 800;
-  line-height: 1.15;
-  color: #fff;
-  letter-spacing: -0.02em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 .u-topbar-end {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 6px;
-  flex-shrink: 0;
+  justify-self: end;
+  min-width: 0;
 }
 
-.u-connectia-mark {
+.u-product-mark {
   display: inline-flex;
   align-items: center;
-  margin-right: 2px;
-  max-width: 88px;
+  justify-content: center;
+  max-width: 200px;
+  justify-self: center;
+  grid-column: 2;
 }
-.u-connectia-word {
-  font-family: var(--font-display);
-  font-size: 0.82rem;
-  font-weight: 700;
-  line-height: 1;
-  color: #fff;
-  letter-spacing: -0.02em;
-  white-space: nowrap;
-  opacity: 0.95;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+.u-product-logo {
+  display: block;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+.u-product-logo--topbar {
+  max-height: 42px;
+  max-width: 190px;
+  /* SVG: SOOFT blanco + CONNECTYX violeta sobre topbar de marca */
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.2));
+}
+.u-product-logo--drawer {
+  max-height: 28px;
+  max-width: min(200px, 70%);
+  margin-bottom: 8px;
 }
 
 .u-brand-logo {
@@ -1210,6 +1588,32 @@ async function confirmLogout() {
 
 .u-notif-btn {
   position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 0;
+  background: transparent;
+  color: #fff;
+}
+.u-hub-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 0;
+  background: transparent;
+  color: #fff;
+  opacity: 0.92;
+}
+.u-hub-btn.on {
+  opacity: 1;
+  background: color-mix(in srgb, #fff 16%, transparent);
+  border-radius: 10px;
+}
+.u-hub-btn:active,
+.u-notif-btn:active {
+  background: transparent;
+  opacity: 0.85;
+}
+.u-hub-btn.on:active {
+  background: color-mix(in srgb, #fff 22%, transparent);
 }
 
 .u-notif-badge {
@@ -1230,11 +1634,8 @@ async function confirmLogout() {
 }
 
 @media (max-width: 360px) {
-  .u-connectia-mark {
-    display: none;
-  }
-  .u-hello {
-    font-size: 1.12rem;
+  .u-product-mark {
+    max-width: 110px;
   }
 }
 
@@ -1284,14 +1685,13 @@ async function confirmLogout() {
 .u-tabbar {
   flex-shrink: 0;
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr;
   align-items: end;
   gap: 0;
   height: calc(64px + env(safe-area-inset-bottom));
   padding: 0 4px env(safe-area-inset-bottom);
-  background: #fff;
+  background: var(--cx-surface);
   border-top: 1px solid color-mix(in srgb, var(--cx-border) 80%, transparent);
-  box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 -8px 24px color-mix(in srgb, var(--cx-text) 6%, transparent);
   z-index: 20;
   overflow: visible;
 }
@@ -1307,7 +1707,7 @@ async function confirmLogout() {
   margin: 0;
   border: 0;
   background: transparent;
-  color: #64748b;
+  color: var(--cx-muted);
   font: inherit;
   font-size: 11px;
   font-weight: 600;
@@ -1364,7 +1764,7 @@ async function confirmLogout() {
   font-weight: 800;
   line-height: 18px;
   text-align: center;
-  border: 2px solid #fff;
+  border: 2px solid var(--cx-surface);
   box-sizing: border-box;
   pointer-events: none;
 }

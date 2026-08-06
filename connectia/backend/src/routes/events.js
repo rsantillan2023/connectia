@@ -14,6 +14,7 @@ import {
   pushEventToPersonalCalendars,
   removeEventFromPersonalCalendars,
 } from '../services/calendarPush.js'
+import { scheduleAwardPoints } from '../lib/pointsRules.js'
 
 const router = Router()
 const ObjectId = mongoose.Types.ObjectId
@@ -189,6 +190,14 @@ router.post('/:id/rsvp', requireAuth, async (req, res, next) => {
     }
 
     const fresh = await Event.findById(event._id).lean()
+    if (estado === 'confirmado' && prevEstado !== 'confirmado') {
+      scheduleAwardPoints({
+        tenant: req.tenant,
+        userId: req.user._id,
+        event: 'event_rsvp_confirmed',
+        entityId: event._id,
+      })
+    }
     res.json({
       ok: true,
       item: serializeEvent(fresh, { rsvp: rsvp.toObject() }),

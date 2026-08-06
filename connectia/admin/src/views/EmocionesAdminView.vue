@@ -483,7 +483,7 @@ onMounted(async () => {
 
 <style scoped>
 .page {
-  max-width: 1100px;
+  max-width: none;
 }
 .page-head {
   display: flex;
@@ -508,8 +508,8 @@ onMounted(async () => {
   gap: 8px;
 }
 .err {
-  color: #b91c1c;
-  background: #fef2f2;
+  color: var(--bad);
+  background: var(--bad-bg);
   padding: 10px 12px;
   border-radius: 10px;
 }
@@ -528,7 +528,7 @@ onMounted(async () => {
 .hint.warn {
   background: #fffbeb;
   border: 1px solid #fde68a;
-  color: #92400e;
+  color: var(--warn);
   padding: 10px 12px;
   border-radius: 10px;
 }
@@ -539,17 +539,17 @@ onMounted(async () => {
   margin-bottom: 16px;
 }
 .kpi {
-  background: var(--cx-surface, #fff);
-  border: 1px solid var(--cx-border, #e2e8f0);
+  background: var(--cx-surface);
+  border: 1px solid var(--cx-border);
   border-radius: 14px;
   padding: 14px 16px;
 }
 .kpi.accent {
-  border-color: color-mix(in srgb, var(--brand-primary, #0f766e) 35%, var(--cx-border, #e2e8f0));
-  background: color-mix(in srgb, var(--brand-primary, #0f766e) 6%, transparent);
+  border-color: color-mix(in srgb, var(--brand-primary) 35%, var(--cx-border));
+  background: color-mix(in srgb, var(--brand-primary) 6%, transparent);
 }
 .kpi.love {
-  border-color: color-mix(in srgb, #be123c 28%, var(--cx-border, #e2e8f0));
+  border-color: color-mix(in srgb, #be123c 28%, var(--cx-border));
   background: color-mix(in srgb, #be123c 5%, transparent);
 }
 .kpi-label {
@@ -575,8 +575,8 @@ onMounted(async () => {
   margin-bottom: 16px;
   padding: 10px 14px;
   border-radius: 12px;
-  background: color-mix(in srgb, var(--cx-surface, #fff) 80%, #f1f5f9);
-  border: 1px solid var(--cx-border, #e2e8f0);
+  background: color-mix(in srgb, var(--cx-surface) 80%, var(--panel-2));
+  border: 1px solid var(--cx-border);
   font-size: 13px;
   color: var(--cx-muted);
 }
@@ -584,15 +584,15 @@ onMounted(async () => {
   margin: 0;
 }
 .legend strong {
-  color: var(--cx-text, #0f172a);
+  color: var(--cx-text, var(--ink));
   font-weight: 650;
 }
 .ai-panel {
   margin-bottom: 20px;
   padding: 16px;
-  border: 1px solid var(--cx-border, #e2e8f0);
+  border: 1px solid var(--cx-border);
   border-radius: 16px;
-  background: var(--cx-surface, #fff);
+  background: var(--cx-surface);
   display: grid;
   gap: 12px;
 }
@@ -613,8 +613,8 @@ onMounted(async () => {
   gap: 4px;
 }
 .mode {
-  border: 1px solid var(--cx-border, #e2e8f0);
-  background: #fff;
+  border: 1px solid var(--cx-border);
+  background: var(--panel);
   border-radius: 8px;
   padding: 6px 10px;
   font-size: 12px;
@@ -622,7 +622,7 @@ onMounted(async () => {
   cursor: pointer;
 }
 .mode.on {
-  background: var(--brand-primary, #0f766e);
+  background: var(--brand-primary);
   color: #fff;
   border-color: transparent;
 }
@@ -648,10 +648,10 @@ onMounted(async () => {
   max-width: 640px;
 }
 .ai-box {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--line);
   border-radius: 12px;
   padding: 14px;
-  background: #f8fafc;
+  background: var(--panel-2);
   display: grid;
   gap: 6px;
 }
@@ -670,7 +670,7 @@ onMounted(async () => {
 .ai-box li {
   font-size: 0.9rem;
   line-height: 1.45;
-  color: #334155;
+  color: var(--ink);
 }
 .ai-score {
   display: flex;
@@ -681,7 +681,7 @@ onMounted(async () => {
 .ai-score-num {
   font-size: 2rem;
   font-weight: 750;
-  color: var(--brand-primary, #0f766e);
+  color: var(--brand-primary);
   font-variant-numeric: tabular-nums;
 }
 .ai-score-label {
@@ -697,10 +697,10 @@ onMounted(async () => {
   gap: 10px;
 }
 .per-post li {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--line);
   border-radius: 10px;
   padding: 10px 12px;
-  background: #fff;
+  background: var(--panel);
 }
 .per-post-head {
   display: flex;
@@ -737,10 +737,10 @@ onMounted(async () => {
   font-weight: 600;
 }
 .input {
-  border: 1px solid var(--cx-border, #e2e8f0);
+  border: 1px solid var(--cx-border);
   border-radius: 10px;
   padding: 7px 10px;
-  background: var(--cx-surface, #fff);
+  background: var(--cx-surface);
   font-size: 13px;
 }
 .table {
@@ -752,7 +752,7 @@ onMounted(async () => {
 .table td {
   text-align: left;
   padding: 10px 8px;
-  border-bottom: 1px solid var(--cx-border, #e2e8f0);
+  border-bottom: 1px solid var(--cx-border);
   vertical-align: top;
 }
 .table th {
@@ -766,7 +766,7 @@ onMounted(async () => {
   cursor: pointer;
 }
 .table tbody tr.selected {
-  background: color-mix(in srgb, var(--brand-primary, #0f766e) 8%, transparent);
+  background: color-mix(in srgb, var(--brand-primary) 8%, transparent);
 }
 .check-col {
   width: 36px;
@@ -792,25 +792,25 @@ onMounted(async () => {
   border-radius: 999px;
   font-size: 10px;
   font-weight: 700;
-  background: color-mix(in srgb, var(--brand-primary, #0f766e) 14%, transparent);
-  color: var(--brand-primary, #0f766e);
+  background: color-mix(in srgb, var(--brand-primary) 14%, transparent);
+  color: var(--brand-primary);
   text-transform: capitalize;
 }
 .pill.soft {
-  background: #e2e8f0;
-  color: #334155;
+  background: var(--line);
+  color: var(--ink);
 }
 .pill.ok {
   background: #dcfce7;
   color: #166534;
 }
 .pill.mid {
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--warn-bg);
+  color: var(--warn);
 }
 .pill.bad {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--bad-bg);
+  color: var(--bad);
 }
 .strong {
   font-weight: 700;
@@ -822,8 +822,8 @@ onMounted(async () => {
 }
 .btn-ghost,
 .btn-primary {
-  border: 1px solid var(--cx-border, #e2e8f0);
-  background: var(--cx-surface, #fff);
+  border: 1px solid var(--cx-border);
+  background: var(--cx-surface);
   border-radius: 10px;
   padding: 8px 12px;
   font-size: 13px;
@@ -831,7 +831,7 @@ onMounted(async () => {
   cursor: pointer;
 }
 .btn-primary {
-  background: var(--brand-primary, #0f766e);
+  background: var(--brand-primary);
   color: #fff;
   border-color: transparent;
 }

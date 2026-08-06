@@ -29,6 +29,14 @@ const postSchema = new mongoose.Schema(
       default: 'vertical',
     },
     pinned: { type: Boolean, default: false },
+    /** Si está fijada: cuándo se desfija sola (Ola 36-a). null = indefinida. */
+    pinnedUntil: { type: Date, default: null, index: true },
+    /** Cuándo deja de mostrarse en el feed y pasa a archived (Ola 36-b). */
+    expiresAt: { type: Date, default: null, index: true },
+    /** Sección editorial: deporte, internacional, moda, etc. (Ola 36-d). */
+    section: { type: String, default: '', maxlength: 80, index: true },
+    /** Biblioteca de conocimiento del muro (Ola 3 · 04.13). */
+    isKnowledge: { type: Boolean, default: false, index: true },
     priority: { type: Number, default: 0 },
     /**
      * Si true, al pasar a published se notifica a la audiencia
@@ -84,6 +92,8 @@ const postSchema = new mongoose.Schema(
       wow: { type: Number, default: 0 },
       clap: { type: Number, default: 0 },
     },
+    /** Vistas únicas (detalle) acumuladas — telemetría §29.04 */
+    viewCount: { type: Number, default: 0, index: true },
     /** userId -> reaction key (una por usuario en MVP) */
     reactors: {
       type: Map,
@@ -100,6 +110,8 @@ const postSchema = new mongoose.Schema(
       areaIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'OrgArea' }],
       groupIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'UserGroup' }],
       userIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+      /** Clientes de audiencia (Ola 36-l); distinto de SupCliente ECR. */
+      clientIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'AudienceClient' }],
     },
     /**
      * Overrides de presentación por instancia.

@@ -18,6 +18,11 @@ import {
 import { startWorkflowForOrigin } from '../services/workflowRuntime.js'
 import { toPublicMediaUrl } from '../lib/mediaUrl.js'
 import { notifyAbsenceCreated } from '../services/notifyTramite.js'
+import {
+  ecrAusentismoStatus,
+  persistEcrSync,
+} from '../services/ecrAusentismoAdapter.js'
+import { scheduleAwardPoints } from '../lib/pointsRules.js'
 
 const router = Router()
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -105,6 +110,11 @@ router.get('/tipos', requireAuth, (_req, res) => {
   res.json({ tipos: DEFAULT_ABSENCE_TYPES.filter((t) => t.activo) })
 })
 
+/** Estado integración ECR (12.04) — visible para el colaborador. */
+router.get('/ecr-status', requireAuth, (req, res) => {
+  res.json(ecrAusentismoStatus(req.tenant))
+})
+
 router.get('/', requireAuth, async (req, res, next) => {
   try {
     const page = Math.max(1, Number(req.query.page) || 1)
@@ -184,8 +194,10 @@ router.post('/', requireAuth, async (req, res, next) => {
       requesterName: name,
       adjuntos,
       ecrSync: {
-        status: 'deferred',
-        note: 'Integración ECR (12.04) diferida; gestión local en Connectia.',
+        status: 'pending',
+        note: 'Sync ECR pendiente',
+        externalId: '',
+        at: null,
       },
       historial: [
         {
@@ -197,6 +209,12 @@ router.post('/', requireAuth, async (req, res, next) => {
         },
       ],
     })
+
+    try {
+      await persistEcrSync(r, { tenant: req.tenant, user: req.user, event: 'create' })
+    } catch (syncErr) {
+      console.warn('[ecr] absence create', syncErr?.message || syncErr)
+    }
 
     try {
       await startWorkflowForOrigin({
@@ -216,6 +234,13 @@ router.post('/', requireAuth, async (req, res, next) => {
     notifyAbsenceCreated({ tenant: req.tenant, absence: r }).catch((err) =>
       console.warn('[notify] absence create', err?.message || err),
     )
+
+    scheduleAwardPoints({
+      tenant: req.tenant,
+      userId: req.user._id,
+      event: 'ausencia_requested',
+      entityId: r._id,
+    })
 
     res.status(201).json({ absence: serializeAbsence(r, { includeHistorial: true }) })
   } catch (e) {
@@ -243,6 +268,11 @@ router.post('/:id/cancel', requireAuth, async (req, res, next) => {
       at: new Date(),
     })
     await r.save()
+    try {
+      await persistEcrSync(r, { tenant: req.tenant, user: req.user, event: 'cancel' })
+    } catch (syncErr) {
+      console.warn('[ecr] absence cancel', syncErr?.message || syncErr)
+    }
     res.json({ absence: serializeAbsence(r, { includeHistorial: true }) })
   } catch (e) {
     next(e)

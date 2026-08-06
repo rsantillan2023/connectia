@@ -12,7 +12,8 @@ import { Chat } from '../models/Chat.js'
 import { ChatMessage } from '../models/ChatMessage.js'
 import { ChatBlock } from '../models/ChatBlock.js'
 import { User } from '../models/User.js'
-import { audienceFilterForUser, userCanSeePost } from '../lib/audience.js'
+import { audienceFilterForUser, userCanSeePost, resolveClientIdsForUser } from '../lib/audience.js'
+import { notExpiredFilter } from '../lib/postLifecycle.js'
 import { toPublicMediaUrl, serializePostMedia, resolvePostMediaFields } from '../lib/mediaUrl.js'
 import {
   POST_TIPOS,
@@ -28,6 +29,7 @@ import {
   serializeModerationAi,
 } from '../services/ugcModerationAi.js'
 import { Comment } from '../models/Comment.js'
+import { recordPostDetailView } from '../lib/postViews.js'
 import {
   normalizeReactionKey,
   mergeReactionCounts,
@@ -63,6 +65,10 @@ function serialize(p, userId, saved = false, postsConfig, extras = {}) {
     audioUrl: toPublicMediaUrl(p.audioUrl),
     layout: presentation.layout,
     pinned: p.pinned,
+    pinnedUntil: p.pinnedUntil || null,
+    expiresAt: p.expiresAt || null,
+    section: p.section || '',
+    isKnowledge: Boolean(p.isKnowledge),
     priority: p.priority,
     status: p.status,
     publishedAt: p.publishedAt,
@@ -208,12 +214,13 @@ router.get('/saved', requireAuth, async (req, res, next) => {
       if (!postIds.length) {
         return res.json({ page, size, total: 0, items: [] })
       }
+      const memberClientIds = await resolveClientIdsForUser(req.tenant._id, req.user)
       const postMatch = {
         $and: [
           { _id: { $in: postIds } },
           { tenantId: req.tenant._id },
           { status: 'published' },
-          audienceFilterForUser(req.user),
+          audienceFilterForUser(req.user, { clientIds: memberClientIds }),
           ...savedPostFilterClauses(parsed),
         ],
       }
@@ -225,11 +232,12 @@ router.get('/saved', requireAuth, async (req, res, next) => {
     }
 
     const postIds = rows.map((r) => r.postId)
+    const memberClientIds = await resolveClientIdsForUser(req.tenant._id, req.user)
     const posts = await Post.find({
       _id: { $in: postIds },
       tenantId: req.tenant._id,
       status: 'published',
-      ...audienceFilterForUser(req.user),
+      ...audienceFilterForUser(req.user, { clientIds: memberClientIds }),
     })
     const byId = new Map(posts.map((p) => [String(p._id), p]))
     const counts = await commentCountMap(
@@ -255,7 +263,8 @@ router.get('/feed', requireAuth, async (req, res, next) => {
     const page = Math.max(1, Number(req.query.page) || 1)
     const size = Math.min(30, Math.max(1, Number(req.query.size) || 6))
     const parsed = parseSavedListQuery(req.query)
-    const and = [audienceFilterForUser(req.user), ...savedPostFilterClauses(parsed)]
+    const memberClientIds = await resolveClientIdsForUser(req.tenant._id, req.user)
+    const and = [audienceFilterForUser(req.user, { clientIds: memberClientIds }), ...savedPostFilterClauses(parsed)]
 
     const hiddenIds = await HiddenPost.find({
       tenantId: req.tenant._id,
@@ -268,7 +277,7 @@ router.get('/feed', requireAuth, async (req, res, next) => {
     const filter = {
       tenantId: req.tenant._id,
       status: 'published',
-      $and: and,
+      $and: [...and, notExpiredFilter()],
     }
     const [items, total] = await Promise.all([
       Post.aggregate([
@@ -276,9 +285,26 @@ router.get('/feed', requireAuth, async (req, res, next) => {
         {
           $addFields: {
             _sortDate: { $ifNull: ['$publishedAt', '$createdAt'] },
+            _pinnedEffective: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ['$pinned', true] },
+                    {
+                      $or: [
+                        { $eq: [{ $ifNull: ['$pinnedUntil', null] }, null] },
+                        { $gt: ['$pinnedUntil', new Date()] },
+                      ],
+                    },
+                  ],
+                },
+                1,
+                0,
+              ],
+            },
           },
         },
-        { $sort: { pinned: -1, _sortDate: -1, _id: -1 } },
+        { $sort: { _pinnedEffective: -1, _sortDate: -1, _id: -1 } },
         { $skip: (page - 1) * size },
         { $limit: size },
       ]),
@@ -475,6 +501,14 @@ router.get('/:id', requireAuth, async (req, res, next) => {
     if (!p || !userCanSeePost(req.user, p)) {
       return res.status(404).json({ error: 'Publicación no encontrada' })
     }
+    // Telemetría de vista (único/día) — no bloquea la respuesta
+    recordPostDetailView({
+      tenantId: req.tenant._id,
+      postId: p._id,
+      userId: req.user._id,
+      userAgent: req.headers['user-agent'] || '',
+    }).catch(() => {})
+
     const isSaved = await SavedPost.exists({
       userId: req.user._id,
       postId: p._id,

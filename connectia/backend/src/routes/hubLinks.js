@@ -9,13 +9,16 @@ import {
   isLinkVisibleNow,
   isTemporaryVisibleUntil,
   categoryVisibleOnSurface,
+  quickLinksForSurface,
 } from '../lib/hubVisibility.js'
 import {
   normalizeHubKind,
   openModeForKind,
   buildTemplateContext,
   resolveHubAction,
+  applyTemplates,
 } from '../lib/hubKinds.js'
+import { getOrCreateWalletAccount, tenantHasWallet } from '../lib/walletService.js'
 
 const router = Router()
 
@@ -31,10 +34,13 @@ function serializeLink(l, categoryMeta = null, opts = {}) {
   const visibleUntil = l.visibleUntil || defaultVisibleUntil()
   const kind = normalizeHubKind(l.kind, l.openMode)
   const target = l.target || l.url || ''
+  const ctx = opts.templateCtx
+  const titulo = ctx ? applyTemplates(l.titulo || '', ctx) : l.titulo
+  const subtitulo = ctx ? applyTemplates(l.subtitulo || '', ctx) : l.subtitulo || ''
   return {
     id: String(l._id),
-    titulo: l.titulo,
-    subtitulo: l.subtitulo || '',
+    titulo,
+    subtitulo,
     kind,
     target,
     url: target,
@@ -87,6 +93,16 @@ router.get('/', requireAuth, async (req, res, next) => {
     )
     const hasCats = categories.length > 0
 
+    let templateCtx = buildTemplateContext(req.user, req.tenant)
+    try {
+      if (tenantHasWallet(req.tenant)) {
+        const acc = await getOrCreateWalletAccount(tenantId, req.user._id)
+        templateCtx = buildTemplateContext(req.user, req.tenant, { puntos: acc.balance })
+      }
+    } catch {
+      /* sin billetera: contexto sin puntos */
+    }
+
     const visible = items.filter((l) => {
       if (!isLinkVisibleNow(l, now)) return false
       if (!hasCats) return true
@@ -99,30 +115,44 @@ router.get('/', requireAuth, async (req, res, next) => {
     for (const l of visible) {
       const cat = l.category || 'General'
       if (!byCat[cat]) byCat[cat] = []
-      byCat[cat].push(serializeLink(l, catByName[cat]))
+      byCat[cat].push(serializeLink(l, catByName[cat], { templateCtx }))
+    }
+    for (const cat of Object.keys(byCat)) {
+      byCat[cat].sort(
+        (a, b) =>
+          (Number(a.order) || 100) - (Number(b.order) || 100) ||
+          String(a.titulo || '').localeCompare(String(b.titulo || ''), 'es'),
+      )
     }
 
-    const orderedCats = [
-      ...categories
-        .filter((c) => categoryVisibleOnSurface(c, surface) && byCat[c.nombre]?.length)
-        .map((c) => c.nombre),
-      ...Object.keys(byCat).filter((n) => !categories.some((c) => c.nombre === n)),
-    ]
+    const configuredCats = categories
+      .filter((c) => categoryVisibleOnSurface(c, surface) && byCat[c.nombre]?.length)
+      .sort((a, b) => (Number(a.orden) || 100) - (Number(b.orden) || 100) || a.nombre.localeCompare(b.nombre, 'es'))
+      .map((c) => c.nombre)
+    const orphanCats = Object.keys(byCat)
+      .filter((n) => !categories.some((c) => c.nombre === n))
+      .sort((a, b) => a.localeCompare(b, 'es'))
+    let orderedCats = [...configuredCats, ...orphanCats]
 
-    /** Hasta 3 accesos rápidos por pestaña; si no hay featured, usa los primeros 3 del grupo. */
+    /** En muro solo los marcados como acceso rápido; en /accesos hay fallback a los primeros. */
     const quickByCategory = {}
     for (const cat of orderedCats) {
-      const list = byCat[cat] || []
-      const featured = list.filter((l) => l.featured)
-      quickByCategory[cat] = (featured.length ? featured : list).slice(0, 3)
+      quickByCategory[cat] = quickLinksForSurface(byCat[cat] || [], surface, 48)
+    }
+
+    if (surface === 'muro') {
+      orderedCats = orderedCats.filter((cat) => (quickByCategory[cat] || []).length > 0)
+      for (const cat of Object.keys(quickByCategory)) {
+        if (!orderedCats.includes(cat)) delete quickByCategory[cat]
+      }
     }
 
     res.json({
-      items: visible.map((l) => serializeLink(l, catByName[l.category || 'General'])),
+      items: visible.map((l) => serializeLink(l, catByName[l.category || 'General'], { templateCtx })),
       categories: orderedCats,
       grouped: byCat,
       quickByCategory,
-      maxQuickPerCategory: 3,
+      maxQuickPerCategory: 48,
       surface,
       categoryMeta: categories
         .filter((c) => categoryVisibleOnSurface(c, surface))
@@ -156,10 +186,20 @@ router.post('/:id/click', requireAuth, async (req, res, next) => {
     await link.save()
 
     const ctx = buildTemplateContext(req.user, req.tenant)
+    try {
+      if (tenantHasWallet(req.tenant)) {
+        const acc = await getOrCreateWalletAccount(req.tenant._id, req.user._id)
+        Object.assign(ctx, buildTemplateContext(req.user, req.tenant, { puntos: acc.balance }))
+      }
+    } catch {
+      /* ignore */
+    }
     const resolved = resolveHubAction(link.toObject ? link.toObject() : link, ctx)
 
     res.json({
       ...resolved,
+      titulo: applyTemplates(link.titulo || '', ctx),
+      subtitulo: applyTemplates(link.subtitulo || '', ctx),
       kind: normalizeHubKind(link.kind, link.openMode),
       openMode: openModeForKind(normalizeHubKind(link.kind, link.openMode)),
       url: resolved.url || link.target || link.url,

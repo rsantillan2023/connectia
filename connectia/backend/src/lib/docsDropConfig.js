@@ -4,16 +4,19 @@ export const DOC_DROP_SOURCES = [
   {
     id: 'url',
     label: 'URL / manifiesto JSON',
+    shortLabel: 'almacenamiento externo',
     hint: 'GET a una URL que lista archivos [{ name, url }]. Ideal si un proceso externo (o Drive/S3 vía proxy) publica el índice.',
   },
   {
     id: 's3',
     label: 'Amazon S3 / compatible',
+    shortLabel: 'S3',
     hint: 'Lista objetos del bucket/prefix con credenciales AWS_* (o S3_*). Requiere publicBaseUrl o endpoint para armar el link.',
   },
   {
     id: 'gdrive',
     label: 'Google Drive',
+    shortLabel: 'Drive',
     hint: 'Carpeta compartida vía API key + folderId, o un listUrl (Apps Script / proxy) con el mismo formato JSON.',
   },
 ]

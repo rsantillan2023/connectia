@@ -17,6 +17,7 @@ describe('helpContent deepLinkFor', () => {
     assert.equal(deepLinkFor('faq', 'abc'), '/ayuda/faq/abc')
     assert.equal(deepLinkFor('tutorial', 't1'), '/ayuda/tutorial/t1')
     assert.equal(deepLinkFor('policy', 'p1'), '/politicas/p1')
+    assert.equal(deepLinkFor('document', 'd1'), '/docs')
   })
 })
 
@@ -84,6 +85,24 @@ describe('helpContent KB', () => {
     })
     assert.equal(pol.version, '2')
     assert.equal(pol.href, '/politicas/3')
+
+    const doc = buildKbDocument({
+      kind: 'document',
+      doc: {
+        _id: '4',
+        titulo: 'Manual interno',
+        descripcion: 'Normas de oficina',
+        category: 'rrhh',
+        fileName: 'manual.pdf',
+        fileUrl: '/uploads/manual.pdf',
+        fileType: 'pdf',
+        status: 'published',
+      },
+    })
+    assert.equal(doc.indexable, true)
+    assert.equal(doc.href, '/docs')
+    assert.match(doc.body, /Normas/)
+    assert.ok(doc.tags.includes('documento'))
   })
 })
 

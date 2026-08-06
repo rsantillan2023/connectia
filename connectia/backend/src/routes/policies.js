@@ -13,6 +13,7 @@ import {
   validatePolicyAck,
 } from '../lib/helpContent.js'
 import { kbPayloadSummary } from '../services/kbIndex.js'
+import { scheduleAwardPoints } from '../lib/pointsRules.js'
 
 const router = Router()
 
@@ -139,6 +140,12 @@ router.post('/:id/ack', requireAuth, async (req, res, next) => {
     // Cap historial por usuario+versión (conservar auditoría, limitar tamaño)
     if (p.acks.length > 5000) p.acks = p.acks.slice(-4000)
     await p.save()
+    scheduleAwardPoints({
+      tenant: req.tenant,
+      userId: req.user._id,
+      event: 'policy_acked',
+      entityId: `${p._id}:${p.version}`,
+    })
     res.status(201).json({
       ok: true,
       policy: serializePolicy(p.toObject(), req.user._id),

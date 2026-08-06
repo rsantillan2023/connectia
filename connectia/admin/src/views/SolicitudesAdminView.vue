@@ -1,21 +1,18 @@
 <template>
   <div>
-    <div class="flex items-center justify-between gap-4 flex-wrap">
-      <div>
-        <h1 class="text-2xl font-semibold">Bandeja de solicitudes</h1>
-        <p class="text-sm text-slate-500 mt-1">CRM interno · campos dinámicos y estados del tenant (§9.04).</p>
-        <ScreenHelp
-          purpose="Gestioná los trámites creados desde la app: estados habilitados, hilo, notas internas y datos del formulario."
-          can-do="Filtrar por estados activos, responder con adjunto URL, cambiar estado según transiciones y exportar."
-        />
-      </div>
-      <div class="flex gap-2">
-        <RouterLink to="/enviar-solicitud" class="rounded-lg bg-teal-700 text-white px-4 py-2 text-sm font-medium">
-          Pedir datos a un grupo
-        </RouterLink>
-        <button class="rounded-lg border px-4 py-2 text-sm font-medium" @click="exportCsv">Exportar</button>
-      </div>
-    </div>
+    <AdminPageHeader
+      title="Bandeja de solicitudes"
+      subtitle="CRM interno · campos dinámicos y estados del tenant (§9.04)."
+    >
+      <template #actions>
+        <RouterLink to="/enviar-solicitud" class="btn-primary">Pedir datos a un grupo</RouterLink>
+        <button class="btn-ghost" @click="exportCsv">Exportar</button>
+      </template>
+    </AdminPageHeader>
+    <ScreenHelp
+      purpose="Gestioná los trámites creados desde la app: estados habilitados, hilo, notas internas y datos del formulario."
+      can-do="Filtrar por estados activos, responder con adjunto URL, cambiar estado según transiciones y exportar."
+    />
 
     <div class="mt-4 flex flex-wrap gap-2 items-center">
       <input
@@ -148,6 +145,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import api from '../services/api'
+import AdminPageHeader from '../components/AdminPageHeader.vue'
 import ScreenHelp from '../components/ScreenHelp.vue'
 import PostMedia from '../components/PostMedia.vue'
 

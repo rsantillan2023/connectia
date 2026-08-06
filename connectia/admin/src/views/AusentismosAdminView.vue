@@ -3,10 +3,10 @@
     <div class="flex items-center justify-between gap-4 flex-wrap">
       <div>
         <h1 class="text-2xl font-semibold">Ausentismos</h1>
-        <p class="text-sm text-slate-500 mt-1">
-          Bandeja de ausencias · integración ECR diferida (12.04)
+        <p class="text-sm text-slate-500 mt-1">Bandeja de ausencias · sync ECR (12.04)</p>
+        <p v-if="ecr" class="text-xs mt-1" :class="ecrTone">
+          {{ ecrLabel }} — {{ ecr.note }}
         </p>
-        <p v-if="ecr" class="text-xs text-amber-700 mt-1">{{ ecr.note }}</p>
       </div>
       <button class="rounded-lg border px-4 py-2 text-sm bg-white" type="button" @click="exportCsv">
         Exportar CSV
@@ -41,6 +41,7 @@
             <th class="px-3 py-2">Solicitante</th>
             <th class="px-3 py-2">Período</th>
             <th class="px-3 py-2">Estado</th>
+            <th class="px-3 py-2">ECR</th>
             <th class="px-3 py-2">Acciones</th>
           </tr>
         </thead>
@@ -51,6 +52,9 @@
             <td class="px-3 py-2">{{ r.requesterName }}</td>
             <td class="px-3 py-2">{{ r.desde }} → {{ r.hasta }}</td>
             <td class="px-3 py-2">{{ r.estadoLabel }}</td>
+            <td class="px-3 py-2">
+              <span class="text-xs" :title="r.ecrSync?.note || ''">{{ ecrStatusLabel(r) }}</span>
+            </td>
             <td class="px-3 py-2 space-x-2">
               <button
                 v-if="r.estado === 'pendiente'"
@@ -66,6 +70,14 @@
               >
                 Rechazar
               </button>
+              <button
+                v-if="canRetry(r)"
+                class="text-slate-600 font-medium"
+                type="button"
+                @click="retryEcr(r)"
+              >
+                Reintentar ECR
+              </button>
             </td>
           </tr>
         </tbody>
@@ -75,7 +87,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import api from '../services/api'
 
 const items = ref([])
@@ -83,6 +95,37 @@ const ecr = ref(null)
 const q = ref('')
 const estado = ref('')
 const error = ref('')
+
+const ecrLabel = computed(() => {
+  if (!ecr.value) return ''
+  if (ecr.value.mode === 'live') return 'ECR live'
+  if (ecr.value.mode === 'mock') return 'ECR mock'
+  return 'Solo local'
+})
+
+const ecrTone = computed(() => {
+  if (!ecr.value) return 'text-slate-500'
+  if (ecr.value.mode === 'live') return 'text-teal-700'
+  if (ecr.value.mode === 'mock') return 'text-amber-700'
+  return 'text-slate-500'
+})
+
+function ecrStatusLabel(r) {
+  const s = r.ecrSync?.status || 'none'
+  const map = {
+    none: '—',
+    synced: 'OK',
+    pending: 'Pendiente',
+    error: 'Error',
+    deferred: 'Diferido',
+  }
+  return map[s] || s
+}
+
+function canRetry(r) {
+  const s = r.ecrSync?.status
+  return s === 'error' || s === 'pending' || s === 'deferred'
+}
 
 async function load() {
   error.value = ''
@@ -122,6 +165,15 @@ async function decide(r, decision) {
     await load()
   } catch (e) {
     error.value = e.response?.data?.error || e.message || 'Error'
+  }
+}
+
+async function retryEcr(r) {
+  try {
+    await api.post(`/admin/ausentismos/${r.id}/ecr-retry`, {})
+    await load()
+  } catch (e) {
+    error.value = e.response?.data?.error || e.message || 'Error al reintentar ECR'
   }
 }
 

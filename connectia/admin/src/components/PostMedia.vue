@@ -236,7 +236,7 @@ watch(
   width: 100%;
   height: 100%;
   min-height: inherit;
-  background: var(--cx-surface-2, #0f172a);
+  background: var(--cx-surface-2, var(--ink));
   position: relative;
 }
 .pmedia.embed,
@@ -267,12 +267,12 @@ iframe.el {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--brand-primary, #0f766e);
-  background: color-mix(in srgb, var(--brand-primary, #0f766e) 12%, transparent);
+  color: var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
 }
 .fallback.soft {
-  color: #94a3b8;
-  background: #0f172a;
+  color: var(--ink-faint);
+  background: var(--ink);
 }
 .unmute {
   position: absolute;

@@ -23,23 +23,36 @@ export function youtubeEmbedUrl(url, opts = {}) {
   const params = new URLSearchParams()
   if (opts.autoplay) {
     params.set('autoplay', '1')
-    params.set('mute', '1')
+    // Autoplay suele exigir mute; permitir override explícito (TV).
+    params.set('mute', opts.mute === false ? '0' : '1')
     params.set('playsinline', '1')
+  } else if (opts.mute != null) {
+    params.set('mute', opts.mute ? '1' : '0')
   }
+  if (opts.controls === false) params.set('controls', '0')
   if (opts.loop) {
     params.set('loop', '1')
     params.set('playlist', id) // YouTube exige playlist=id para loop
   }
+  if (opts.enablejsapi) params.set('enablejsapi', '1')
+  if (opts.start != null) params.set('start', String(Math.max(0, Number(opts.start) || 0)))
+  if (opts.end != null) params.set('end', String(Math.max(1, Number(opts.end) || 1)))
+  if (opts.origin) params.set('origin', String(opts.origin))
   params.set('rel', '0')
   params.set('modestbranding', '1')
   const q = params.toString()
   return `https://www.youtube.com/embed/${id}?${q}`
 }
 
-export function vimeoEmbedUrl(url, opts = {}) {
+export function vimeoId(url) {
   if (!url || typeof url !== 'string') return ''
   const m = url.trim().match(/vimeo\.com\/(?:video\/)?(\d+)/i)
-  if (!m?.[1]) return ''
+  return m?.[1] || ''
+}
+
+export function vimeoEmbedUrl(url, opts = {}) {
+  const id = vimeoId(url)
+  if (!id) return ''
   const params = new URLSearchParams()
   if (opts.autoplay) {
     params.set('autoplay', '1')
@@ -47,7 +60,42 @@ export function vimeoEmbedUrl(url, opts = {}) {
   }
   if (opts.loop) params.set('loop', '1')
   const q = params.toString()
-  return `https://player.vimeo.com/video/${m[1]}${q ? `?${q}` : ''}`
+  return `https://player.vimeo.com/video/${id}${q ? `?${q}` : ''}`
+}
+
+/** Miniatura usable en <img> (YouTube / Vimeo). */
+export function mediaThumbUrl(url) {
+  const resolved = resolveMediaUrl(url)
+  if (!resolved) return ''
+  const yt = youtubeId(resolved)
+  if (yt) return `https://img.youtube.com/vi/${yt}/hqdefault.jpg`
+  const vm = vimeoId(resolved)
+  if (vm) return `https://vumbnail.com/${vm}.jpg`
+  return ''
+}
+
+/**
+ * Cover visual para cards (carrusel muro, etc.).
+ * - Imagen → URL de imagen
+ * - YouTube/Vimeo → thumbnail
+ * - Video archivo → '' (usar <video preload=metadata> en UI)
+ */
+export function postCoverUrl(post) {
+  const urls = postImageUrls(post)
+  for (const raw of urls) {
+    const u = resolveMediaUrl(raw)
+    if (!u) continue
+    const kind = mediaKind(u)
+    if (kind === 'image') return proxiedMediaUrl(u) || u
+    if (kind === 'embed') return mediaThumbUrl(u) || ''
+  }
+  return ''
+}
+
+/** Primera URL de media del post (imagen, video o embed). */
+export function postPrimaryMediaUrl(post) {
+  const u = postImageUrls(post)[0] || ''
+  return resolveMediaUrl(u)
 }
 
 /**
@@ -128,6 +176,11 @@ export function postImageUrls(post) {
   const one = typeof post?.imageUrl === 'string' ? post.imageUrl.trim() : ''
   if (many.length === 1) return many
   return one ? [one] : []
+}
+
+export function postMediaKind(post) {
+  const u = postPrimaryMediaUrl(post)
+  return u ? mediaKind(u) : null
 }
 
 export function hasPostMedia(post) {

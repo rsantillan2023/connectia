@@ -23,13 +23,21 @@ export function youtubeEmbedUrl(url, opts = {}) {
   const params = new URLSearchParams()
   if (opts.autoplay) {
     params.set('autoplay', '1')
-    params.set('mute', '1')
+    // Autoplay suele exigir mute; permitir override explícito (TV).
+    params.set('mute', opts.mute === false ? '0' : '1')
     params.set('playsinline', '1')
+  } else if (opts.mute != null) {
+    params.set('mute', opts.mute ? '1' : '0')
   }
+  if (opts.controls === false) params.set('controls', '0')
   if (opts.loop) {
     params.set('loop', '1')
     params.set('playlist', id)
   }
+  if (opts.enablejsapi) params.set('enablejsapi', '1')
+  if (opts.start != null) params.set('start', String(Math.max(0, Number(opts.start) || 0)))
+  if (opts.end != null) params.set('end', String(Math.max(1, Number(opts.end) || 1)))
+  if (opts.origin) params.set('origin', String(opts.origin))
   params.set('rel', '0')
   params.set('modestbranding', '1')
   const q = params.toString()

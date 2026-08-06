@@ -102,6 +102,24 @@ for (const item of platformMenu) {
 }
 
 /** —— Tenant DEMO (cliente de ejemplo) —— */
+/** Lila Talent = color base de producto / marca (Ola 36-j); DEMO arranca alineado. */
+const DEMO_BRANDING = {
+  primary: '#8554C9',
+  secondary: '#6B3FA0',
+  logoUrl: '',
+  splashTitle: 'Comunidad Demo',
+  splashDurationSec: 2,
+  splash: {
+    enabledPreLogin: true,
+    enabledPostLogin: true,
+    durationSec: 2,
+    title: 'Comunidad Demo',
+    subtitle: 'Tu comunidad: información y trámites, fácil.',
+    showLogo: true,
+    showTitle: true,
+    showSubtitle: true,
+  },
+}
 const empCodigo = 'DEMO'
 let tenant = await Tenant.findOne({ empCodigo })
 if (!tenant) {
@@ -109,23 +127,7 @@ if (!tenant) {
     empCodigo,
     nombre: 'Comunidad Demo Connectia',
     allowDesktop: true,
-    branding: {
-      primary: '#0F766E',
-      secondary: '#115E59',
-      logoUrl: '',
-      splashTitle: 'Comunidad Demo',
-      splashDurationSec: 2,
-      splash: {
-        enabledPreLogin: true,
-        enabledPostLogin: true,
-        durationSec: 2,
-        title: 'Comunidad Demo',
-        subtitle: 'Tu comunidad: información y trámites, fácil.',
-        showLogo: true,
-        showTitle: true,
-        showSubtitle: true,
-      },
-    },
+    branding: { ...DEMO_BRANDING, splash: { ...DEMO_BRANDING.splash } },
     loginMethods: ['password', 'id'],
     peopleCare: { enabled: true, label: 'Mi legajo' },
     capabilities: [
@@ -142,8 +144,13 @@ if (!tenant) {
 } else {
   tenant.loginMethods = ['password', 'id']
   tenant.peopleCare = { enabled: true, label: 'Mi legajo' }
+  tenant.branding = {
+    ...(tenant.branding?.toObject?.() || tenant.branding || {}),
+    primary: DEMO_BRANDING.primary,
+    secondary: DEMO_BRANDING.secondary,
+  }
   await tenant.save()
-  console.log('Tenant DEMO ya existe')
+  console.log('Tenant DEMO ya existe (branding lila sincronizado)')
 }
 
 const usuario = 'demo'
@@ -217,7 +224,7 @@ if (!staff) {
     apellido: 'Gestora',
     email: 'lucia@connectia.local',
     roles: ['member'],
-    capabilities: ['admin.publicaciones', 'admin.solicitudes', 'admin.encuestas', 'admin.notificaciones', 'admin.comentarios', 'admin.saludos', 'admin.documentos', 'admin.ayuda', 'admin.politicas', 'admin.hub', 'admin.workflows', 'admin.ia', 'admin.legajos', 'admin.onboarding'],
+    capabilities: ['admin.publicaciones', 'admin.solicitudes', 'admin.encuestas', 'admin.notificaciones', 'admin.comentarios', 'admin.saludos', 'admin.documentos', 'admin.ayuda', 'admin.politicas', 'admin.hub', 'admin.workflows', 'admin.ia', 'admin.legajos', 'admin.onboarding', 'admin.asistencia'],
     origen: 'MANUAL',
     termsAcceptedVersion: '1.0',
     termsAcceptedAt: new Date(),
@@ -226,7 +233,7 @@ if (!staff) {
 } else {
   staff.passwordHash = passwordHash
   staff.roles = ['member']
-  staff.capabilities = ['admin.publicaciones', 'admin.solicitudes', 'admin.encuestas', 'admin.notificaciones', 'admin.comentarios', 'admin.saludos', 'admin.documentos', 'admin.ayuda', 'admin.politicas', 'admin.hub', 'admin.workflows', 'admin.ia', 'admin.legajos', 'admin.onboarding']
+  staff.capabilities = ['admin.publicaciones', 'admin.solicitudes', 'admin.encuestas', 'admin.notificaciones', 'admin.comentarios', 'admin.saludos', 'admin.documentos', 'admin.ayuda', 'admin.politicas', 'admin.hub', 'admin.workflows', 'admin.ia', 'admin.legajos', 'admin.onboarding', 'admin.asistencia']
   staff.activo = true
   await staff.save()
   console.log('Usuario lucia actualizado')
@@ -272,8 +279,16 @@ const menuSeed = [
   { key: 'docs', label: 'Mis documentos', route: '/docs', icon: 'file', order: 40, channel: 'u' },
   { key: 'directorio', label: 'Directorio', route: '/directorio', icon: 'grid', order: 41, channel: 'u' },
   { key: 'beneficios', label: 'Beneficios', route: '/beneficios', icon: 'gift', order: 42, channel: 'u' },
+  {
+    key: 'beneficios.earn',
+    label: 'Cómo sumar puntos',
+    route: '/beneficios?tab=earn',
+    icon: 'sparkles',
+    order: 42.1,
+    channel: 'u',
+  },
   { key: 'mi-legajo', label: 'Mi legajo', route: '/mi-legajo', icon: 'file', order: 42, channel: 'u' },
-  { key: 'bienvenida', label: 'Bienvenida', route: '/bienvenida', icon: 'sparkles', order: 43, channel: 'u' },
+  { key: 'bienvenida', label: 'Tu ingreso', route: '/bienvenida', icon: 'sparkles', order: 43, channel: 'u' },
   { key: 'ayuda', label: 'Ayuda', route: '/ayuda', icon: 'help', order: 45, channel: 'u' },
   { key: 'politicas', label: 'Políticas', route: '/politicas', icon: 'shield', order: 46, channel: 'u' },
   { key: 'hub', label: 'Enlaces', route: '/accesos', icon: 'grid', order: 50, channel: 'u' },
@@ -282,15 +297,16 @@ const menuSeed = [
   { key: 'chat', label: 'Chat', route: '/chat', icon: 'chat', order: 60, channel: 'u' },
   { key: 'admin.home', label: 'Dashboard', route: '/', icon: 'home', order: 10, channel: 'a' },
   { key: 'admin.users', label: 'Usuarios', route: '/usuarios', icon: 'users', order: 15, channel: 'a' },
-  { key: 'admin.legajos', label: 'Legajos RRHH', route: '/legajos', icon: 'file', order: 15.5, channel: 'a' },
-  { key: 'admin.hrcatalog', label: 'Catálogos RRHH', route: '/catalogos-rrhh', icon: 'tag', order: 15.6, channel: 'a' },
-  { key: 'admin.onboarding', label: 'Onboarding y egreso', route: '/onboarding', icon: 'sparkles', order: 15.7, channel: 'a' },
+  { key: 'admin.legajos', label: 'Fichas de empleado', route: '/legajos', icon: 'file', order: 15.5, channel: 'a' },
+  { key: 'admin.hrcatalog', label: 'Listas del legajo', route: '/catalogos-rrhh', icon: 'tag', order: 15.6, channel: 'a' },
+  { key: 'admin.onboarding', label: 'Ingreso y egreso', route: '/onboarding', icon: 'sparkles', order: 15.7, channel: 'a' },
   { key: 'admin.org', label: 'Organización', route: '/organizacion', icon: 'building', order: 16, channel: 'a' },
   { key: 'admin.requests', label: 'Bandeja', route: '/solicitudes', icon: 'inbox', order: 18, channel: 'a' },
   { key: 'admin.reqsend', label: 'Pedir datos a un grupo', route: '/enviar-solicitud', icon: 'send', order: 18.5, channel: 'a' },
   { key: 'admin.reqtypes', label: 'Plantillas', route: '/tipos-solicitud', icon: 'tag', order: 19, channel: 'a' },
   { key: 'admin.reqstates', label: 'Estados solicitud', route: '/estados-solicitud', icon: 'flag', order: 19.5, channel: 'a' },
   { key: 'admin.pubs', label: 'Publicaciones', route: '/publicaciones', icon: 'megaphone', order: 40, channel: 'a' },
+  { key: 'admin.stories', label: 'Stories', route: '/stories', icon: 'sparkles', order: 40.5, channel: 'a' },
   { key: 'admin.engagement', label: 'Emociones', route: '/emociones', icon: 'heart', order: 41, channel: 'a' },
   { key: 'admin.surveys', label: 'Encuestas', route: '/encuestas', icon: 'clipboard', order: 45, channel: 'a' },
   { key: 'admin.notifications', label: 'Notificaciones', route: '/notificaciones', icon: 'bell', order: 45.5, channel: 'a' },
@@ -300,7 +316,7 @@ const menuSeed = [
   { key: 'admin.kb', label: 'Base de conocimientos', route: '/asistente-kb', icon: 'sparkles', order: 45.9, channel: 'a' },
   { key: 'admin.docs', label: 'Documentos', route: '/documentos', icon: 'file', order: 46, channel: 'a' },
   { key: 'admin.directorio', label: 'Datos útiles', route: '/directorio', icon: 'grid', order: 46.2, channel: 'a' },
-  { key: 'admin.beneficios', label: 'Beneficios y billetera', route: '/beneficios', icon: 'gift', order: 46.3, channel: 'a' },
+  { key: 'admin.beneficios', label: 'Beneficios', route: '/beneficios', icon: 'gift', order: 46.3, channel: 'a' },
   { key: 'admin.ayuda', label: 'Ayuda', route: '/ayuda', icon: 'help', order: 46.5, channel: 'a' },
   { key: 'admin.politicas', label: 'Políticas y cumplimiento', route: '/politicas', icon: 'shield', order: 46.7, channel: 'a' },
   { key: 'admin.hub', label: 'Enlaces', route: '/accesos', icon: 'grid', order: 47, channel: 'a' },
@@ -334,12 +350,13 @@ for (const ex of WORKFLOW_USE_CASE_EXAMPLES) {
   )
 }
 
-const { seedGreetingsForTenant } = await import('./seedGreetings.js')
-const greetingsSeed = await seedGreetingsForTenant({
-  tenantId: tenant._id,
+const { seedOla8ForTenant } = await import('./seedOla8ForTenant.js')
+const ola8Seed = await seedOla8ForTenant(tenant._id, {
   brandName: tenant.nombre || 'Connectia',
 })
-console.log(`Saludos DEMO: ${greetingsSeed.created} reglas`)
+console.log(
+  `Ola 8 DEMO: ${ola8Seed.greetingRules} reglas · ${ola8Seed.usersTouched}/${ola8Seed.usersTotal} usuarios con fechas/hitos`,
+)
 
 const areaDefs = [
   { key: 'rrhh', nombre: 'RRHH', descripcion: 'Recursos humanos', orden: 10 },
@@ -373,17 +390,27 @@ console.log('Áreas y grupos DEMO OK')
 // Asignar org a usuarios demo
 user.areaId = areaByKey.comercial._id
 user.groupIds = [groupByKey.liderazgo._id]
+user.cargo = user.cargo || 'Gerente general'
+user.managerId = null
 await user.save()
 if (member) {
   member.areaId = areaByKey.rrhh._id
   member.groupIds = [groupByKey.planta._id]
+  member.cargo = member.cargo || 'Analista RRHH'
+  member.managerId = user._id
   await member.save()
 }
 if (staff) {
   staff.areaId = areaByKey.it._id
   staff.groupIds = [groupByKey.liderazgo._id]
+  staff.cargo = staff.cargo || 'Líder IT'
+  staff.managerId = user._id
+  if (!staff.capabilities.includes('admin.reportes')) {
+    staff.capabilities = [...new Set([...(staff.capabilities || []), 'admin.reportes', 'admin.organizacion'])]
+  }
   await staff.save()
 }
+console.log('Organigrama DEMO (managerId) OK')
 
 const seedPosts = [
   {
@@ -548,9 +575,34 @@ console.log(
     `(${seedPosts.length} total; incluye demos imagen / video MP4 / YouTube)`,
 )
 
+{
+  const { seedStoriesForTenant } = await import('../lib/storiesSeed.js')
+  const storiesSeed = await seedStoriesForTenant(tenant._id, {
+    brandName: tenant.nombre || 'Connectia',
+    variant: 'demo',
+    authorId: user._id,
+    authorName: user.nombre || 'demo',
+    force: true,
+  })
+  console.log(
+    `Stories DEMO: ${storiesSeed.created} nuevas · ${storiesSeed.updated} actualizadas · ${storiesSeed.skipped} omitidas`,
+  )
+}
+
 await Post.updateMany(
   { tenantId: tenant._id, layout: { $exists: false } },
   { $set: { layout: 'vertical' } },
+)
+
+/** —— Ola 36 (plantillas, newsletter, audiencia, hub dinámico, espacios ampliados) —— */
+const { seedOla36ForTenant } = await import('../lib/ola36Seed.js')
+const ola36Demo = await seedOla36ForTenant(tenant._id, {
+  brandName: tenant.nombre || 'DEMO',
+  createdBy: user?._id,
+  ensureSpaces: true,
+})
+console.log(
+  `Ola 36 DEMO: plantillas +${ola36Demo.templates} · NL ${ola36Demo.newsletterRules} · clientes +${ola36Demo.clients} · pubs +${ola36Demo.posts} · espacios +${ola36Demo.spaceExtras}`,
 )
 
 const typeDefs = [
@@ -611,6 +663,41 @@ const typeDefs = [
       { key: 'telefono', label: 'Teléfono', tipo: 'text', required: true, orden: 30 },
     ],
   },
+  {
+    key: 'turno_carnet',
+    nombre: 'Turno carnet',
+    descripcion: 'Pedido de turno para tramitar carnet / credencial (ex-gap 32.03).',
+    area: 'RRHH',
+    orden: 50,
+    audience: { mode: 'all', areaIds: [], groupIds: [] },
+    campos: [
+      {
+        key: 'tipo_carnet',
+        label: 'Tipo de carnet',
+        tipo: 'select',
+        required: true,
+        orden: 10,
+        opciones: ['Credencial de acceso', 'Carnet de identificación', 'Otro'],
+      },
+      { key: 'fecha_preferida', label: 'Fecha preferida', tipo: 'date', required: true, orden: 20 },
+      {
+        key: 'franja',
+        label: 'Franja horaria',
+        tipo: 'select',
+        required: true,
+        orden: 30,
+        opciones: ['Mañana', 'Tarde', 'Indistinto'],
+      },
+      {
+        key: 'motivo',
+        label: 'Motivo',
+        tipo: 'textarea',
+        required: true,
+        orden: 40,
+        placeholder: 'Alta, renovación, extravío…',
+      },
+    ],
+  },
 ]
 for (const t of typeDefs) {
   const payload = {
@@ -668,6 +755,11 @@ if (reqCount === 0) {
 }
 
 // —— Ola 5: encuesta + docs + hub ——
+const SURVEY_IMG_CLIMA =
+  'https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200&q=80'
+const SURVEY_IMG_ONBOARD =
+  'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?w=1200&q=80'
+
 const surveyCount = await Survey.countDocuments({ tenantId: tenant._id })
 if (surveyCount === 0) {
   const invitedCount = await User.countDocuments({ tenantId: tenant._id, activo: true })
@@ -675,6 +767,7 @@ if (surveyCount === 0) {
     tenantId: tenant._id,
     titulo: 'Clima laboral — pulse check',
     descripcion: 'Encuesta corta de ejemplo (Ola 5). Respondé con sinceridad.',
+    imageUrl: SURVEY_IMG_CLIMA,
     status: 'published',
     publishedAt: new Date(),
     version: 1,
@@ -726,7 +819,14 @@ if (surveyCount === 0) {
   })
   console.log('Encuesta DEMO creada')
 } else {
-  console.log(`Encuestas DEMO ya existen (${surveyCount})`)
+  const clima = await Survey.findOne({ tenantId: tenant._id, titulo: 'Clima laboral — pulse check' })
+  if (clima && !clima.imageUrl) {
+    clima.imageUrl = SURVEY_IMG_CLIMA
+    await clima.save()
+    console.log('Encuesta DEMO: portada clima actualizada')
+  } else {
+    console.log(`Encuestas DEMO ya existen (${surveyCount})`)
+  }
 }
 
 const docCount = await DocItem.countDocuments({ tenantId: tenant._id })
@@ -1222,6 +1322,38 @@ const { seedKbForTenant } = await import('./seedKb.js')
 const kbDemo = await seedKbForTenant(tenant)
 console.log(`KB DEMO: ${kbDemo.created} nuevos · ${kbDemo.total} artículos`)
 
+/** —— §13 Licencias (diálogos asistente A–E en DEMO) —— */
+const { seedLicenciasForTenant } = await import('./seedLicencias.js')
+const licDemo = await seedLicenciasForTenant({
+  tenant,
+  users: { admin: user, member, staff },
+  brandName: tenant.nombre || 'Connectia DEMO',
+  pais: 'AR',
+})
+console.log(
+  `Licencias DEMO: tipos ${licDemo.tipos || '?'} · saldos ${licDemo.balances || '?'}`,
+)
+
+/** —— §34/§35 Espacios (booking conversacional asistente) —— */
+const { seedSpacesForTenant } = await import('../lib/spacesSeed.js')
+const spacesDemo = await seedSpacesForTenant(tenant._id, {
+  brandName: tenant.nombre || 'Connectia DEMO',
+  empCodigo: tenant.empCodigo || 'DEMO',
+})
+console.log(
+  `Espacios DEMO: ${spacesDemo.sites} sedes · ${spacesDemo.resourcesCreated} nuevos / ${spacesDemo.resourcesUpdated} actualizados`,
+)
+
+/** —— §11 Asistencia / turnos / marcación (Ola 18) —— */
+const { seedAttendanceForTenant } = await import('../lib/attendanceSeed.js')
+const attDemo = await seedAttendanceForTenant(tenant._id, {
+  brandName: tenant.nombre || 'Connectia DEMO',
+  userIds: [member?._id, user?._id].filter(Boolean),
+})
+console.log(
+  `Asistencia DEMO: lugar ${attDemo.placeId} · turnos nuevos ${attDemo.shiftsCreated} · marcas ${attDemo.punchesCreated}`,
+)
+
 /** —— §21 Directorio DEMO —— */
 const { DirectoryEntry } = await import('../models/DirectoryEntry.js')
 const dirSeed = [
@@ -1370,6 +1502,7 @@ if (!onboardSurvey) {
     tenantId: tenant._id,
     titulo: 'Bienvenida — primer día',
     descripcion: 'Encuesta de onboarding (Ola 19). Misma UI de encuestas §15.',
+    imageUrl: SURVEY_IMG_ONBOARD,
     status: 'published',
     purpose: 'onboarding',
     publishedAt: new Date(),
@@ -1405,9 +1538,17 @@ if (!onboardSurvey) {
     ],
   })
   console.log('Encuesta onboarding DEMO creada')
-} else if (!onboardSurvey.purpose || onboardSurvey.purpose === 'general') {
-  onboardSurvey.purpose = 'onboarding'
-  await onboardSurvey.save()
+} else {
+  let dirty = false
+  if (!onboardSurvey.purpose || onboardSurvey.purpose === 'general') {
+    onboardSurvey.purpose = 'onboarding'
+    dirty = true
+  }
+  if (!onboardSurvey.imageUrl) {
+    onboardSurvey.imageUrl = SURVEY_IMG_ONBOARD
+    dirty = true
+  }
+  if (dirty) await onboardSurvey.save()
 }
 
 let onboardTpl = await OnboardingTemplate.findOne({
@@ -1497,6 +1638,28 @@ if (maria && onboardTpl) {
     })
     console.log('Proceso onboarding DEMO iniciado para maria')
   }
+}
+
+/** —— Ola 25 Pedidos de campo + canal alarma —— */
+{
+  const { seedPedidosForTenant } = await import('../lib/pedidosSeed.js')
+  const ped = await seedPedidosForTenant(tenant, { force: true, brandName: 'DEMO' })
+  console.log(
+    `Ola 25 DEMO: cats +${ped.categoriesCreated} · arts +${ped.articlesCreated} · alarma demo ${ped.alarmCreated ? 'sí' : 'ya existía'}`,
+  )
+}
+
+/** —— Ola 43 Portal de servicios —— */
+{
+  const { seedServiciosForTenant } = await import('../lib/serviciosSeed.js')
+  const srv = await seedServiciosForTenant(tenant, {
+    force: true,
+    brandName: tenant.nombre || 'Connectia',
+    variant: 'demo',
+  })
+  console.log(
+    `Ola 43 DEMO: áreas +${srv.areasCreated} · ítems +${srv.itemsCreated} · req +${srv.requestsCreated}`,
+  )
 }
 
 /** —— Tenant ARCOR (cliente comercial de ejemplo) —— */

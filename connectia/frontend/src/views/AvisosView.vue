@@ -1,7 +1,18 @@
 <template>
   <section class="avisos">
     <header class="avisos-head">
-      <div>
+      <button type="button" class="avisos-back" aria-label="Volver al muro" @click="router.push('/muro')">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" aria-hidden="true">
+          <path
+            d="M15 5L8 12l7 7"
+            stroke="currentColor"
+            stroke-width="2.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+      </button>
+      <div class="avisos-head-text">
         <h1>Avisos</h1>
         <p v-if="unreadCount">{{ unreadCount }} sin leer</p>
         <p v-else>Tu bandeja de notificaciones</p>
@@ -299,7 +310,27 @@ onMounted(async () => {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
+}
+.avisos-back {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  margin: -4px 0 0 -8px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--cx-text, #0f172a);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.avisos-back:active {
+  background: color-mix(in srgb, var(--cx-muted, #64748b) 12%, transparent);
+}
+.avisos-head-text {
+  flex: 1;
+  min-width: 0;
 }
 .avisos-head h1 {
   margin: 0;

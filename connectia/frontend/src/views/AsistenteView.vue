@@ -33,7 +33,7 @@
             <AppIcon name="sparkles" :size="28" />
           </span>
           <h2>¿En qué te ayudo?</h2>
-          <p>Consultá la base de tu comunidad, revisá trámites o cargá una solicitud hablando conmigo.</p>
+          <p>Escribí tu consulta o trámite; te voy preguntando lo que falte y lo confirmamos hablando.</p>
         </div>
         <div class="action-grid">
           <button
@@ -91,22 +91,6 @@
                 </RouterLink>
               </div>
             </div>
-
-            <div
-              v-if="m.confirmationToken && pendingToken === m.confirmationToken"
-              class="confirm-card"
-            >
-              <p class="confirm-title">¿Confirmás esta acción?</p>
-              <p v-if="m.draftAction?.summary" class="confirm-sum">{{ m.draftAction.summary }}</p>
-              <div class="confirm-row">
-                <button type="button" class="btn-ok" :disabled="busy" @click="confirm(m.confirmationToken)">
-                  Confirmar
-                </button>
-                <button type="button" class="btn-no" :disabled="busy" @click="ask('cancelar')">
-                  Cancelar
-                </button>
-              </div>
-            </div>
           </div>
           <span
             v-if="m.role === 'assistant' && idx === messages.length - 1 && !busy"
@@ -126,20 +110,6 @@
       </template>
     </div>
 
-    <div v-if="messages.length" class="chips" role="list">
-      <button
-        v-for="a in quickActions"
-        :key="a.id"
-        type="button"
-        class="chip"
-        role="listitem"
-        :disabled="busy"
-        @click="ask(a.prompt)"
-      >
-        {{ a.title }}
-      </button>
-    </div>
-
     <p v-if="error" class="err" role="alert">{{ error }}</p>
 
     <form class="composer" @submit.prevent="send">
@@ -148,7 +118,7 @@
           ref="taEl"
           v-model="draft"
           rows="1"
-          placeholder="Escribí tu consulta o trámite…"
+          placeholder="Escribí como si hablaras con alguien…"
           :disabled="busy"
           @input="autoSize"
           @keydown.enter.exact.prevent="send"
@@ -163,7 +133,7 @@
           <span v-else class="send-spin" aria-hidden="true" />
         </button>
       </div>
-      <p class="composer-hint">Enter para enviar · las acciones se confirman antes de ejecutarse</p>
+      <p class="composer-hint">Enter para enviar · confirmá con «sí» o cancelá con «no»</p>
     </form>
   </section>
 </template>
@@ -194,18 +164,32 @@ const quickActions = [
     prompt: 'Quiero cargar una solicitud',
   },
   {
+    id: 'vacaciones',
+    title: 'Vacaciones',
+    hint: 'Pedí fechas hablando',
+    icon: 'clipboard',
+    prompt: 'Quiero pedir vacaciones',
+  },
+  {
+    id: 'recibo',
+    title: 'Recibo de sueldo',
+    hint: 'Consulta a RRHH (sin módulo aún)',
+    icon: 'file',
+    prompt: 'Quiero mi recibo de sueldo',
+  },
+  {
+    id: 'sala',
+    title: 'Reservar sala',
+    hint: 'Booking conversacional',
+    icon: 'building',
+    prompt: 'Quiero reservar una sala mañana a las 10',
+  },
+  {
     id: 'curso',
     title: 'En curso',
     hint: 'Estado de tus solicitudes',
     icon: 'list',
     prompt: '¿Qué solicitudes tengo en curso?',
-  },
-  {
-    id: 'docs',
-    title: 'Documentos',
-    hint: 'Lo que podés ver y bajar',
-    icon: 'file',
-    prompt: '¿Qué documentos puedo ver?',
   },
   {
     id: 'ayuda',
@@ -215,14 +199,6 @@ const quickActions = [
     prompt: '¿Cómo creo una solicitud?',
   },
 ]
-
-const pendingToken = computed(() => {
-  for (let i = messages.value.length - 1; i >= 0; i -= 1) {
-    const m = messages.value[i]
-    if (m.role === 'assistant' && m.confirmationToken) return m.confirmationToken
-  }
-  return ''
-})
 
 const statusLabel = computed(() => {
   if (busy.value) return 'Pensando…'
@@ -316,23 +292,6 @@ async function send() {
   await ask(draft.value)
 }
 
-async function confirm(token) {
-  if (!token || !conversationId.value || busy.value) return
-  busy.value = true
-  error.value = ''
-  try {
-    const { data } = await api.post('/assistant/confirm', {
-      conversationId: conversationId.value,
-      confirmationToken: token,
-    })
-    applyConversation(data.conversation)
-  } catch (e) {
-    error.value = e.response?.data?.error || e.message || 'No se pudo confirmar'
-  } finally {
-    busy.value = false
-  }
-}
-
 async function newChat() {
   conversationId.value = null
   messages.value = []
@@ -348,7 +307,7 @@ onMounted(bootstrap)
 
 <style scoped>
 .asistente {
-  --as-ink: #134e4a;
+  --as-ink: var(--brand-primary, #0f766e);
   --as-muted: #64748b;
   --as-line: color-mix(in srgb, var(--brand-primary, #0f766e) 14%, transparent);
   --as-soft: color-mix(in srgb, var(--brand-primary, #0f766e) 8%, #fff);
@@ -478,7 +437,7 @@ onMounted(bootstrap)
   background: linear-gradient(
     145deg,
     var(--brand-primary, #0f766e),
-    color-mix(in srgb, var(--brand-primary, #0f766e) 55%, #115e59)
+    color-mix(in srgb, var(--brand-primary, #0f766e) 55%, var(--brand-secondary, #6b3fa0))
   );
   box-shadow: 0 10px 24px color-mix(in srgb, var(--brand-primary, #0f766e) 30%, transparent);
 }
@@ -650,48 +609,6 @@ onMounted(bootstrap)
   filter: brightness(0.97);
 }
 
-.confirm-card {
-  margin-top: 0.75rem;
-  padding: 0.75rem;
-  border-radius: 12px;
-  background: color-mix(in srgb, var(--brand-primary, #0f766e) 7%, #fff);
-  border: 1px solid color-mix(in srgb, var(--brand-primary, #0f766e) 22%, transparent);
-}
-.confirm-title {
-  margin: 0;
-  font-size: 0.88rem;
-  font-weight: 750;
-  color: var(--as-ink);
-}
-.confirm-sum {
-  margin: 0.25rem 0 0;
-  font-size: 0.8rem;
-  color: var(--as-muted);
-}
-.confirm-row {
-  display: flex;
-  gap: 0.45rem;
-  margin-top: 0.65rem;
-}
-.btn-ok,
-.btn-no {
-  border: 0;
-  border-radius: 0.65rem;
-  padding: 0.48rem 0.9rem;
-  font-weight: 750;
-  font-size: 0.85rem;
-  cursor: pointer;
-}
-.btn-ok {
-  background: var(--brand-primary, #0f766e);
-  color: #fff;
-}
-.btn-no {
-  background: #fff;
-  color: #475569;
-  box-shadow: inset 0 0 0 1px #e2e8f0;
-}
-
 .typing {
   display: inline-flex;
   align-items: center;
@@ -711,33 +628,6 @@ onMounted(bootstrap)
 }
 .typing .dot:nth-child(3) {
   animation-delay: 0.3s;
-}
-
-.chips {
-  display: flex;
-  gap: 0.4rem;
-  padding: 0.35rem 1rem 0.15rem;
-  overflow-x: auto;
-  flex-shrink: 0;
-  scrollbar-width: none;
-}
-.chips::-webkit-scrollbar {
-  display: none;
-}
-.chip {
-  flex: 0 0 auto;
-  border: 1px solid var(--as-line);
-  background: #fff;
-  color: var(--brand-primary, #0f766e);
-  border-radius: 999px;
-  padding: 0.38rem 0.78rem;
-  font-size: 0.76rem;
-  font-weight: 650;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.chip:disabled {
-  opacity: 0.45;
 }
 
 .err {

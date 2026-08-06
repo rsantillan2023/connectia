@@ -117,6 +117,59 @@ class EmailService {
   }
 
   /**
+   * Código OTP 2FA (§1.08).
+   * @param {string} userEmail
+   * @param {{ nombre?: string, code: string, expiresInMinutes?: number, brandName?: string }} data
+   */
+  async sendTwoFactorEmail(userEmail, data) {
+    if (!userEmail) {
+      return { success: false, reason: 'No email provided' }
+    }
+    const nombre = data?.nombre || 'Usuario'
+    const code = String(data?.code || '')
+    const minutos = Number(data?.expiresInMinutes || 10)
+    const brand = this.getBrandConfig({ brandName: data?.brandName })
+
+    if (!this.isConfigured) {
+      console.log(`[mail] DEV 2FA code for ${userEmail}: ${code}`)
+      return { success: true, devFallback: true }
+    }
+
+    const text = [
+      `Hola ${nombre},`,
+      '',
+      `Tu código de verificación de ${brand.brandName} es: ${code}`,
+      '',
+      `Vence en ${minutos} minutos. Si no intentaste ingresar, ignorá este mensaje.`,
+      '',
+      `Equipo de ${brand.brandName}`,
+    ].join('\n')
+
+    const bodyHtml = `
+      <p>Hola <strong>${nombre}</strong>,</p>
+      <p>Tu código de verificación de <strong>${brand.brandName}</strong> es:</p>
+      <p style="font-size:28px;font-weight:800;letter-spacing:0.2em;margin:16px 0;">${code}</p>
+      <p class="muted">Vence en ${minutos} minutos. Si no intentaste ingresar, ignorá este mensaje.</p>
+    `
+
+    try {
+      const subject = `Código de verificación — ${brand.brandName}`
+      const info = await this.transporter.sendMail({
+        from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+        to: userEmail,
+        subject,
+        text,
+        html: this.wrapHtml(subject, bodyHtml, { brandName: brand.brandName }),
+      })
+      console.log(`[mail] 2FA enviado a ${userEmail} id=${info.messageId}`)
+      return { success: true, messageId: info.messageId }
+    } catch (error) {
+      console.error('[mail] error 2FA:', error.message)
+      return { success: false, error: error.message }
+    }
+  }
+
+  /**
    * Avisa a un miembro de la audiencia que hay una encuesta para responder.
    * @param {string} userEmail
    * @param {{ nombre?: string, titulo: string, descripcion?: string, surveyUrl: string, brandName?: string }} data
@@ -348,6 +401,36 @@ class EmailService {
    * @param {string} userEmail
    * @param {{ nombre?: string, code: string, expiresInMinutes?: number, brandName?: string }} data
    */
+  /**
+   * Email genérico (eventos, solicitudes, etc.).
+   * @param {string} userEmail
+   * @param {{ subject: string, text?: string, html?: string, brandName?: string }} data
+   */
+  async sendGenericEmail(userEmail, data) {
+    if (!userEmail) return { success: false, reason: 'No email provided' }
+    if (!this.isConfigured) {
+      console.warn('[mail] EMAIL_USER / EMAIL_PASSWORD no configurados')
+      return { success: false, reason: 'Mail not configured' }
+    }
+    const subject = String(data?.subject || 'Aviso').slice(0, 160)
+    const text = String(data?.text || '').slice(0, 4000)
+    const bodyHtml = data?.html || `<p>${text.replace(/\n/g, '<br/>')}</p>`
+    const brand = this.getBrandConfig({ brandName: data?.brandName })
+    try {
+      const info = await this.transporter.sendMail({
+        from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+        to: userEmail,
+        subject,
+        text: text || subject,
+        html: this.wrapHtml(subject, bodyHtml, { brandName: brand.brandName }),
+      })
+      return { success: true, messageId: info.messageId }
+    } catch (error) {
+      console.error('[mail] error generic:', error.message)
+      return { success: false, error: error.message }
+    }
+  }
+
   async sendEmailVerificationCode(userEmail, data) {
     if (!userEmail) {
       return { success: false, reason: 'No email provided' }

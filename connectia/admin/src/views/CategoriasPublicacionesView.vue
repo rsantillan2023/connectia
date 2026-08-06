@@ -85,7 +85,7 @@
           </label>
           <label class="block text-sm">
             Color
-            <input v-model="form.color" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="#0F766E" />
+            <input v-model="form.color" class="mt-1 w-full border rounded-lg px-3 py-2" placeholder="var(--brand-primary)" />
           </label>
           <label class="block text-sm">
             Orden

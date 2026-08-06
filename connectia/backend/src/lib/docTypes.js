@@ -126,15 +126,76 @@ export const DOC_REPOSITORIES = [
 export const DOC_FILE_TYPE_IDS = DOC_FILE_TYPES.map((t) => t.id)
 export const DOC_REPOSITORY_IDS = DOC_REPOSITORIES.map((r) => r.id)
 
+/** Browsers often report OOXML (docx/xlsx/pptx) as zip. */
+const UNRELIABLE_MIME = new Set([
+  'application/zip',
+  'application/x-zip-compressed',
+  'application/x-zip',
+  'multipart/x-zip',
+  'application/octet-stream',
+  '',
+])
+
+const MIME_BY_EXT = {
+  '.pdf': 'application/pdf',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.bmp': 'image/bmp',
+  '.doc': 'application/msword',
+  '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  '.xls': 'application/vnd.ms-excel',
+  '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  '.csv': 'text/csv',
+  '.ppt': 'application/vnd.ms-powerpoint',
+  '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  '.txt': 'text/plain',
+  '.rtf': 'application/rtf',
+  '.md': 'text/markdown',
+}
+
+const OFFICE_EXT = new Set(['.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx'])
+
 export function extFromName(nameOrUrl = '') {
   const s = String(nameOrUrl).split('?')[0].split('#')[0]
   const m = s.match(/(\.[a-z0-9]{1,8})$/i)
   return m ? m[1].toLowerCase() : ''
 }
 
-export function inferFileType({ mimeType = '', fileName = '', fileUrl = '' } = {}) {
-  const mime = String(mimeType || '').toLowerCase().trim()
+export function mimeFromExt(extOrName = '') {
+  const ext = String(extOrName || '').startsWith('.')
+    ? String(extOrName).toLowerCase()
+    : extFromName(extOrName)
+  return MIME_BY_EXT[ext] || ''
+}
+
+/**
+ * Corrige MIME engañoso (zip/octet) usando la extensión real del archivo.
+ * Evita que .docx/.xlsx/.pptx se traten como ZIP al abrir/previewear.
+ */
+export function normalizeDocMime({ mimeType = '', fileName = '', fileUrl = '' } = {}) {
   const ext = extFromName(fileName) || extFromName(fileUrl)
+  const fromExt = mimeFromExt(ext)
+  const mime = String(mimeType || '').toLowerCase().trim()
+  if (fromExt && (UNRELIABLE_MIME.has(mime) || (OFFICE_EXT.has(ext) && mime.includes('zip')))) {
+    return fromExt
+  }
+  return mime || fromExt || 'application/octet-stream'
+}
+
+export function inferFileType({ mimeType = '', fileName = '', fileUrl = '' } = {}) {
+  const ext = extFromName(fileName) || extFromName(fileUrl)
+  const mime = normalizeDocMime({ mimeType, fileName, fileUrl })
+
+  // Extensión Office primero: el MIME suele venir como application/zip
+  if (ext && OFFICE_EXT.has(ext)) {
+    for (const t of DOC_FILE_TYPES) {
+      if (t.extensions.includes(ext)) return t.id
+    }
+  }
+
   if (mime.startsWith('image/')) return 'image'
   for (const t of DOC_FILE_TYPES) {
     if (t.id === 'other') continue
@@ -154,6 +215,11 @@ export function normalizeRepository(raw) {
 
 export function normalizeFileType(raw, hints = {}) {
   const id = String(raw || '').trim().toLowerCase()
+  const ext = extFromName(hints.fileName) || extFromName(hints.fileUrl)
+  // Si la extensión es Office, confiar en ella (evita "other"/zip heredado)
+  if (OFFICE_EXT.has(ext)) {
+    return inferFileType(hints)
+  }
   if (DOC_FILE_TYPE_IDS.includes(id)) return id
   return inferFileType(hints)
 }

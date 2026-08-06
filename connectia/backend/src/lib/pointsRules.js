@@ -4,13 +4,45 @@ import { postLedgerEntry, tenantHasWallet } from './walletService.js'
 
 export { POINTS_EVENTS, POINTS_EVENT_LABELS }
 
-/** Defaults sugeridos al sembrár reglas de comunidad. */
+/** Defaults sugeridos al sembrar reglas de puntos por uso de app. */
 export const DEFAULT_POINTS_RULES = [
+  // Comunidad
   { event: 'post_created', points: 20, dailyCap: 5 },
   { event: 'post_reaction_given', points: 2, dailyCap: 30 },
   { event: 'comment_created', points: 5, dailyCap: 20 },
   { event: 'post_saved', points: 1, dailyCap: 15 },
   { event: 'post_shared', points: 5, dailyCap: 10 },
+  { event: 'story_viewed', points: 1, dailyCap: 20 },
+  // Cultura
+  { event: 'recognition_received', points: 15, dailyCap: 20 },
+  { event: 'recognition_sent', points: 10, dailyCap: 10 },
+  { event: 'pulse_responded', points: 15, dailyCap: 5 },
+  { event: 'marketplace_listing_created', points: 10, dailyCap: 5 },
+  { event: 'referral_created', points: 25, dailyCap: 5 },
+  // Encuestas / onboarding
+  { event: 'survey_completed', points: 25, dailyCap: 10 },
+  { event: 'onboarding_milestone', points: 20, dailyCap: 10 },
+  // Servicios / pedidos / solicitudes
+  { event: 'service_request_created', points: 8, dailyCap: 10 },
+  { event: 'service_feedback_given', points: 10, dailyCap: 10 },
+  { event: 'pedido_created', points: 8, dailyCap: 10 },
+  { event: 'request_created', points: 10, dailyCap: 10 },
+  // Espacios / asistencia / ausencias
+  { event: 'space_reservation_created', points: 5, dailyCap: 10 },
+  { event: 'space_checkin', points: 8, dailyCap: 6 },
+  { event: 'attendance_punch', points: 5, dailyCap: 6 },
+  { event: 'ausencia_requested', points: 5, dailyCap: 5 },
+  { event: 'licencia_requested', points: 5, dailyCap: 5 },
+  // Agenda / aprobaciones / perfil
+  { event: 'event_rsvp_confirmed', points: 10, dailyCap: 10 },
+  { event: 'approval_decided', points: 8, dailyCap: 30 },
+  { event: 'profile_updated', points: 5, dailyCap: 1 },
+  // Campo / docs / políticas / desarrollo
+  { event: 'relevamiento_submitted', points: 30, dailyCap: 15 },
+  { event: 'document_signed', points: 15, dailyCap: 10 },
+  { event: 'policy_acked', points: 10, dailyCap: 10 },
+  { event: 'course_completed', points: 40, dailyCap: 5 },
+  { event: 'vacancy_applied', points: 15, dailyCap: 5 },
 ]
 
 export function startOfUtcDay(d = new Date()) {
@@ -38,7 +70,7 @@ export function serializePointsRule(doc) {
 }
 
 /**
- * Asegura las 5 reglas base (no pisa puntos/caps ya editados).
+ * Asegura las reglas base (no pisa puntos/caps ya editados).
  */
 export async function ensureDefaultPointsRules(tenantId, { createdBy = null } = {}) {
   let created = 0

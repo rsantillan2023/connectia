@@ -19,7 +19,7 @@ describe('genericTenantDefaults', () => {
   })
 
   it('isHexColor valida hex', () => {
-    assert.equal(isHexColor('#0F766E'), true)
+    assert.equal(isHexColor('#8554C9'), true)
     assert.equal(isHexColor('#fff'), true)
     assert.equal(isHexColor('teal'), false)
     assert.equal(isHexColor(''), false)
@@ -58,7 +58,7 @@ describe('genericTenantDefaults', () => {
     )
     assert.equal(p.knownCompany, true)
     assert.equal(p.industry, 'alimentos')
-    assert.equal(p.primary, '#0F766E')
+    assert.equal(p.primary, '#8554C9')
     assert.equal(p.secondary, '#E30613')
     assert.equal(p.areas.length, 3)
     assert.equal(p.areas[1].key, 'planta')

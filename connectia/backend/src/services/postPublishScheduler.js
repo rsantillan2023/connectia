@@ -1,8 +1,8 @@
-import { processDueScheduledPosts } from './postPublish.js'
+import { processDuePostLifecycle, processDueScheduledPosts } from './postPublish.js'
 
 let timer = null
 
-/** Revisa publicaciones programadas cada 60s. */
+/** Revisa publicaciones programadas + ciclo de vida (pin/expiry) cada 60s. */
 export function startPostPublishScheduler() {
   if (timer) return
   const tick = async () => {
@@ -10,6 +10,12 @@ export function startPostPublishScheduler() {
       const results = await processDueScheduledPosts()
       if (results.length) {
         console.log(`[post-scheduler] publicadas ${results.length} pieza(s)`)
+      }
+      const life = await processDuePostLifecycle()
+      if (life.unpinned || life.archived) {
+        console.log(
+          `[post-scheduler] lifecycle: desfijadas ${life.unpinned}, archivadas ${life.archived}`,
+        )
       }
     } catch (err) {
       console.warn('[post-scheduler]', err?.message || err)

@@ -4,7 +4,13 @@
  */
 import { aiConfigured } from './openaiPosts.js'
 import { buildAiAnalysisPayload } from '../lib/surveyAnalytics.js'
-import { SURVEY_QUESTION_TYPES } from '../lib/surveyQuestions.js'
+import {
+  SURVEY_QUESTION_TYPES,
+  normalizeQuestionTypeSpecs,
+  buildSmartQuestionTypePlan,
+  interleaveQuestionTypes,
+} from '../lib/surveyQuestions.js'
+import { resolveEnabledQuestionTypes } from '../lib/surveysConfig.js'
 
 const OPENAI_CHAT = 'https://api.openai.com/v1/chat/completions'
 const ANTHROPIC_MESSAGES = 'https://api.anthropic.com/v1/messages'
@@ -208,6 +214,94 @@ export async function analyzeSurveyWithAi({
 }
 
 /**
+ * Completa título, descripción y contexto para generar preguntas (sin armar el cuestionario).
+ */
+export async function generateSurveyGeneralFromPrompt({
+  prompt,
+  current = {},
+  tenant = null,
+  provider = 'auto',
+} = {}) {
+  if (!aiConfigured()) {
+    const err = new Error('Configurá OPENAI_API_KEY o ANTHROPIC_API_KEY para generar con IA')
+    err.status = 503
+    throw err
+  }
+  const goal = String(prompt || '').trim()
+  if (!goal) {
+    const err = new Error('Describí el contexto o el objetivo de la encuesta')
+    err.status = 400
+    throw err
+  }
+
+  const community = tenant?.nombre || 'la comunidad'
+  const system = [
+    'Sos diseñador de encuestas corporativas de Connectia.',
+    `Redactás textos para empleados de "${community}" en español rioplatense.`,
+    'NO generes preguntas: solo título, descripción pública y contexto interno para luego generar preguntas.',
+    'titulo: corto, claro, usable en listados (máx ~80 caracteres).',
+    'descripcion: lo que ve el miembro en la app (propósito, qué se pide, tono cercano).',
+    'aiContext: briefing interno para la IA al armar preguntas (temas a medir, qué evitar, tono, tipologías deseadas, públicos, supuestos). No lo ve el miembro.',
+    'Si ya hay borrador parcial, mejorá/completá sin contradecirlo salvo que el brief lo pida.',
+    'No inventes datos de la empresa que el prompt no diga.',
+    'Respondé SOLO JSON válido con este esquema:',
+    JSON.stringify({
+      titulo: 'string corto',
+      descripcion: 'string visible para el miembro',
+      aiContext: 'string: contexto interno para generar preguntas',
+      notas: 'tips breves para el editor',
+    }),
+  ].join('\n')
+
+  const userContent = [
+    'Brief / contexto del editor:',
+    goal,
+    '',
+    'Borrador actual (puede estar vacío):',
+    JSON.stringify(
+      {
+        titulo: String(current.titulo || '').trim().slice(0, 160),
+        descripcion: String(current.descripcion || '').trim().slice(0, 2000),
+        aiContext: String(current.aiContext || '').trim().slice(0, 2000),
+        purpose: String(current.purpose || 'general').trim().slice(0, 40),
+      },
+      null,
+      2,
+    ),
+  ].join('\n')
+
+  const chat = await chatWithFallback({ system, userContent, provider, maxTokens: 1200 })
+  let data
+  try {
+    data = parseJson(chat.raw)
+  } catch {
+    const err = new Error('La IA no devolvió textos usables')
+    err.status = 502
+    throw err
+  }
+
+  const titulo = String(data.titulo || '').trim().slice(0, 160)
+  const descripcion = String(data.descripcion || '').trim().slice(0, 4000)
+  const aiContext = String(data.aiContext || '').trim().slice(0, 4000)
+  if (!titulo && !descripcion && !aiContext) {
+    const err = new Error('La IA no generó título, descripción ni contexto')
+    err.status = 502
+    throw err
+  }
+
+  return {
+    general: {
+      titulo: titulo || String(current.titulo || '').trim().slice(0, 160),
+      descripcion: descripcion || String(current.descripcion || '').trim().slice(0, 4000),
+      aiContext: aiContext || String(current.aiContext || '').trim().slice(0, 4000),
+    },
+    notas: String(data.notas || '').trim(),
+    provider: chat.provider,
+    model: chat.model,
+  }
+}
+
+/**
  * Genera un borrador completo de encuesta (cuestionario) desde un prompt del editor.
  */
 export async function generateSurveyDraftFromPrompt({
@@ -294,4 +388,203 @@ export async function generateSurveyDraftFromPrompt({
   }
 }
 
-export { aiConfigured }
+/**
+ * Genera solo preguntas a partir del contexto de la encuesta + plan de tipologías.
+ * Body esperado: context { titulo, descripcion, purpose, anonymous, audienceLabel, existingQuestions? },
+ * typeSpecs [{ tipo, count, caracteristicas? }], notes?, provider?, mode?: 'smart'|'manual', total?
+ */
+export async function generateSurveyQuestionsFromContext({
+  context = {},
+  typeSpecs = [],
+  notes = '',
+  tenant = null,
+  provider = 'auto',
+  mode = 'manual',
+  total = 8,
+} = {}) {
+  if (!aiConfigured()) {
+    const err = new Error('Configurá OPENAI_API_KEY o ANTHROPIC_API_KEY para generar con IA')
+    err.status = 503
+    throw err
+  }
+
+  const enabledTypes = resolveEnabledQuestionTypes(tenant)
+  const smartMode = mode === 'smart' || mode === 'auto' || !Array.isArray(typeSpecs) || !typeSpecs.length
+
+  let plan
+  let sequence = []
+  if (smartMode) {
+    const smart = buildSmartQuestionTypePlan({
+      enabledTypes,
+      total,
+      context: {
+        categoria: context.categoria,
+        purpose: context.purpose,
+        titulo: context.titulo,
+        descripcion: context.descripcion,
+        aiContext: context.aiContext,
+      },
+    })
+    plan = normalizeQuestionTypeSpecs(smart.specs)
+    plan.mode = 'smart'
+    sequence = Array.isArray(smart.sequence) && smart.sequence.length
+      ? smart.sequence
+      : interleaveQuestionTypes(plan.specs)
+  } else {
+    const filtered = (typeSpecs || []).filter((s) => enabledTypes.includes(s?.tipo))
+    plan = normalizeQuestionTypeSpecs(filtered.length ? filtered : typeSpecs)
+    plan.mode = 'manual'
+    sequence = interleaveQuestionTypes(plan.specs)
+  }
+
+  if (plan.error) {
+    const err = new Error(plan.error)
+    err.status = 400
+    throw err
+  }
+  if (!sequence.length) {
+    sequence = plan.specs.flatMap((s) => Array.from({ length: s.count }, () => s.tipo))
+  }
+
+  const community = tenant?.nombre || 'la comunidad'
+  const types = enabledTypes.join('|')
+  const ctx = {
+    titulo: String(context.titulo || '').trim().slice(0, 160),
+    descripcion: String(context.descripcion || '').trim().slice(0, 2000),
+    aiContext: String(context.aiContext || '').trim().slice(0, 3000),
+    categoria: String(context.categoria || '').trim().slice(0, 40),
+    categoriaLabel: String(context.categoriaLabel || '').trim().slice(0, 80),
+    purpose: String(context.purpose || 'general').trim().slice(0, 40),
+    anonymous: Boolean(context.anonymous),
+    audienceLabel: String(context.audienceLabel || '').trim().slice(0, 200),
+    startsAt: context.startsAt || null,
+    endsAt: context.endsAt || null,
+    existingQuestions: Array.isArray(context.existingQuestions)
+      ? context.existingQuestions.slice(0, 40).map((q) => ({
+          texto: String(q?.texto || '').trim().slice(0, 200),
+          tipo: q?.tipo || '',
+          grupo: q?.grupo || '',
+        }))
+      : [],
+  }
+
+  const planLines = plan.specs.map((s) => {
+    const extra = s.caracteristicas ? ` — ${s.caracteristicas}` : ''
+    return `- ${s.count}× "${s.tipo}"${extra}`
+  })
+  const sequenceLines = sequence.map((tipo, idx) => `${idx + 1}. tipo="${tipo}"`)
+
+  const system = [
+    'Sos diseñador senior de encuestas corporativas de Connectia.',
+    `Armás cuestionarios para empleados de "${community}" en español rioplatense.`,
+    'El humano ya tiene título/descripción/audiencia/características: NO cambies el título de la encuesta.',
+    'Si viene "aiContext", usalo como briefing principal para temas, tono y foco.',
+    'Si viene "categoria"/"categoriaLabel", alineá el contenido a esa categoría.',
+    'CRÍTICO — diversidad de tipologías:',
+    `- Generá EXACTAMENTE ${sequence.length || plan.total} preguntas.`,
+    '- La tipología de cada pregunta DEBE coincidir con la secuencia numerada (pregunta N → tipo N).',
+    '- PROHIBIDO devolver todas del mismo tipo. Si la secuencia mezcla, el JSON también debe mezclar.',
+    '- No agrupes 3+ preguntas seguidas del mismo tipo salvo que la secuencia lo indique.',
+    'Usá tipos SOLO de esta lista habilitada:',
+    types,
+    'Calidad del contenido:',
+    '- Cada pregunta mide algo distinto; sin sinonimias ni solapamientos.',
+    '- El TEXTO debe encajar con el tipo: yesno = pregunta binaria; rating = escala 1–5; single/multiple = enunciado + opciones; textarea/text = abiertas; number/date/etc. = dato concreto.',
+    '- single/multiple: 3–6 opciones claras y mutuamente útiles.',
+    '- rating: enunciados accionables (1–5), no genéricos.',
+    '- number/date/time/datetime/email/phone/geopoint: solo si aportan dato real.',
+    '- Grupos temáticos coherentes (máx. 4–5).',
+    '- required=true salvo 1 abierta opcional al final si hay textarea.',
+    'No dupliques preguntas existentes ni inventes datos fuera del contexto.',
+    'Respondé SOLO JSON válido con este esquema:',
+    JSON.stringify({
+      questions: [
+        {
+          texto: 'string',
+          tipo: 'debe coincidir con la secuencia',
+          required: true,
+          grupo: 'sección temática',
+          opciones: ['solo si single o multiple'],
+        },
+      ],
+      notas: 'supuestos o tips para el editor',
+    }),
+  ].join('\n')
+
+  const userContent = [
+    'Contexto de la encuesta:',
+    JSON.stringify(ctx, null, 2),
+    '',
+    'Cuotas por tipología (respetá totales):',
+    ...planLines,
+    '',
+    'Secuencia obligatoria (orden + tipo de cada pregunta):',
+    ...sequenceLines,
+    '',
+    `Total esperado: ${sequence.length || plan.total} preguntas con tipologías distintas intercaladas.`,
+    notes ? `\nIndicaciones adicionales del editor:\n${String(notes).trim().slice(0, 1500)}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n')
+
+  const chat = await chatWithFallback({ system, userContent, provider, maxTokens: 4500 })
+  let data
+  try {
+    data = parseJson(chat.raw)
+  } catch {
+    const err = new Error('La IA no devolvió preguntas usables')
+    err.status = 502
+    throw err
+  }
+
+  let questions = Array.isArray(data.questions) ? data.questions : []
+  // Forzar tipología según secuencia intercalada (garantiza diversidad aunque la IA se desvíe)
+  questions = questions.slice(0, sequence.length).map((q, idx) => {
+    const planned = sequence[idx] || enabledTypes[0] || 'text'
+    const tipo =
+      SURVEY_QUESTION_TYPES.includes(planned) && enabledTypes.includes(planned)
+        ? planned
+        : enabledTypes[0] || 'text'
+    const next = { ...q, tipo }
+    if (tipo === 'single' || tipo === 'multiple') {
+      const opts = Array.isArray(next.opciones)
+        ? next.opciones.map((o) => String(o || '').trim()).filter(Boolean).slice(0, 8)
+        : []
+      next.opciones =
+        opts.length >= 2
+          ? opts
+          : tipo === 'multiple'
+            ? ['Opción A', 'Opción B', 'Opción C', 'Ninguna de las anteriores']
+            : ['Opción A', 'Opción B', 'Opción C', 'Prefiero no responder']
+    } else {
+      next.opciones = []
+    }
+    return next
+  })
+
+  // Si la IA devolvió de menos, no inventamos textos; el editor verá el parcial
+  if (questions.length < 1) {
+    const err = new Error('La IA no generó preguntas')
+    err.status = 502
+    throw err
+  }
+
+  const distinct = new Set(questions.map((q) => q.tipo)).size
+  const notasExtra =
+    distinct < Math.min(3, plan.specs.length)
+      ? ' (tipologías forzadas al plan inteligente por diversidad)'
+      : ''
+
+  return {
+    questions,
+    notas: `${String(data.notas || '').trim()}${notasExtra}`.trim(),
+    expectedCount: sequence.length || plan.total,
+    typeSpecs: plan.specs,
+    sequence,
+    mode: plan.mode || 'manual',
+    provider: chat.provider,
+    model: chat.model,
+  }
+}
+
+export { aiConfigured, normalizeQuestionTypeSpecs, buildSmartQuestionTypePlan, interleaveQuestionTypes }

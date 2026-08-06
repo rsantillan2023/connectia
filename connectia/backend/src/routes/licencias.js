@@ -22,6 +22,7 @@ import {
 import { startWorkflowForOrigin } from '../services/workflowRuntime.js'
 import { toPublicMediaUrl } from '../lib/mediaUrl.js'
 import { notifyLicenseCreated } from '../services/notifyTramite.js'
+import { scheduleAwardPoints } from '../lib/pointsRules.js'
 
 const router = Router()
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -270,6 +271,13 @@ router.post('/', requireAuth, async (req, res, next) => {
     notifyLicenseCreated({ tenant: req.tenant, license: r }).catch((err) =>
       console.warn('[notify] license create', err?.message || err),
     )
+
+    scheduleAwardPoints({
+      tenant: req.tenant,
+      userId: req.user._id,
+      event: 'licencia_requested',
+      entityId: r._id,
+    })
 
     res.status(201).json({ license: serializeLicense(r, { includeHistorial: true }) })
   } catch (e) {

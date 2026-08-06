@@ -3,6 +3,8 @@ import mongoose from 'mongoose'
 import { requireAuth } from '../middleware/auth.js'
 import { User } from '../models/User.js'
 import { WalletTransaction } from '../models/Wallet.js'
+import { PointsRule } from '../models/PointsRule.js'
+import { serializePointsRule, ensureDefaultPointsRules } from '../lib/pointsRules.js'
 import {
   WalletPayToken,
   WalletWithdrawAccount,
@@ -68,6 +70,97 @@ router.get('/points', async (req, res, next) => {
     res.json({ balance: acc.balance, currency: 'POINTS' })
   } catch (e) {
     if (e.status) return res.status(e.status).json({ error: e.message })
+    next(e)
+  }
+})
+
+/** Cómo sumar puntos — reglas activas (Ola 36-g). */
+router.get('/how-to-earn', async (req, res, next) => {
+  try {
+    requireWalletCapability(req.tenant)
+    // Sembrar reglas nuevas faltantes sin pisar las ya editadas por admin.
+    await ensureDefaultPointsRules(req.tenant._id)
+    const rules = await PointsRule.find({
+      tenantId: req.tenant._id,
+      enabled: true,
+      event: { $ne: 'external_credit' },
+    })
+      .sort({ points: -1 })
+      .lean()
+    res.json({
+      items: rules.map((r) => serializePointsRule(r)).filter(Boolean),
+    })
+  } catch (e) {
+    if (e.status) return res.status(e.status).json({ error: e.message })
+    next(e)
+  }
+})
+
+/**
+ * Crédito externo de puntos (Ola 36-f).
+ * Admin beneficios o header X-Connectia-Points-Key = tenant.pointsApiKey.
+ */
+router.post('/external-credit', async (req, res, next) => {
+  try {
+    requireWalletCapability(req.tenant)
+    const apiKey = String(req.headers['x-connectia-points-key'] || '').trim()
+    const tenantKey = String(req.tenant.pointsApiKey || '').trim()
+    const isAdmin =
+      (req.user.roles || []).includes('admin') ||
+      (req.user.capabilities || []).includes('admin.beneficios')
+    const keyOk = Boolean(tenantKey && apiKey && apiKey === tenantKey)
+    if (!isAdmin && !keyOk) {
+      return res.status(403).json({ error: 'Se requiere admin.beneficios o API key válida' })
+    }
+
+    const body = req.body || {}
+    const points = Math.floor(Number(body.points) || 0)
+    if (points <= 0 || points > 100000) {
+      return res.status(400).json({ error: 'points debe ser 1..100000' })
+    }
+    const sourceKey = String(body.sourceKey || body.source || 'external').trim().slice(0, 80) || 'external'
+    const concept = String(body.concept || `Crédito externo (${sourceKey})`).trim().slice(0, 200)
+    const idem =
+      String(body.idempotencyKey || '').trim() ||
+      `ext:${sourceKey}:${body.userId || body.email || body.usuario || ''}:${body.externalId || Date.now()}`
+
+    let user = null
+    if (body.userId && ObjectId.isValid(body.userId)) {
+      user = await User.findOne({ _id: body.userId, tenantId: req.tenant._id, activo: true })
+    } else if (body.email) {
+      const email = String(body.email).trim().toLowerCase()
+      user = await User.findOne({ tenantId: req.tenant._id, email, activo: true })
+    } else if (body.usuario) {
+      user = await User.findOne({
+        tenantId: req.tenant._id,
+        usuario: String(body.usuario).trim(),
+        activo: true,
+      })
+    }
+    if (!user) return res.status(404).json({ error: 'Usuario no encontrado (userId, email o usuario)' })
+
+    const posted = await postLedgerEntry({
+      tenantId: req.tenant._id,
+      userId: user._id,
+      type: 'earn',
+      amount: points,
+      concept,
+      idempotencyKey: idem.slice(0, 180),
+      createdBy: req.user._id,
+      meta: { source: 'external_credit', sourceKey, externalId: body.externalId || null },
+    })
+
+    res.status(posted.replay ? 200 : 201).json({
+      ok: true,
+      replay: posted.replay,
+      balance: posted.account?.balance,
+      transaction: posted.serialized,
+      userId: String(user._id),
+      sourceKey,
+    })
+  } catch (e) {
+    if (e.status) return res.status(e.status).json({ error: e.message })
+    if (e?.code === 11000) return res.status(409).json({ error: 'Operación duplicada' })
     next(e)
   }
 })

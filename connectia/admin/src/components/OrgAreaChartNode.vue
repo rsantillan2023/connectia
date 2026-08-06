@@ -49,16 +49,16 @@ defineEmits(['edit', 'deactivate'])
   left: 50%;
   width: 1px;
   height: 1rem;
-  background: #cbd5e1;
+  background: var(--line-2);
 }
 .org-card {
   position: relative;
   z-index: 1;
   width: 11.5rem;
   padding: 0.75rem;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--line);
   border-radius: 0.75rem;
-  background: #f8fafc;
+  background: var(--panel-2);
   text-align: center;
   box-shadow: 0 1px 2px rgb(15 23 42 / 4%);
 }
@@ -69,18 +69,18 @@ defineEmits(['edit', 'deactivate'])
   margin: 0;
   font-size: 0.875rem;
   font-weight: 600;
-  color: #0f172a;
+  color: var(--ink);
 }
 .org-key {
   margin: 0.2rem 0 0;
   font-family: ui-monospace, monospace;
   font-size: 0.7rem;
-  color: #64748b;
+  color: var(--ink-soft);
 }
 .org-desc {
   margin: 0.35rem 0 0;
   font-size: 0.75rem;
-  color: #64748b;
+  color: var(--ink-soft);
   line-height: 1.3;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -95,14 +95,14 @@ defineEmits(['edit', 'deactivate'])
 }
 .org-actions button {
   font-size: 0.75rem;
-  color: #0f766e;
+  color: var(--brand-primary);
   background: none;
   border: none;
   cursor: pointer;
   padding: 0;
 }
 .org-actions .warn {
-  color: #b45309;
+  color: var(--warn);
 }
 .org-children {
   display: flex;
@@ -120,7 +120,7 @@ defineEmits(['edit', 'deactivate'])
   left: 50%;
   width: 1px;
   height: 1rem;
-  background: #cbd5e1;
+  background: var(--line-2);
 }
 .org-children :deep(> .org-li)::after {
   content: '';
@@ -129,7 +129,7 @@ defineEmits(['edit', 'deactivate'])
   left: 0;
   right: 0;
   height: 1px;
-  background: #cbd5e1;
+  background: var(--line-2);
 }
 .org-children :deep(> .org-li:first-child)::after {
   left: 50%;

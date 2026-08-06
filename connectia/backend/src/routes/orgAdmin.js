@@ -4,6 +4,7 @@ import { OrgArea } from '../models/OrgArea.js'
 import { UserGroup } from '../models/UserGroup.js'
 import { User } from '../models/User.js'
 import { parseParentId, wouldCreateCycle } from '../lib/orgAreaHierarchy.js'
+import { buildOrgChart } from '../lib/orgChartBuild.js'
 import { recordActivity, reqMeta } from '../lib/activityLog.js'
 
 const router = Router()
@@ -15,6 +16,7 @@ function serArea(a) {
     nombre: a.nombre,
     descripcion: a.descripcion || '',
     parentId: a.parentId ? String(a.parentId) : null,
+    kind: a.kind === 'interna' ? 'interna' : 'organizativa',
     activo: a.activo !== false,
     orden: a.orden ?? 100,
   }
@@ -75,11 +77,30 @@ router.get(
   async (req, res, next) => {
     try {
       const tenantId = req.tenant._id
-      const [areas, groups] = await Promise.all([
+      const [areas, groups, managers] = await Promise.all([
         OrgArea.find({ tenantId, activo: true }).sort({ orden: 1, nombre: 1 }),
         UserGroup.find({ tenantId, activo: true }).sort({ orden: 1, nombre: 1 }),
+        User.find({ tenantId, activo: true })
+          .select('nombre apellido usuario cargo')
+          .sort({ apellido: 1, nombre: 1 })
+          .limit(500)
+          .lean(),
       ])
-      res.json({ areas: areas.map(serArea), groups: groups.map(serGroup) })
+      res.json({
+        areas: areas.map(serArea),
+        groups: groups.map(serGroup),
+        managers: managers.map((u) => ({
+          id: String(u._id),
+          usuario: u.usuario || '',
+          nombre: u.nombre || '',
+          apellido: u.apellido || '',
+          cargo: u.cargo || '',
+          label:
+            [u.nombre, u.apellido].filter(Boolean).join(' ').trim() ||
+            u.usuario ||
+            String(u._id),
+        })),
+      })
     } catch (e) {
       next(e)
     }
@@ -119,6 +140,7 @@ router.post('/areas', requireAuth, requireCapability('admin.organizacion'), asyn
       nombre,
       descripcion: String(body.descripcion || '').trim(),
       parentId,
+      kind: body.kind === 'interna' ? 'interna' : 'organizativa',
       activo: body.activo !== false,
       orden: Number(body.orden) || 100,
     })
@@ -145,6 +167,7 @@ router.patch('/areas/:id', requireAuth, requireCapability('admin.organizacion'),
     if (typeof body.descripcion === 'string') a.descripcion = body.descripcion.trim()
     if (typeof body.activo === 'boolean') a.activo = body.activo
     if (body.orden != null) a.orden = Number(body.orden) || 100
+    if ('kind' in body) a.kind = body.kind === 'interna' ? 'interna' : 'organizativa'
     if ('parentId' in body) {
       try {
         a.parentId = await resolveParentId(req.tenant._id, body.parentId, a._id)
@@ -269,5 +292,23 @@ router.delete('/groups/:id', requireAuth, requireCapability('admin.organizacion'
     next(e)
   }
 })
+
+/** Organigrama completo (áreas + personas) para admin (§37). */
+router.get(
+  '/chart',
+  requireAuth,
+  requireCapability('admin.organizacion', 'admin.usuarios', 'admin.reportes'),
+  async (req, res, next) => {
+    try {
+      const chart = await buildOrgChart(req.tenant._id, {
+        q: req.query.q,
+        includeInactive: req.query.all === '1',
+      })
+      res.json(chart)
+    } catch (e) {
+      next(e)
+    }
+  },
+)
 
 export default router

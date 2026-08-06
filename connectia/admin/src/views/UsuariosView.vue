@@ -1,23 +1,28 @@
 <template>
   <div>
-    <div class="flex items-center justify-between gap-4 flex-wrap">
-      <div>
-        <h1 class="text-2xl font-semibold">Usuarios</h1>
-        <p class="text-sm text-slate-500 mt-1">Personas que pueden entrar a esta comunidad.</p>
-        <ScreenHelp
-          purpose="Administrá las cuentas de miembros y gestores de este tenant: quién puede ingresar a la app o al admin."
-          can-do="Buscar, crear y editar usuarios. Como admin del tenant podés otorgar acceso a pantallas concretas del admin (publicaciones, solicitudes, etc.) sin darles rol admin completo."
-        />
-      </div>
-      <div class="flex gap-2 flex-wrap">
-        <button class="rounded-lg border px-4 py-2 text-sm font-medium" @click="exportCsv">Exportar</button>
-        <button class="rounded-lg border px-4 py-2 text-sm font-medium" @click="openImport">Importar</button>
-        <button class="rounded-lg border px-4 py-2 text-sm font-medium" @click="openDirectory">Google / Entra</button>
-        <button class="rounded-lg bg-teal-700 text-white px-4 py-2 text-sm font-medium" @click="openNew">
-          + Usuario
+    <AdminPageHeader title="Usuarios" subtitle="Personas que pueden entrar a esta comunidad.">
+      <template #actions>
+        <button class="btn-ghost" @click="exportCsv">Exportar</button>
+        <button class="btn-ghost" @click="openImport">Importar</button>
+        <button class="btn-ghost inline-flex items-center gap-2" @click="openDirectory">
+          Google / Entra
         </button>
-      </div>
-    </div>
+        <button
+          type="button"
+          class="info-btn"
+          aria-label="Cómo cargar miembros desde Google o Azure"
+          title="Cómo cargar miembros"
+          @click="openMembersHelp"
+        >
+          i
+        </button>
+        <button class="btn-primary" @click="openNew">+ Usuario</button>
+      </template>
+    </AdminPageHeader>
+    <ScreenHelp
+      purpose="Administrá las cuentas de miembros y gestores de este tenant: quién puede ingresar a la app o al admin."
+      can-do="Buscar, crear y editar usuarios (incl. fechas de nacimiento/ingreso e hitos custom para saludos). Como admin del tenant podés otorgar acceso a pantallas concretas del admin sin darles rol admin completo."
+    />
 
     <div class="mt-4 flex flex-wrap gap-2 items-center">
       <input
@@ -89,6 +94,7 @@
           <span class="badge" :data-on="u.activo ? '1' : '0'">{{ u.activo ? 'Activo' : 'Inactivo' }}</span>
         </div>
         <p class="user-card-line">{{ orgLabel(u) }}</p>
+        <p v-if="datesLabel(u)" class="user-card-line text-slate-500">{{ datesLabel(u) }}</p>
         <p class="user-card-line">
           <span v-if="u.esEmpleado" class="text-teal-800 font-medium">Empleado</span>
           <span v-else class="text-slate-400">Solo miembro</span>
@@ -134,6 +140,7 @@
             </th>
             <th class="p-3">Empleado</th>
             <th class="p-3">Área / grupos</th>
+            <th class="p-3">Fechas / hitos</th>
             <th class="p-3">Acceso admin</th>
             <th class="p-3">
               <button type="button" class="th-sort" @click="toggleSort('activo')">
@@ -167,6 +174,7 @@
               <span v-else class="text-slate-400">No</span>
             </td>
             <td class="p-3 text-xs text-slate-600">{{ orgLabel(u) }}</td>
+            <td class="p-3 text-xs text-slate-600">{{ datesLabel(u) || '—' }}</td>
             <td class="p-3 text-xs">
               <span v-if="(u.roles || []).includes('admin')" class="text-teal-800 font-medium">Admin</span>
               <span v-else-if="screenLabels(u).length" class="text-slate-600">{{ screenLabels(u).join(', ') }}</span>
@@ -263,10 +271,22 @@
               <button
                 type="button"
                 class="nav-step"
+                :class="{ on: editorStep === 'fechas' }"
+                @click="editorStep = 'fechas'"
+              >
+                <span class="nav-n">{{ draft.id ? '3' : '4' }}</span>
+                <span>
+                  <strong>Fechas / hitos</strong>
+                  <small>Cumple, ingreso, custom</small>
+                </span>
+              </button>
+              <button
+                type="button"
+                class="nav-step"
                 :class="{ on: editorStep === 'acceso' }"
                 @click="editorStep = 'acceso'"
               >
-                <span class="nav-n">{{ draft.id ? '3' : '4' }}</span>
+                <span class="nav-n">{{ draft.id ? '4' : '5' }}</span>
                 <span>
                   <strong>Acceso</strong>
                   <small>Roles y permisos</small>
@@ -375,6 +395,20 @@
                     <option v-for="a in orgAreas" :key="a.id" :value="a.id">{{ a.nombre }}</option>
                   </select>
                 </label>
+                <label class="field">
+                  <span>Reporta a (organigrama)</span>
+                  <select v-model="draft.managerId" class="input">
+                    <option value="">Sin jefe / raíz</option>
+                    <option
+                      v-for="u in managerOptions"
+                      :key="u.id"
+                      :value="u.id"
+                      :disabled="draft.id && u.id === draft.id"
+                    >
+                      {{ managerLabel(u) }}
+                    </option>
+                  </select>
+                </label>
                 <p class="muted small">Grupos</p>
                 <div class="checks-box">
                   <label v-for="g in orgGroups" :key="g.id" class="check-row">
@@ -382,6 +416,48 @@
                     {{ g.nombre }}
                   </label>
                   <p v-if="!orgGroups.length" class="muted small">No hay grupos. Creálos en Organización.</p>
+                </div>
+              </section>
+
+              <section v-show="editorStep === 'fechas'" class="pane">
+                <h3 class="pane-title">Fechas y hitos (saludos automáticos)</h3>
+                <p class="muted small">
+                  El motor de celebraciones usa estas fechas (día/mes). Las keys custom alimentan tipos con origen
+                  <code>customDate</code> / <code>daysAfter</code> en Admin → Saludos.
+                </p>
+                <label class="field">
+                  <span>Cargo (plantillas de saludo)</span>
+                  <input v-model="draft.cargo" class="input" maxlength="120" placeholder="Ej. Analista RRHH" />
+                </label>
+                <div class="grid-2">
+                  <label class="field">
+                    <span>Fecha de nacimiento</span>
+                    <input v-model="draft.fechaNacimiento" class="input" type="date" />
+                  </label>
+                  <label class="field">
+                    <span>Fecha de ingreso</span>
+                    <input v-model="draft.fechaIngreso" class="input" type="date" />
+                  </label>
+                </div>
+                <div class="custom-dates">
+                  <div class="flex items-center justify-between gap-2 mb-2">
+                    <p class="field-label">Fechas personalizadas (hitos)</p>
+                    <button type="button" class="btn-ghost sm" @click="addCustomDateRow">+ Hito</button>
+                  </div>
+                  <div v-for="(row, idx) in draft.customDateRows" :key="idx" class="custom-date-row">
+                    <input
+                      v-model="row.key"
+                      class="input"
+                      placeholder="key (ej. promocion)"
+                      pattern="[a-z0-9_]*"
+                    />
+                    <input v-model="row.date" class="input" type="date" />
+                    <button type="button" class="btn-ghost sm danger" @click="removeCustomDateRow(idx)">Quitar</button>
+                  </div>
+                  <p v-if="!(draft.customDateRows || []).length" class="muted small">
+                    Sin hitos custom. Ejemplos: <code>promocion</code>, <code>certificacion</code>,
+                    <code>fin_prueba</code>.
+                  </p>
                 </div>
               </section>
 
@@ -396,6 +472,22 @@
                   </label>
                   <label class="check-row">
                     <input v-model="draft.activo" type="checkbox" /> Activo
+                  </label>
+                  <label class="check-row">
+                    <input v-model="draft.twoFactorEnabled" type="checkbox" /> 2FA (email/SMS)
+                  </label>
+                </div>
+                <div v-if="draft.twoFactorEnabled" class="row">
+                  <label class="field">
+                    <span class="field-label">Método 2FA</span>
+                    <select v-model="draft.twoFactorMethod" class="input">
+                      <option value="email">Email</option>
+                      <option value="sms">SMS</option>
+                    </select>
+                  </label>
+                  <label class="field">
+                    <span class="field-label">Teléfono (SMS)</span>
+                    <input v-model="draft.telefono" class="input" placeholder="+54911…" />
                   </label>
                 </div>
                 <p v-if="draft.roleAdmin" class="muted small">Admin completo: ve todas las pantallas.</p>
@@ -445,11 +537,26 @@
           Último login: {{ inspect.lastLoginAt ? new Date(inspect.lastLoginAt).toLocaleString() : '—' }}
           · Dispositivos: {{ inspect.deviceCount ?? '—' }}
         </p>
+        <p class="text-xs text-slate-600">
+          <span v-if="inspect.cargo">Cargo: {{ inspect.cargo }} · </span>
+          {{ datesLabel(inspect) || 'Sin fechas de saludo' }}
+        </p>
+        <ul
+          v-if="inspect.customDates && Object.keys(inspect.customDates).length"
+          class="text-xs text-slate-500 space-y-1"
+        >
+          <li v-for="(d, k) in inspect.customDates" :key="k">
+            <code>{{ k }}</code>: {{ toDateInput(d) }}
+          </li>
+        </ul>
 
         <div>
           <div class="flex items-center justify-between mb-2">
             <h3 class="text-sm font-medium">Dispositivos push</h3>
-            <button type="button" class="text-xs text-teal-700" @click="loadInspectDevices">Actualizar</button>
+            <div class="flex gap-2">
+              <button type="button" class="text-xs text-amber-700" @click="wipeAllDevices">Blanquear todos</button>
+              <button type="button" class="text-xs text-teal-700" @click="loadInspectDevices">Actualizar</button>
+            </div>
           </div>
           <ul v-if="inspectDevices.length" class="text-sm space-y-2">
             <li
@@ -544,9 +651,20 @@
       @click.self="dirOpen = false"
     >
       <div class="bg-white rounded-xl p-6 w-full max-w-2xl space-y-4 max-h-[90vh] overflow-y-auto">
-        <h2 class="font-semibold text-lg">Sync directorio (Google / Entra)</h2>
+        <div class="flex items-start justify-between gap-3">
+          <h2 class="font-semibold text-lg">Sync directorio (Google / Entra)</h2>
+          <button
+            type="button"
+            class="info-btn"
+            aria-label="Cómo usar este sync"
+            @click="openMembersHelp"
+          >
+            i
+          </button>
+        </div>
         <p class="text-sm text-slate-500">
           Con credenciales de plataforma trae usuarios del IdP. Sin ellas, pegá una lista JSON.
+          Tocá la <strong>i</strong> para el paso a paso (puerta SSO vs padrón).
         </p>
         <p v-if="dirStatus" class="text-xs text-slate-500">
           Google: {{ dirStatus.google?.note }} · Entra: {{ dirStatus.entra?.note }}
@@ -595,12 +713,44 @@
         </div>
       </div>
     </div>
+
+    <!-- Ayuda: cómo traer miembros hoy -->
+    <div
+      v-if="membersHelp"
+      class="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-[60]"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="members-help-title"
+      @click.self="membersHelp = false"
+    >
+      <div class="bg-white rounded-xl p-6 w-full max-w-lg space-y-3 max-h-[90vh] overflow-y-auto shadow-xl">
+        <header class="flex items-start justify-between gap-3">
+          <h2 id="members-help-title" class="font-semibold text-lg">{{ membersHelp.title }}</h2>
+          <button type="button" class="text-2xl leading-none text-slate-400" aria-label="Cerrar" @click="membersHelp = false">
+            ×
+          </button>
+        </header>
+        <p class="text-sm text-slate-600">{{ membersHelp.lead }}</p>
+        <ul class="text-sm text-slate-700 space-y-2 list-disc pl-5">
+          <li v-for="(p, i) in membersHelp.points" :key="i">{{ p }}</li>
+        </ul>
+        <p v-if="membersHelp.tip" class="text-sm bg-teal-50 text-teal-900 rounded-lg px-3 py-2">
+          <strong>Tip.</strong> {{ membersHelp.tip }}
+        </p>
+        <footer class="flex justify-end pt-1">
+          <button type="button" class="rounded-lg bg-teal-700 text-white px-4 py-2 text-sm font-medium" @click="membersHelp = false">
+            Entendido
+          </button>
+        </footer>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import api from '../services/api'
+import AdminPageHeader from '../components/AdminPageHeader.vue'
 import ScreenHelp from '../components/ScreenHelp.vue'
 import { useAuthStore } from '../stores/auth'
 import { ADMIN_SCREEN_CAPABILITIES } from '../utils/adminCapabilities'
@@ -611,6 +761,14 @@ const canGrantPerms = computed(() => auth.isFullAdmin)
 const screenCaps = ADMIN_SCREEN_CAPABILITIES
 const orgAreas = ref([])
 const orgGroups = ref([])
+const orgManagers = ref([])
+
+const managerOptions = computed(() => orgManagers.value || [])
+
+function managerLabel(u) {
+  const n = [u.nombre, u.apellido].filter(Boolean).join(' ').trim() || u.label || ''
+  return n ? `${n} (@${u.usuario})` : u.usuario
+}
 
 const items = ref([])
 const total = ref(0)
@@ -656,6 +814,24 @@ const dirEntries = ref([])
 const dirSource = ref('')
 const dirReport = ref('')
 const dirBusy = ref(false)
+const membersHelp = ref(null)
+
+const MEMBERS_HELP = {
+  title: 'Cómo traer miembros hoy (sin desarrollo nuevo)',
+  lead: 'Hay dos pasos distintos: quién puede entrar (puerta) y quiénes son el padrón (esta pantalla). Ambos ya existen.',
+  points: [
+    'Padrón (acá): usá “Google / Entra” para sincronizar Google Workspace o Microsoft Entra ID, o “Importar” con CSV/Excel, o “+ Usuario” a mano.',
+    'Con credenciales en el servidor (GOOGLE_WORKSPACE_* / ENTRA_*) podés “Traer del IdP”. Sin ellas, pegá una lista JSON y hacé vista previa → confirmar sync.',
+    'Puerta (Comunidad → Ingreso): activá SSO Google/Microsoft, poné el dominio (ej. sooft.com.ar) y opcionalmente “Auto-alta por SSO”. Eso controla quién puede autenticarse; no reemplaza este sync.',
+    'Receta típica: 1) sync Directory acá para precargar mails/nombres · 2) en Comunidad, dominio + SSO (+ auto-alta si querés altas JIT) · 3) Guardar y probar login.',
+    'Qué aún no está: filtrar por un Google Group concreto. Hoy syncéa el directorio/dominio; el filtro por grupo es la Ola 38 (diseño).',
+  ],
+  tip: 'Si solo querés “quien tenga @sooft.com.ar puede entrar” sin precargar lista, alcanza con dominio + SSO + auto-alta en Comunidad. El sync acá sirve para tener el padrón completo de antemano.',
+}
+
+function openMembersHelp() {
+  membersHelp.value = MEMBERS_HELP
+}
 
 const activoFilters = [
   { value: '', label: 'Todos' },
@@ -697,6 +873,64 @@ function orgLabel(u) {
   if (area) parts.push(area)
   if (groups.length) parts.push(groups.join(', '))
   return parts.join(' · ') || '—'
+}
+
+function toDateInput(v) {
+  if (!v) return ''
+  const d = v instanceof Date ? v : new Date(v)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toISOString().slice(0, 10)
+}
+
+function fmtDayMonth(v) {
+  if (!v) return ''
+  const d = v instanceof Date ? v : new Date(v)
+  if (Number.isNaN(d.getTime())) return ''
+  const dd = String(d.getUTCDate()).padStart(2, '0')
+  const mm = String(d.getUTCMonth() + 1).padStart(2, '0')
+  return `${dd}/${mm}`
+}
+
+function datesLabel(u) {
+  const parts = []
+  if (u.fechaNacimiento) parts.push(`Cumple ${fmtDayMonth(u.fechaNacimiento)}`)
+  if (u.fechaIngreso) parts.push(`Ingreso ${fmtDayMonth(u.fechaIngreso)}`)
+  const custom = u.customDates && typeof u.customDates === 'object' ? Object.keys(u.customDates) : []
+  if (custom.length) parts.push(`${custom.length} hito${custom.length === 1 ? '' : 's'}`)
+  return parts.join(' · ')
+}
+
+function customDatesToRows(raw) {
+  if (!raw || typeof raw !== 'object') return []
+  return Object.entries(raw).map(([key, date]) => ({
+    key,
+    date: toDateInput(date),
+  }))
+}
+
+function rowsToCustomDates(rows) {
+  const out = {}
+  for (const row of rows || []) {
+    const key = String(row?.key || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_]+/g, '_')
+      .slice(0, 64)
+    if (!key || !row?.date) continue
+    out[key] = row.date
+  }
+  return out
+}
+
+function addCustomDateRow() {
+  if (!draft.value) return
+  if (!Array.isArray(draft.value.customDateRows)) draft.value.customDateRows = []
+  draft.value.customDateRows.push({ key: '', date: '' })
+}
+
+function removeCustomDateRow(idx) {
+  if (!draft.value?.customDateRows) return
+  draft.value.customDateRows.splice(idx, 1)
 }
 
 function setViewMode(mode) {
@@ -750,9 +984,11 @@ async function loadOrg() {
     const { data } = await api.get('/admin/org/options')
     orgAreas.value = data.areas || []
     orgGroups.value = data.groups || []
+    orgManagers.value = data.managers || []
   } catch {
     orgAreas.value = []
     orgGroups.value = []
+    orgManagers.value = []
   }
 }
 
@@ -799,12 +1035,20 @@ function openNew() {
     dni: '',
     cuil: '',
     password: '',
+    cargo: '',
+    fechaNacimiento: '',
+    fechaIngreso: '',
+    customDateRows: [],
     roleMember: true,
     roleAdmin: false,
     capabilities: [],
     areaId: '',
+    managerId: '',
     groupIds: [],
     activo: true,
+    twoFactorEnabled: false,
+    twoFactorMethod: 'email',
+    telefono: '',
   }
 }
 
@@ -822,12 +1066,20 @@ function edit(u) {
     dni: u.dni || '',
     cuil: u.cuil || '',
     password: '',
+    cargo: u.cargo || '',
+    fechaNacimiento: toDateInput(u.fechaNacimiento),
+    fechaIngreso: toDateInput(u.fechaIngreso),
+    customDateRows: customDatesToRows(u.customDates),
     roleMember: (u.roles || []).includes('member'),
     roleAdmin: (u.roles || []).includes('admin'),
     capabilities: (u.capabilities || []).filter((c) => screenCaps.some((s) => s.id === c)),
     areaId: u.areaId || '',
+    managerId: u.managerId || '',
     groupIds: [...(u.groupIds || [])],
     activo: u.activo !== false,
+    twoFactorEnabled: Boolean(u.twoFactorEnabled),
+    twoFactorMethod: u.twoFactorMethod || 'email',
+    telefono: u.telefono || '',
   }
 }
 
@@ -886,10 +1138,18 @@ async function save() {
     idExterno: draft.value.idExterno,
     dni: draft.value.dni,
     cuil: draft.value.cuil,
+    cargo: draft.value.cargo || '',
+    fechaNacimiento: draft.value.fechaNacimiento || null,
+    fechaIngreso: draft.value.fechaIngreso || null,
+    customDates: rowsToCustomDates(draft.value.customDateRows),
     roles: rolesFromDraft(draft.value),
     activo: draft.value.activo,
+    twoFactorEnabled: Boolean(draft.value.twoFactorEnabled),
+    twoFactorMethod: draft.value.twoFactorMethod || 'email',
+    telefono: draft.value.telefono || '',
     capabilities: draft.value.roleAdmin ? [] : [...(draft.value.capabilities || [])],
     areaId: draft.value.areaId || null,
+    managerId: draft.value.managerId || null,
     groupIds: [...(draft.value.groupIds || [])],
   }
   if (draft.value.password) payload.password = draft.value.password
@@ -1145,6 +1405,27 @@ async function revokeInspectDevice(index) {
   }
 }
 
+async function wipeAllDevices() {
+  if (!inspect.value?.id) return
+  const motivo = window.prompt('Motivo del blanqueo total (obligatorio):', 'Reseteo de dispositivos')
+  if (motivo == null) return
+  if (!String(motivo).trim()) {
+    error.value = 'El motivo es obligatorio'
+    return
+  }
+  if (!confirm('¿Blanquear TODOS los dispositivos y cerrar sesiones de este usuario?')) return
+  try {
+    const { data } = await api.post(`/admin/users/${inspect.value.id}/devices/wipe`, {
+      motivo: String(motivo).trim(),
+    })
+    inspectDevices.value = []
+    okMsg.value = `Blanqueo OK (${data.devicesCleared || 0} dispositivos)`
+    await loadInspectActivity()
+  } catch (e) {
+    error.value = e.response?.data?.error || 'No se pudo blanquear'
+  }
+}
+
 onMounted(async () => {
   await loadOrg()
   await load()
@@ -1171,7 +1452,7 @@ onMounted(async () => {
 .modal {
   position: relative;
   z-index: 1;
-  background: #fff;
+  background: var(--panel);
   border-radius: 16px;
   box-shadow: 0 20px 50px rgb(0 0 0 / 20%);
 }
@@ -1184,7 +1465,7 @@ onMounted(async () => {
 }
 .modal-head {
   padding: 16px 20px 12px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--line);
 }
 .modal-head h2 {
   margin: 0;
@@ -1192,7 +1473,7 @@ onMounted(async () => {
   font-weight: 700;
 }
 .muted {
-  color: #64748b;
+  color: var(--ink-soft);
 }
 .small {
   font-size: 0.8125rem;
@@ -1205,8 +1486,8 @@ onMounted(async () => {
   overflow: hidden;
 }
 .form-nav {
-  border-right: 1px solid #e2e8f0;
-  background: #f8fafc;
+  border-right: 1px solid var(--line);
+  background: var(--panel-2);
   padding: 14px 10px;
   display: flex;
   flex-direction: column;
@@ -1223,22 +1504,22 @@ onMounted(async () => {
   border-radius: 12px;
   padding: 10px 8px;
   cursor: pointer;
-  color: #334155;
+  color: var(--ink);
 }
 .nav-step:hover {
-  background: #fff;
-  border-color: #e2e8f0;
+  background: var(--panel);
+  border-color: var(--line);
 }
 .nav-step.on {
-  background: #fff;
-  border-color: #0f766e;
-  box-shadow: 0 0 0 1px #0f766e22;
+  background: var(--panel);
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 1px var(--brand-primary)22;
 }
 .nav-n {
   width: 24px;
   height: 24px;
   border-radius: 999px;
-  background: #e2e8f0;
+  background: var(--line);
   display: grid;
   place-items: center;
   font-size: 12px;
@@ -1246,7 +1527,7 @@ onMounted(async () => {
   flex-shrink: 0;
 }
 .nav-step.on .nav-n {
-  background: #0f766e;
+  background: var(--brand-primary);
   color: #fff;
 }
 .nav-step strong {
@@ -1256,7 +1537,7 @@ onMounted(async () => {
 .nav-step small {
   display: block;
   font-size: 11px;
-  color: #64748b;
+  color: var(--ink-soft);
   margin-top: 2px;
 }
 .form-main {
@@ -1282,17 +1563,17 @@ onMounted(async () => {
 .field-label {
   font-size: 0.75rem;
   font-weight: 600;
-  color: #475569;
+  color: var(--ink-soft);
 }
 .input {
   width: 100%;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--line);
   border-radius: 10px;
   padding: 9px 12px;
   font-size: 0.875rem;
 }
 .input:disabled {
-  background: #f8fafc;
+  background: var(--panel-2);
 }
 .grid-2 {
   display: grid;
@@ -1304,6 +1585,27 @@ onMounted(async () => {
   grid-template-columns: 1fr 1fr 1fr;
   gap: 10px;
 }
+.custom-dates {
+  margin-top: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel-2);
+}
+.custom-date-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+.btn-ghost.sm {
+  padding: 6px 10px;
+  font-size: 0.75rem;
+}
+.btn-ghost.sm.danger {
+  color: var(--bad);
+}
 .row {
   display: flex;
   flex-wrap: wrap;
@@ -1311,10 +1613,10 @@ onMounted(async () => {
   align-items: center;
 }
 .checks-box {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--line);
   border-radius: 12px;
   padding: 12px;
-  background: #f8fafc;
+  background: var(--panel-2);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -1331,7 +1633,7 @@ onMounted(async () => {
   border: 0;
   border-radius: 10px;
   padding: 10px 14px;
-  background: #0f766e;
+  background: var(--brand-primary);
   color: #fff;
   font-weight: 600;
   font-size: 0.875rem;
@@ -1342,10 +1644,10 @@ onMounted(async () => {
   cursor: not-allowed;
 }
 .btn-ghost {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--line);
   border-radius: 10px;
   padding: 10px 14px;
-  background: #fff;
+  background: var(--panel);
   font-size: 0.875rem;
   cursor: pointer;
 }
@@ -1355,14 +1657,14 @@ onMounted(async () => {
 .ai-notes {
   margin: 0;
   font-size: 0.8125rem;
-  color: #0f766e;
-  background: #ecfdf5;
+  color: var(--brand-primary);
+  background: var(--ok-bg);
   border-radius: 10px;
   padding: 10px 12px;
 }
 .form-error {
   margin: 0;
-  color: #b91c1c;
+  color: var(--bad);
   font-size: 0.875rem;
 }
 .form-foot {
@@ -1370,7 +1672,7 @@ onMounted(async () => {
   justify-content: flex-end;
   gap: 8px;
   padding-top: 8px;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--line);
   margin-top: auto;
 }
 @media (max-width: 800px) {
@@ -1379,7 +1681,7 @@ onMounted(async () => {
   }
   .form-nav {
     border-right: 0;
-    border-bottom: 1px solid #e2e8f0;
+    border-bottom: 1px solid var(--line);
     flex-direction: row;
     flex-wrap: wrap;
   }
@@ -1391,20 +1693,41 @@ onMounted(async () => {
 
 .view-toggle {
   display: inline-flex;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--line);
   border-radius: 10px;
   overflow: hidden;
 }
+.info-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--ink-soft);
+  font-size: 12px;
+  font-weight: 800;
+  font-style: italic;
+  font-family: Georgia, 'Times New Roman', serif;
+  line-height: 1;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.info-btn:hover {
+  color: var(--brand-primary);
+  border-color: color-mix(in srgb, var(--brand-primary) 28%, var(--panel));
+}
 .view-btn {
   border: 0;
-  background: #fff;
+  background: var(--panel);
   padding: 8px 12px;
   font-size: 0.8125rem;
   cursor: pointer;
-  color: #64748b;
+  color: var(--ink-soft);
 }
 .view-btn.on {
-  background: #0f172a;
+  background: var(--ink);
   color: #fff;
 }
 .th-sort {
@@ -1425,8 +1748,8 @@ onMounted(async () => {
   gap: 12px;
 }
 .user-card {
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: var(--panel);
+  border: 1px solid var(--line);
   border-radius: 14px;
   padding: 14px;
   display: flex;
@@ -1445,8 +1768,8 @@ onMounted(async () => {
   width: 40px;
   height: 40px;
   border-radius: 999px;
-  background: #ecfdf5;
-  color: #0f766e;
+  background: var(--ok-bg);
+  color: var(--brand-primary);
   display: grid;
   place-items: center;
   font-weight: 700;
@@ -1482,14 +1805,14 @@ onMounted(async () => {
 .user-card-line {
   margin: 0;
   font-size: 0.8rem;
-  color: #64748b;
+  color: var(--ink-soft);
 }
 .user-card-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
   padding-top: 4px;
-  border-top: 1px solid #f1f5f9;
+  border-top: 1px solid var(--panel-2);
   font-size: 0.8125rem;
 }
 .badge {
@@ -1497,13 +1820,13 @@ onMounted(async () => {
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 999px;
-  background: #f1f5f9;
-  color: #64748b;
+  background: var(--panel-2);
+  color: var(--ink-soft);
   flex-shrink: 0;
 }
 .badge[data-on='1'] {
-  background: #ecfdf5;
-  color: #0f766e;
+  background: var(--ok-bg);
+  color: var(--brand-primary);
 }
 .pager {
   display: flex;
@@ -1512,8 +1835,8 @@ onMounted(async () => {
   gap: 12px;
 }
 .pager-btn {
-  border: 1px solid #e2e8f0;
-  background: #fff;
+  border: 1px solid var(--line);
+  background: var(--panel);
   border-radius: 10px;
   padding: 8px 14px;
   font-size: 0.875rem;

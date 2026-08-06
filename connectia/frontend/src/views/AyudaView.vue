@@ -2,7 +2,7 @@
   <section class="help">
     <header class="help-head">
       <h1>Ayuda</h1>
-      <p>FAQs y tutoriales para usar Connectia en tu comunidad.</p>
+      <p>FAQs y tutoriales para usar Connectyx en tu comunidad.</p>
     </header>
 
     <div class="help-tabs" role="tablist">
@@ -180,7 +180,7 @@ onMounted(load)
   font-weight: 600;
 }
 .help-tabs button.on {
-  background: var(--brand, #0f766e);
+  background: var(--brand-primary, #0f766e);
   color: #fff;
   border-color: transparent;
 }
@@ -197,7 +197,7 @@ onMounted(load)
 }
 .help-search-btn {
   border: none;
-  background: var(--brand, #0f766e);
+  background: var(--brand-primary, #0f766e);
   color: #fff;
   border-radius: 12px;
   padding: 0 14px;
@@ -217,9 +217,9 @@ onMounted(load)
   font-size: 0.82rem;
 }
 .help-cats button.on {
-  background: #0f766e14;
-  border-color: var(--brand, #0f766e);
-  color: var(--brand, #0f766e);
+  background: color-mix(in srgb, var(--brand-primary, #0f766e) 12%, transparent);
+  border-color: var(--brand-primary, #0f766e);
+  color: var(--brand-primary, #0f766e);
 }
 .help-list {
   list-style: none;
@@ -241,7 +241,7 @@ onMounted(load)
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--brand, #0f766e);
+  color: var(--brand-primary, #0f766e);
   margin-bottom: 4px;
 }
 .help-card strong {

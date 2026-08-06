@@ -176,7 +176,7 @@ onMounted(load)
   color: #64748b;
 }
 .aus-new {
-  background: #0f766e;
+  background: var(--brand-primary, #0f766e);
   color: #fff;
   border: 0;
   border-radius: 0.65rem;
@@ -257,7 +257,7 @@ onMounted(load)
 .aus-link {
   border: 0;
   background: transparent;
-  color: #0f766e;
+  color: var(--brand-primary, #0f766e);
   cursor: pointer;
 }
 </style>

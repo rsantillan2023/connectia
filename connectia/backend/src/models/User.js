@@ -6,11 +6,25 @@ const userSchema = new mongoose.Schema(
     usuario: { type: String, required: true },
     /** ID / legajo deskless (login sin mail) */
     idExterno: { type: String, default: '', index: true },
+    /** Vacío solo en cuentas SSO puras (se genera hash aleatorio al crear). */
     passwordHash: { type: String, required: true },
     nombre: { type: String, default: '' },
     apellido: { type: String, default: '' },
     email: { type: String, default: '' },
     telefono: { type: String, default: '' },
+    /** Sujeto OIDC por proveedor: { microsoft|google|okta: sub } */
+    ssoSubjects: {
+      type: Map,
+      of: String,
+      default: {},
+    },
+    /** 2FA §1.08/.09 */
+    twoFactorEnabled: { type: Boolean, default: false },
+    twoFactorMethod: { type: String, enum: ['email', 'sms'], default: 'email' },
+    twoFactorCodeHash: { type: String, default: '' },
+    twoFactorExpires: { type: Date, default: null },
+    /** JTIs de login-token ya consumidos (un solo uso) */
+    consumedLoginJtis: { type: [String], default: [] },
     /** Documento nacional (bandeja docs / matching) */
     dni: { type: String, default: '', index: true },
     /** CUIL/CUIT (bandeja docs / matching) */
@@ -29,6 +43,8 @@ const userSchema = new mongoose.Schema(
     roleIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Role' }],
     /** Área organizacional (una) */
     areaId: { type: mongoose.Schema.Types.ObjectId, ref: 'OrgArea', default: null, index: true },
+    /** A quién reporta (organigrama §37). null = raíz / sin jefe */
+    managerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null, index: true },
     /** Grupos de usuarios (varios) */
     groupIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'UserGroup' }],
     activo: { type: Boolean, default: true },
@@ -47,7 +63,8 @@ const userSchema = new mongoose.Schema(
       email: { type: Boolean, default: true },
       push: { type: Boolean, default: true },
     },
-    /** Cargo / rol visible (plantillas de saludo {{cargo}}) */
+    /** Sede / sucursal del colaborador (elegibilidad de beneficios) */
+    sede: { type: String, default: '', maxlength: 160, index: true },
     cargo: { type: String, default: '', maxlength: 120 },
     /** Cumpleaños (date-only; comparar mes/día UTC) */
     fechaNacimiento: { type: Date, default: null, index: true },
@@ -74,6 +91,20 @@ const userSchema = new mongoose.Schema(
     /** Solicitud de baja / anonimización (§3.05) */
     deletionRequestedAt: { type: Date, default: null },
     anonymizedAt: { type: Date, default: null },
+    /**
+     * Rol del módulo supervisión comercial (Ola 31).
+     * operario | supervisor | plataforma_comercial | gestor | admin_mod
+     */
+    supervisionRole: {
+      type: String,
+      enum: ['', 'operario', 'supervisor', 'plataforma_comercial', 'gestor', 'admin_mod'],
+      default: '',
+    },
+    /** Preferencias app (locale módulo, etc.) */
+    preferences: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
     /** Suscripciones Web Push (varios dispositivos) */
     pushSubscriptions: [
       {

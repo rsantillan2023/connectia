@@ -472,13 +472,13 @@ onMounted(async () => {
 .head h1 {
   font-size: 1.5rem;
   font-weight: 600;
-  color: #0f172a;
+  color: var(--ink);
 }
 
 .head > div > p {
   margin-top: 0.35rem;
   font-size: 0.9rem;
-  color: #64748b;
+  color: var(--ink-soft);
   max-width: 52rem;
   line-height: 1.45;
 }
@@ -487,8 +487,8 @@ onMounted(async () => {
   min-width: 10rem;
   padding: 0.85rem 1.1rem;
   border-radius: 0.9rem;
-  background: #f0fdfa;
-  border: 1px solid #99f6e4;
+  background: color-mix(in srgb, var(--brand-primary) 8%, var(--panel));
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 28%, var(--panel));
   text-align: right;
 }
 
@@ -496,21 +496,21 @@ onMounted(async () => {
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #0f766e;
+  color: var(--brand-primary);
   font-weight: 600;
 }
 
 .count-num {
   font-size: 1.85rem;
   font-weight: 700;
-  color: #0f766e;
+  color: var(--brand-primary);
   line-height: 1.1;
 }
 
 .count-sample {
   margin-top: 0.25rem;
   font-size: 0.75rem;
-  color: #115e59;
+  color: var(--brand-secondary);
   max-width: 16rem;
 }
 
@@ -526,8 +526,8 @@ onMounted(async () => {
 }
 
 .card {
-  background: #fff;
-  border: 1px solid #e2e8f0;
+  background: var(--panel);
+  border: 1px solid var(--line);
   border-radius: 1rem;
   padding: 1.15rem 1.25rem;
 }
@@ -544,7 +544,7 @@ onMounted(async () => {
   width: 1.75rem;
   height: 1.75rem;
   border-radius: 999px;
-  background: #0f766e;
+  background: var(--brand-primary);
   color: #fff;
   font-size: 0.85rem;
   font-weight: 700;
@@ -555,12 +555,12 @@ onMounted(async () => {
 .step h2 {
   font-size: 1.05rem;
   font-weight: 600;
-  color: #0f172a;
+  color: var(--ink);
 }
 
 .hint {
   font-size: 0.8rem;
-  color: #64748b;
+  color: var(--ink-soft);
   margin-top: 0.15rem;
 }
 
@@ -571,36 +571,36 @@ onMounted(async () => {
   margin-bottom: 0.85rem;
   font-size: 0.85rem;
   font-weight: 500;
-  color: #334155;
+  color: var(--ink);
 }
 
 .field small {
   font-weight: 400;
   font-size: 0.75rem;
-  color: #94a3b8;
+  color: var(--ink-faint);
 }
 
 .inline-link {
-  color: #0f766e;
+  color: var(--brand-primary);
   text-decoration: underline;
   margin-left: 0.25rem;
 }
 
 .input {
   width: 100%;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--line-2);
   border-radius: 0.65rem;
   padding: 0.55rem 0.75rem;
   font-size: 0.9rem;
   font-weight: 400;
-  color: #0f172a;
-  background: #fff;
+  color: var(--ink);
+  background: var(--panel);
 }
 
 .input:focus {
-  outline: 2px solid #5eead4;
+  outline: 2px solid color-mix(in srgb, var(--brand-primary) 45%, var(--panel));
   outline-offset: 1px;
-  border-color: #14b8a6;
+  border-color: var(--brand-primary);
 }
 
 .modes {
@@ -611,29 +611,29 @@ onMounted(async () => {
 
 .mode {
   text-align: left;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--line);
   border-radius: 0.85rem;
   padding: 0.85rem 1rem;
-  background: #f8fafc;
+  background: var(--panel-2);
   cursor: pointer;
 }
 
 .mode strong {
   display: block;
   font-size: 0.9rem;
-  color: #0f172a;
+  color: var(--ink);
 }
 
 .mode span {
   display: block;
   margin-top: 0.2rem;
   font-size: 0.75rem;
-  color: #64748b;
+  color: var(--ink-soft);
 }
 
 .mode.on {
-  background: #0f766e;
-  border-color: #0f766e;
+  background: var(--brand-primary);
+  border-color: var(--brand-primary);
 }
 
 .mode.on strong,
@@ -648,8 +648,8 @@ onMounted(async () => {
   margin-top: 1rem;
   padding: 0.85rem;
   border-radius: 0.75rem;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
 }
 
 .who-title {
@@ -657,7 +657,7 @@ onMounted(async () => {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.03em;
-  color: #64748b;
+  color: var(--ink-soft);
   margin-bottom: 0.4rem;
 }
 
@@ -666,7 +666,7 @@ onMounted(async () => {
   align-items: center;
   gap: 0.45rem;
   font-size: 0.875rem;
-  color: #334155;
+  color: var(--ink);
   padding: 0.2rem 0;
   cursor: pointer;
 }
@@ -683,26 +683,26 @@ onMounted(async () => {
   border: 0;
   padding: 0;
   font-size: 0.8rem;
-  color: #0f766e;
+  color: var(--brand-primary);
   text-decoration: underline;
   cursor: pointer;
 }
 
 .link.danger {
-  color: #dc2626;
+  color: var(--bad);
 }
 
 .empty {
   font-size: 0.8rem;
-  color: #94a3b8;
+  color: var(--ink-faint);
 }
 
 .plantilla-box {
   margin: 0 0 1rem;
   padding: 0.9rem 1rem;
   border-radius: 0.85rem;
-  background: #f0fdfa;
-  border: 1px solid #99f6e4;
+  background: color-mix(in srgb, var(--brand-primary) 8%, var(--panel));
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 28%, var(--panel));
 }
 
 .plantilla-head {
@@ -717,14 +717,14 @@ onMounted(async () => {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #0f766e;
+  color: var(--brand-primary);
 }
 
 .plantilla-name {
   margin-top: 0.15rem;
   font-size: 0.95rem;
   font-weight: 600;
-  color: #0f172a;
+  color: var(--ink);
 }
 
 .plantilla-count {
@@ -733,7 +733,7 @@ onMounted(async () => {
   height: 1.75rem;
   padding: 0 0.45rem;
   border-radius: 999px;
-  background: #0f766e;
+  background: var(--brand-primary);
   color: #fff;
   font-size: 0.8rem;
   font-weight: 700;
@@ -744,7 +744,7 @@ onMounted(async () => {
 .plantilla-desc {
   margin-top: 0.45rem;
   font-size: 0.8rem;
-  color: #475569;
+  color: var(--ink-soft);
   line-height: 1.4;
 }
 
@@ -763,8 +763,8 @@ onMounted(async () => {
   align-items: flex-start;
   padding: 0.55rem 0.65rem;
   border-radius: 0.65rem;
-  background: #fff;
-  border: 1px solid #ccfbf1;
+  background: var(--panel);
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 14%, var(--panel));
 }
 
 .pq-n {
@@ -772,8 +772,8 @@ onMounted(async () => {
   width: 1.35rem;
   height: 1.35rem;
   border-radius: 999px;
-  background: #ccfbf1;
-  color: #0f766e;
+  background: color-mix(in srgb, var(--brand-primary) 14%, var(--panel));
+  color: var(--brand-primary);
   font-size: 0.72rem;
   font-weight: 700;
   display: grid;
@@ -783,14 +783,14 @@ onMounted(async () => {
 .plantilla-qs strong {
   display: block;
   font-size: 0.875rem;
-  color: #0f172a;
+  color: var(--ink);
 }
 
 .plantilla-qs span {
   display: block;
   margin-top: 0.1rem;
   font-size: 0.72rem;
-  color: #64748b;
+  color: var(--ink-soft);
 }
 
 .questions {
@@ -800,10 +800,10 @@ onMounted(async () => {
 }
 
 .question {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--line);
   border-radius: 0.85rem;
   padding: 0.9rem 1rem;
-  background: #f8fafc;
+  background: var(--panel-2);
 }
 
 .question-head {
@@ -816,7 +816,7 @@ onMounted(async () => {
 .q-n {
   font-size: 0.75rem;
   font-weight: 700;
-  color: #0f766e;
+  color: var(--brand-primary);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -835,9 +835,9 @@ onMounted(async () => {
 
 .add-q {
   align-self: flex-start;
-  border: 1px dashed #94a3b8;
-  background: #fff;
-  color: #0f766e;
+  border: 1px dashed var(--ink-faint);
+  background: var(--panel);
+  color: var(--brand-primary);
   font-weight: 600;
   font-size: 0.875rem;
   padding: 0.65rem 1rem;
@@ -846,14 +846,14 @@ onMounted(async () => {
 }
 
 .add-q:hover {
-  border-color: #0f766e;
-  background: #f0fdfa;
+  border-color: var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary) 8%, var(--panel));
 }
 
 .preview-box {
   margin-top: 1.25rem;
   padding-top: 1.15rem;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--line);
 }
 
 .preview-title {
@@ -861,23 +861,23 @@ onMounted(async () => {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #64748b;
+  color: var(--ink-soft);
   margin-bottom: 0.65rem;
 }
 
 .preview-form {
   max-width: 28rem;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--line);
   border-radius: 1rem;
   padding: 1rem 1.1rem;
-  background: linear-gradient(180deg, #f8fafc 0%, #fff 40%);
+  background: linear-gradient(180deg, var(--panel-2) 0%, var(--panel) 40%);
 }
 
 .preview-media {
   margin: -0.25rem -0.35rem 0.75rem;
   border-radius: 0.75rem;
   overflow: hidden;
-  background: #0f172a;
+  background: var(--ink);
   aspect-ratio: 16 / 9;
 }
 
@@ -893,8 +893,8 @@ onMounted(async () => {
   margin-bottom: 0.5rem;
   border-radius: 0.85rem;
   overflow: hidden;
-  border: 1px solid #e2e8f0;
-  background: #0f172a;
+  border: 1px solid var(--line);
+  background: var(--ink);
   aspect-ratio: 16 / 9;
   max-width: 100%;
 }
@@ -909,20 +909,20 @@ onMounted(async () => {
 .media-kind {
   margin-top: 0.35rem;
   font-size: 0.75rem;
-  color: #0f766e;
+  color: var(--brand-primary);
   font-weight: 600;
 }
 
 .preview-heading {
   font-weight: 600;
   font-size: 1rem;
-  color: #0f172a;
+  color: var(--ink);
 }
 
 .preview-msg {
   margin-top: 0.35rem;
   font-size: 0.85rem;
-  color: #64748b;
+  color: var(--ink-soft);
   line-height: 1.4;
 }
 
@@ -934,27 +934,27 @@ onMounted(async () => {
   display: block;
   font-size: 0.8rem;
   font-weight: 600;
-  color: #334155;
+  color: var(--ink);
   margin-bottom: 0.3rem;
 }
 
 .preview-q em {
-  color: #dc2626;
+  color: var(--bad);
   font-style: normal;
 }
 
 .preview-control {
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--line-2);
   border-radius: 0.55rem;
   padding: 0.5rem 0.7rem;
   font-size: 0.8rem;
-  color: #94a3b8;
-  background: #fff;
+  color: var(--ink-faint);
+  background: var(--panel);
 }
 
 .empty-q {
   font-size: 0.85rem;
-  color: #94a3b8;
+  color: var(--ink-faint);
   margin-top: 0.5rem;
 }
 
@@ -983,18 +983,18 @@ onMounted(async () => {
   font-size: 0.9rem;
   font-weight: 600;
   text-decoration: none;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--line-2);
   cursor: pointer;
 }
 
 .btn-ghost {
-  background: #fff;
-  color: #475569;
+  background: var(--panel);
+  color: var(--ink-soft);
 }
 
 .btn-primary {
-  background: #0f766e;
-  border-color: #0f766e;
+  background: var(--brand-primary);
+  border-color: var(--brand-primary);
   color: #fff;
 }
 
@@ -1004,12 +1004,12 @@ onMounted(async () => {
 }
 
 .err {
-  color: #dc2626;
+  color: var(--bad);
   font-size: 0.875rem;
 }
 
 .ok {
-  color: #0f766e;
+  color: var(--brand-primary);
   font-size: 0.875rem;
 }
 

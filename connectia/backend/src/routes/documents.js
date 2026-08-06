@@ -5,9 +5,11 @@ import fs from 'fs'
 import { fileURLToPath } from 'url'
 import mongoose from 'mongoose'
 import { DocItem } from '../models/DocItem.js'
+import { DocumentDownload } from '../models/DocumentDownload.js'
 import { OrgArea } from '../models/OrgArea.js'
 import { User } from '../models/User.js'
 import { requireAuth } from '../middleware/auth.js'
+import { channelFromUa } from '../lib/xlsxExport.js'
 import {
   audienceFilterForUser,
   userMatchesAudience,
@@ -17,6 +19,7 @@ import {
 import {
   normalizeFileType,
   normalizeRepository,
+  normalizeDocMime,
   fileTypeLabel,
   repositoryLabel,
   inferFileType,
@@ -25,6 +28,8 @@ import {
 import { resolveDocumentDownload } from '../services/docStorage.js'
 import { toPublicMediaUrl } from '../lib/mediaUrl.js'
 import { startWorkflowForOrigin } from '../services/workflowRuntime.js'
+import { scheduleAwardPoints } from '../lib/pointsRules.js'
+import { normalizeFolderPath, buildChildFolders } from '../lib/documentsFolders.js'
 
 const router = Router()
 const ObjectId = mongoose.Types.ObjectId
@@ -115,6 +120,11 @@ function serializeDoc(d, userId = null) {
     fileName: d.fileName,
     fileUrl: d.fileUrl,
   })
+  const mimeType = normalizeDocMime({
+    mimeType: d.mimeType,
+    fileName: d.fileName,
+    fileUrl: d.fileUrl,
+  })
   const repository =
     d.repository ||
     (d.source === 'sap' ? 'sap' : d.source === 'manual' && String(d.fileUrl || '').startsWith('/uploads')
@@ -126,7 +136,7 @@ function serializeDoc(d, userId = null) {
     descripcion: d.descripcion || '',
     category: d.category || 'general',
     fileUrl: d.fileUrl,
-    mimeType: d.mimeType || '',
+    mimeType,
     fileType,
     fileTypeLabel: fileTypeLabel(fileType),
     fileName: d.fileName || '',
@@ -153,7 +163,7 @@ function serializeDoc(d, userId = null) {
 router.get('/', requireAuth, async (req, res, next) => {
   try {
     const q = String(req.query.q || '').trim()
-    const category = String(req.query.category || '').trim()
+    const category = normalizeFolderPath(req.query.category || '')
     const fileType = String(req.query.fileType || '').trim()
     const repository = String(req.query.repository || '').trim()
     const audienceClause = audienceFilterForUser(req.user)
@@ -187,23 +197,18 @@ router.get('/', requireAuth, async (req, res, next) => {
     ])
     const serialized = items.map((d) => serializeDoc(d, req.user._id))
 
-    const folderCounts = new Map()
-    for (const d of folderDocs) {
-      const key = String(d.category || 'general').trim() || 'general'
-      folderCounts.set(key, (folderCounts.get(key) || 0) + 1)
-    }
-    const folders = [...folderCounts.entries()]
-      .map(([name, count]) => ({
-        id: name,
-        name,
-        count,
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name, 'es'))
+    const folders = buildChildFolders(folderDocs, category)
+    const allCategories = [
+      ...new Set(
+        folderDocs.map((d) => normalizeFolderPath(d.category || 'general') || 'general'),
+      ),
+    ].sort((a, b) => a.localeCompare(b, 'es'))
 
     res.json({
       items: serialized,
-      categories: folders.map((f) => f.name),
+      categories: allCategories,
       folders,
+      currentFolder: category || null,
     })
   } catch (e) {
     next(e)
@@ -278,7 +283,11 @@ router.post(
     if (!req.file) return res.status(400).json({ error: 'No se recibió el archivo' })
     const fileUrl = toPublicMediaUrl(`/uploads/documents/${req.file.filename}`)
     const fileName = req.file.originalname || req.file.filename
-    const mimeType = req.file.mimetype || ''
+    const mimeType = normalizeDocMime({
+      mimeType: req.file.mimetype || '',
+      fileName,
+      fileUrl,
+    })
     const fileType = inferFileType({ mimeType, fileName, fileUrl })
     res.status(201).json({
       url: fileUrl,
@@ -330,7 +339,11 @@ router.post('/', requireAuth, async (req, res, next) => {
     }
 
     const fileName = String(body.fileName || '').trim().slice(0, 260)
-    const mimeType = String(body.mimeType || '').trim()
+    const mimeType = normalizeDocMime({
+      mimeType: String(body.mimeType || '').trim(),
+      fileName,
+      fileUrl,
+    })
     const fileType = normalizeFileType(body.fileType, { mimeType, fileName, fileUrl })
     const authorName = [req.user.nombre, req.user.apellido].filter(Boolean).join(' ') || req.user.usuario
 
@@ -384,30 +397,118 @@ router.post('/', requireAuth, async (req, res, next) => {
   }
 })
 
+function localDocumentsPath(fileUrl) {
+  const raw = String(fileUrl || '').split('?')[0].split('#')[0]
+  const m = raw.match(/\/uploads\/documents\/([^/]+)$/i)
+  if (!m) return null
+  const base = path.basename(m[1])
+  if (!base || base === '.' || base === '..') return null
+  return path.join(UPLOAD_DIR, base)
+}
+
+function contentDispositionHeader(kind, fileName) {
+  const raw = String(fileName || 'documento').slice(0, 200)
+  const safe = raw.replace(/[\r\n"\\]/g, '_').replace(/[^\x20-\x7E]/g, '_') || 'documento'
+  const encoded = encodeURIComponent(raw)
+  return `${kind}; filename="${safe}"; filename*=UTF-8''${encoded}`
+}
+
+async function loadAccessibleDoc(req) {
+  const doc = await DocItem.findOne({ _id: req.params.id, tenantId: req.tenant._id })
+  if (!doc || doc.status !== 'published' || !userMatchesAudience(req.user, doc.audience)) {
+    return { error: { status: 404, message: 'Documento no encontrado' } }
+  }
+  if (doc.requiresSignature) {
+    const signed = (doc.signatures || []).some((s) => String(s.userId) === String(req.user._id))
+    if (!signed) {
+      return { error: { status: 403, message: 'Debés firmar el documento antes de descargarlo' } }
+    }
+  }
+  return { doc }
+}
+
+/**
+ * Sirve el binario con MIME real (docx ≠ zip) y nombre de archivo correcto.
+ * Archivos locales: stream. Remotos: JSON con fileUrl para que el cliente abra/descargue.
+ */
+router.get('/:id/content', requireAuth, async (req, res, next) => {
+  try {
+    const { doc, error } = await loadAccessibleDoc(req)
+    if (error) return res.status(error.status).json({ error: error.message })
+
+    const fileName =
+      String(doc.fileName || '').trim() ||
+      path.basename(String(doc.fileUrl || '').split('?')[0]) ||
+      'documento'
+    const mimeType = normalizeDocMime({
+      mimeType: doc.mimeType,
+      fileName,
+      fileUrl: doc.fileUrl,
+    })
+    const disposition =
+      String(req.query.disposition || 'inline').toLowerCase() === 'attachment'
+        ? 'attachment'
+        : 'inline'
+
+    const localPath = localDocumentsPath(doc.fileUrl)
+    if (localPath && fs.existsSync(localPath)) {
+      res.setHeader('Content-Type', mimeType)
+      res.setHeader('Content-Disposition', contentDispositionHeader(disposition, fileName))
+      res.setHeader('Cache-Control', 'private, max-age=60')
+      return fs.createReadStream(localPath).pipe(res)
+    }
+
+    const resolved = resolveDocumentDownload(doc)
+    const fileUrl = resolved.fileUrl || doc.fileUrl
+    if (!fileUrl) return res.status(404).json({ error: 'Sin archivo' })
+    res.json({
+      external: true,
+      fileUrl,
+      fileName,
+      mimeType,
+      fileType: normalizeFileType(doc.fileType, { mimeType, fileName, fileUrl }),
+    })
+  } catch (e) {
+    next(e)
+  }
+})
+
 router.post('/:id/download', requireAuth, async (req, res, next) => {
   try {
-    const doc = await DocItem.findOne({ _id: req.params.id, tenantId: req.tenant._id })
-    if (!doc || doc.status !== 'published' || !userMatchesAudience(req.user, doc.audience)) {
-      return res.status(404).json({ error: 'Documento no encontrado' })
-    }
-    if (doc.requiresSignature) {
-      const signed = (doc.signatures || []).some((s) => String(s.userId) === String(req.user._id))
-      if (!signed) {
-        return res.status(403).json({ error: 'Debés firmar el documento antes de descargarlo' })
-      }
-    }
+    const { doc, error } = await loadAccessibleDoc(req)
+    if (error) return res.status(error.status).json({ error: error.message })
+
     doc.downloadCount = (doc.downloadCount || 0) + 1
     const log = Array.isArray(doc.downloads) ? doc.downloads : []
     log.push({ userId: req.user._id, at: new Date() })
     doc.downloads = log.slice(-200)
     await doc.save()
+    // Log escalable para reportes §29.11
+    DocumentDownload.create({
+      tenantId: req.tenant._id,
+      docId: doc._id,
+      userId: req.user._id,
+      titulo: doc.titulo || '',
+      fileType: doc.fileType || 'other',
+      result: 'ok',
+      channel: channelFromUa(req.headers['user-agent'] || ''),
+      ip: String(req.ip || req.headers['x-forwarded-for'] || '').slice(0, 80),
+    }).catch(() => {})
     const resolved = resolveDocumentDownload(doc)
+    const fileName = doc.fileName || ''
+    const mimeType = normalizeDocMime({
+      mimeType: doc.mimeType,
+      fileName,
+      fileUrl: doc.fileUrl,
+    })
     res.json({
       fileUrl: resolved.fileUrl || doc.fileUrl,
       downloadCount: doc.downloadCount,
       repository: resolved.repository,
-      fileType: doc.fileType || 'other',
-      fileName: doc.fileName || '',
+      fileType: normalizeFileType(doc.fileType, { mimeType, fileName, fileUrl: doc.fileUrl }),
+      fileName,
+      mimeType,
+      contentPath: `/documents/${doc._id}/content`,
     })
   } catch (e) {
     next(e)
@@ -440,6 +541,12 @@ router.post('/:id/sign', requireAuth, async (req, res, next) => {
       ip,
     })
     await doc.save()
+    scheduleAwardPoints({
+      tenant: req.tenant,
+      userId: req.user._id,
+      event: 'document_signed',
+      entityId: `${doc._id}:${doc.version || 1}`,
+    })
     res.status(201).json({
       ok: true,
       document: serializeDoc(doc.toObject(), req.user._id),

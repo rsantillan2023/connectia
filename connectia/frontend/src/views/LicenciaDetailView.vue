@@ -104,7 +104,7 @@ onMounted(load)
 .lic-back {
   border: 0;
   background: transparent;
-  color: #0f766e;
+  color: var(--brand-primary, #0f766e);
   padding: 0;
   margin-bottom: 0.75rem;
 }
@@ -152,7 +152,7 @@ onMounted(load)
   gap: 0.35rem;
 }
 .lic-adj-link {
-  color: #0f766e;
+  color: var(--brand-primary, #0f766e);
   font-size: 0.9rem;
 }
 .lic-ghost {

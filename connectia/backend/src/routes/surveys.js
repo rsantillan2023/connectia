@@ -6,6 +6,9 @@ import { audienceFilterForUser, userMatchesAudience, serializeAudience } from '.
 import { normalizeAnswerValue } from '../lib/surveyQuestions.js'
 import { markSurveyNotificationsRead } from '../services/notifySurvey.js'
 import { closeOnboardingMilestonesForSurvey } from '../services/onboardingSurveyHook.js'
+import { scheduleAwardPoints } from '../lib/pointsRules.js'
+import { serializeSurveyMedia, toPublicMediaUrl } from '../lib/mediaUrl.js'
+import { normalizeSurveyCategory, surveyCategoryLabel } from '../lib/surveyCategories.js'
 
 const router = Router()
 
@@ -16,7 +19,7 @@ function isSurveyOpen(s, now = new Date()) {
   return true
 }
 
-function serializeSurvey(s, { includeQuestions = true, answered = false } = {}) {
+function serializeSurvey(s, { includeQuestions = true, answered = false, includeAdminFields = false } = {}) {
   const questions = includeQuestions
     ? (s.questions || []).map((q) => ({
         id: q.id,
@@ -25,12 +28,18 @@ function serializeSurvey(s, { includeQuestions = true, answered = false } = {}) 
         required: q.required !== false,
         opciones: q.opciones || [],
         grupo: q.grupo || 'General',
+        imageUrl: toPublicMediaUrl(q.imageUrl || ''),
       }))
     : undefined
+  const media = serializeSurveyMedia(s)
   return {
     id: String(s._id),
     titulo: s.titulo,
     descripcion: s.descripcion || '',
+    ...(includeAdminFields ? { aiContext: s.aiContext || '' } : {}),
+    imageUrl: media.imageUrl,
+    imageUrls: media.imageUrls,
+    videoUrl: media.videoUrl,
     status: s.status,
     version: s.version || 1,
     audience: serializeAudience(s.audience),
@@ -44,6 +53,10 @@ function serializeSurvey(s, { includeQuestions = true, answered = false } = {}) 
     startsAt: s.startsAt,
     endsAt: s.endsAt,
     anonymous: Boolean(s.anonymous),
+    questionFlow: s.questionFlow === 'one_by_one' ? 'one_by_one' : 'all',
+    showProgress: s.showProgress !== false,
+    categoria: normalizeSurveyCategory(s.categoria) || '',
+    categoriaLabel: surveyCategoryLabel(s.categoria) || '',
     purpose: s.purpose || 'general',
     authorName: s.authorName || '',
     publishedAt: s.publishedAt,
@@ -94,12 +107,19 @@ router.get('/', requireAuth, async (req, res, next) => {
       userId: req.user._id,
       surveyId: { $in: ids },
     }).lean()
-    const answered = new Set(mine.map((r) => String(r.surveyId)))
+    const answeredAtBySurvey = new Map(
+      mine.map((r) => [String(r.surveyId), r.submittedAt || r.createdAt || null]),
+    )
 
     res.json({
-      items: items.map((s) =>
-        serializeSurvey(s, { includeQuestions: false, answered: answered.has(String(s._id)) }),
-      ),
+      items: items.map((s) => {
+        const sid = String(s._id)
+        const answered = answeredAtBySurvey.has(sid)
+        return {
+          ...serializeSurvey(s, { includeQuestions: false, answered }),
+          answeredAt: answered ? answeredAtBySurvey.get(sid) : null,
+        }
+      }),
     })
   } catch (e) {
     next(e)
@@ -159,6 +179,12 @@ router.post('/:id/respond', requireAuth, async (req, res, next) => {
     } catch (hookErr) {
       console.warn('[surveys] onboarding hook:', hookErr?.message || hookErr)
     }
+    scheduleAwardPoints({
+      tenant: req.tenant,
+      userId: req.user._id,
+      event: 'survey_completed',
+      entityId: s._id,
+    })
     res.status(201).json({ id: String(doc._id), submittedAt: doc.submittedAt })
   } catch (e) {
     if (e.code === 11000) return res.status(409).json({ error: 'Ya respondiste esta encuesta' })

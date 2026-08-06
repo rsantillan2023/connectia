@@ -61,24 +61,24 @@ const hasHierarchy = computed(() => props.items.some((a) => a.parentId))
 .org-empty {
   margin-top: 1rem;
   padding: 1.25rem;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--line);
   border-radius: 0.75rem;
-  background: #fff;
-  color: #64748b;
+  background: var(--panel);
+  color: var(--ink-soft);
   font-size: 0.875rem;
 }
 .org-chart-wrap {
   margin-top: 1rem;
   overflow-x: auto;
   padding: 1rem 0.5rem 1.5rem;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--line);
   border-radius: 0.75rem;
-  background: #fff;
+  background: var(--panel);
 }
 .org-hint {
   margin: 0 0.75rem 1rem;
   font-size: 0.8125rem;
-  color: #64748b;
+  color: var(--ink-soft);
   line-height: 1.4;
 }
 .org-chart {

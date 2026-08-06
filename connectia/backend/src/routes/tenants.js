@@ -27,10 +27,17 @@ import { DEFAULT_SEED_PASSWORD, buildTenantOnboardingSummary } from '../lib/gene
 import { researchCompanyForTenant } from '../services/companyResearchAi.js'
 import { seedGenericTenant } from '../scripts/seedGenericTenant.js'
 import { seedDirectoryForTenant } from '../lib/directorySeed.js'
+import {
+  DEFAULT_CAPS,
+  MODULE_ID_SET,
+  clampCapabilitiesToLicense,
+  mergeCapabilitiesPreservingExtras,
+  resolveLicensedCapabilities,
+  sanitizeModuleIds,
+} from '../constants/moduleCatalog.js'
+import { recordActivity, reqMeta } from '../lib/activityLog.js'
 
 const router = Router()
-
-const DEFAULT_CAPS = ['muro', 'solicitudes', 'encuestas', 'docs', 'hub', 'chat', 'menu.dynamic']
 
 function publicTenant(t) {
   return {
@@ -42,8 +49,19 @@ function publicTenant(t) {
     branding: serializeBranding(t.branding),
     themeMode: t.themeMode || 'system',
     uxShell: t.uxShell,
+    homeVariant: t.homeVariant === 'genz' ? 'genz' : 'classic',
+    uiLocale: t.uiLocale === 'es-CL' ? 'es-CL' : 'es-AR',
+    hasPointsApiKey: Boolean(t.pointsApiKey),
     loginMethods: t.loginMethods,
+    authConfig: {
+      allowedEmailDomains: t.authConfig?.allowedEmailDomains || [],
+      twoFactorRequired: Boolean(t.authConfig?.twoFactorRequired),
+      twoFactorMethods: t.authConfig?.twoFactorMethods || ['email', 'sms'],
+      ssoAutoProvision: Boolean(t.authConfig?.ssoAutoProvision),
+      hasLegacySecret: Boolean(t.authConfig?.legacySharedSecret),
+    },
     capabilities: t.capabilities,
+    licensedCapabilities: Array.isArray(t.licensedCapabilities) ? t.licensedCapabilities : [],
     timezone: t.timezone,
     menuVersion: t.menuVersion,
     peopleCare: normalizePeopleCareConfig(t.peopleCare),
@@ -66,15 +84,24 @@ async function seedTenantMenus(tenantId) {
     { key: 'hub', label: 'Enlaces', route: '/accesos', icon: 'grid', order: 50, channel: 'u' },
     { key: 'directorio', label: 'Directorio', route: '/directorio', icon: 'grid', order: 58, channel: 'u' },
     { key: 'beneficios', label: 'Beneficios', route: '/beneficios', icon: 'gift', order: 59, channel: 'u' },
+    {
+      key: 'beneficios.earn',
+      label: 'Cómo sumar puntos',
+      route: '/beneficios?tab=earn',
+      icon: 'sparkles',
+      order: 59.1,
+      channel: 'u',
+    },
     { key: 'admin.home', label: 'Dashboard', route: '/', icon: 'home', order: 10, channel: 'a' },
     { key: 'admin.tenants', label: 'Comunidad', route: '/comunidad', icon: 'building', order: 50, channel: 'a' },
     { key: 'admin.menu', label: 'Menú dinámico', route: '/menu', icon: 'menu', order: 55, channel: 'a' },
     { key: 'admin.pubs', label: 'Publicaciones', route: '/publicaciones', icon: 'megaphone', order: 40, channel: 'a' },
+    { key: 'admin.stories', label: 'Stories', route: '/stories', icon: 'sparkles', order: 40.5, channel: 'a' },
     { key: 'admin.engagement', label: 'Emociones', route: '/emociones', icon: 'heart', order: 41, channel: 'a' },
     { key: 'admin.surveys', label: 'Encuestas', route: '/encuestas', icon: 'clipboard', order: 45, channel: 'a' },
     { key: 'admin.docs', label: 'Documentos', route: '/documentos', icon: 'file', order: 46, channel: 'a' },
     { key: 'admin.directorio', label: 'Datos útiles', route: '/directorio', icon: 'grid', order: 46.2, channel: 'a' },
-    { key: 'admin.beneficios', label: 'Beneficios y billetera', route: '/beneficios', icon: 'gift', order: 46.3, channel: 'a' },
+    { key: 'admin.beneficios', label: 'Beneficios', route: '/beneficios', icon: 'gift', order: 46.3, channel: 'a' },
     { key: 'admin.hub', label: 'Enlaces', route: '/accesos', icon: 'grid', order: 47, channel: 'a' },
   ]
   for (const item of menuSeed) {
@@ -87,6 +114,18 @@ async function seedTenantMenus(tenantId) {
   await seedDirectoryForTenant(tenantId, { brandName: 'la empresa' })
   const { seedBenefitsForTenant } = await import('../lib/benefitsSeed.js')
   await seedBenefitsForTenant(tenantId, { brandName: 'la empresa' })
+  const { seedStoriesForTenant } = await import('../lib/storiesSeed.js')
+  await seedStoriesForTenant(tenantId, { brandName: 'la empresa', variant: 'default' })
+  const { Tenant } = await import('../models/Tenant.js')
+  const tenantDoc = await Tenant.findById(tenantId)
+  if (tenantDoc) {
+    const { seedServiciosForTenant } = await import('../lib/serviciosSeed.js')
+    await seedServiciosForTenant(tenantDoc, {
+      force: true,
+      brandName: tenantDoc.nombre || 'la empresa',
+      variant: 'default',
+    })
+  }
 }
 
 /** Comunidad del admin logueado (tenant admin; plataforma también puede leer la suya) */
@@ -210,11 +249,50 @@ router.patch('/me', requireAuth, requireCapability('admin.comunidad'), async (re
     if (Array.isArray(body.loginMethods)) {
       t.loginMethods = body.loginMethods.filter((m) => typeof m === 'string')
     }
+    if (body.authConfig && typeof body.authConfig === 'object') {
+      const cur = t.authConfig || {}
+      const next = body.authConfig
+      const domains = Array.isArray(next.allowedEmailDomains)
+        ? next.allowedEmailDomains
+            .map((d) => String(d).trim().toLowerCase().replace(/^@/, ''))
+            .filter(Boolean)
+        : cur.allowedEmailDomains || []
+      const methods = Array.isArray(next.twoFactorMethods)
+        ? next.twoFactorMethods.filter((m) => m === 'email' || m === 'sms')
+        : cur.twoFactorMethods || ['email', 'sms']
+      t.authConfig = {
+        allowedEmailDomains: domains,
+        twoFactorRequired:
+          typeof next.twoFactorRequired === 'boolean'
+            ? next.twoFactorRequired
+            : Boolean(cur.twoFactorRequired),
+        twoFactorMethods: methods.length ? methods : ['email'],
+        ssoAutoProvision:
+          typeof next.ssoAutoProvision === 'boolean'
+            ? next.ssoAutoProvision
+            : Boolean(cur.ssoAutoProvision),
+        legacySharedSecret:
+          typeof next.legacySharedSecret === 'string'
+            ? next.legacySharedSecret
+            : cur.legacySharedSecret || '',
+      }
+    }
     if (Array.isArray(body.capabilities) && !isPlatformUser(req.user, req.tenant)) {
-      t.capabilities = body.capabilities.filter((m) => typeof m === 'string')
+      const requested = body.capabilities.filter((m) => typeof m === 'string')
+      // Candado comercial (ola 35): no activar módulos no contratados.
+      t.capabilities = clampCapabilitiesToLicense(requested, t.licensedCapabilities)
     }
     if (body.uxShell && ['connectia', 'modern', 'legacy'].includes(body.uxShell)) {
       t.uxShell = body.uxShell
+    }
+    if (body.homeVariant && ['classic', 'genz'].includes(body.homeVariant)) {
+      t.homeVariant = body.homeVariant
+    }
+    if (body.uiLocale && ['es-AR', 'es-CL'].includes(body.uiLocale)) {
+      t.uiLocale = body.uiLocale
+    }
+    if (typeof body.pointsApiKey === 'string' && isPlatformUser(req.user, req.tenant)) {
+      t.pointsApiKey = body.pointsApiKey.trim().slice(0, 120)
     }
     if (body.themeMode && ['light', 'dark', 'system'].includes(body.themeMode)) {
       t.themeMode = body.themeMode
@@ -226,6 +304,12 @@ router.patch('/me', requireAuth, requireCapability('admin.comunidad'), async (re
       if (b.secondary) t.branding.secondary = b.secondary
       if (typeof b.logoUrl === 'string') t.branding.logoUrl = b.logoUrl
       if (typeof b.loginBgUrl === 'string') t.branding.loginBgUrl = b.loginBgUrl
+      if (b.pointsBtnDarkenPct !== undefined && b.pointsBtnDarkenPct !== null) {
+        const n = Number(b.pointsBtnDarkenPct)
+        if (Number.isFinite(n)) {
+          t.branding.pointsBtnDarkenPct = Math.min(80, Math.max(0, Math.round(n)))
+        }
+      }
       if (typeof b.splashTitle === 'string') t.branding.splashTitle = b.splashTitle
       if (typeof b.splashSubtitle === 'string') t.branding.splashSubtitle = b.splashSubtitle
       if (b.splashDurationSec !== undefined && b.splashDurationSec !== null) {
@@ -336,6 +420,7 @@ router.post('/', requireAuth, requirePlatformAdmin, async (req, res, next) => {
       nombre,
       allowDesktop,
       capabilities,
+      pack,
       loginMethods,
       skipAiResearch,
       websiteUrl,
@@ -355,6 +440,8 @@ router.post('/', requireAuth, requirePlatformAdmin, async (req, res, next) => {
     const exists = await Tenant.findOne({ empCodigo: code })
     if (exists) return res.status(409).json({ error: 'Código de empresa ya existe' })
 
+    const licensed = resolveLicensedCapabilities({ pack, capabilities })
+
     let research = { profile: null, usedAi: false, error: null, context: null }
     if (skipAiResearch !== true) {
       research = await researchCompanyForTenant({
@@ -373,13 +460,26 @@ router.post('/', requireAuth, requirePlatformAdmin, async (req, res, next) => {
       nombre: brandName,
       allowDesktop: allowDesktop !== false,
       loginMethods: Array.isArray(loginMethods) && loginMethods.length ? loginMethods : ['password', 'id'],
-      capabilities: Array.isArray(capabilities) && capabilities.length ? capabilities : DEFAULT_CAPS,
+      capabilities: licensed.capabilities.length ? licensed.capabilities : DEFAULT_CAPS,
+      licensedCapabilities: licensed.capabilities.length ? licensed.capabilities : DEFAULT_CAPS,
       branding: {
-        primary: '#0F766E',
-        secondary: '#115E59',
+        primary: '#8554C9',
+        secondary: '#6B3FA0',
         splashTitle: brandName,
         splashSubtitle: 'Tu comunidad Connectia',
       },
+    })
+
+    void recordActivity({
+      tenantId: t._id,
+      userId: req.user?._id,
+      action: 'admin.license_update',
+      meta: {
+        pack: licensed.pack,
+        licensedCapabilities: licensed.capabilities,
+        source: 'create',
+      },
+      ...reqMeta(req),
     })
 
     let seed = null
@@ -452,8 +552,60 @@ router.patch('/:id', requireAuth, requirePlatformAdmin, async (req, res, next) =
     if (typeof body.allowDesktop === 'boolean') t.allowDesktop = body.allowDesktop
     if (typeof body.activo === 'boolean') t.activo = body.activo
     if (typeof body.timezone === 'string') t.timezone = body.timezone
-    if (Array.isArray(body.capabilities)) t.capabilities = body.capabilities
     if (Array.isArray(body.loginMethods)) t.loginMethods = body.loginMethods
+
+    const licenseTouched =
+      body.pack != null ||
+      Array.isArray(body.licensedCapabilities) ||
+      Array.isArray(body.capabilities)
+    if (licenseTouched) {
+      const prevLicensed = [...(t.licensedCapabilities || [])]
+      let nextLicensed
+      if (body.pack != null || Array.isArray(body.licensedCapabilities)) {
+        const resolved = resolveLicensedCapabilities({
+          pack: body.pack,
+          capabilities: Array.isArray(body.licensedCapabilities)
+            ? body.licensedCapabilities
+            : body.capabilities,
+        })
+        nextLicensed = resolved.capabilities
+      } else if (Array.isArray(body.capabilities)) {
+        // Solo capabilities sin pack: no cambia lo contratado; solo lo activo (PLATFORM).
+        nextLicensed = null
+      }
+      if (nextLicensed) {
+        t.licensedCapabilities = nextLicensed
+        // Downgrade: apagar módulos del catálogo que ya no están contratados.
+        // Caps operativas fuera de MODULE_CATALOG (directorio, talento, …) se preservan.
+        const incoming = Array.isArray(body.capabilities) ? body.capabilities : t.capabilities
+        t.capabilities = clampCapabilitiesToLicense(
+          mergeCapabilitiesPreservingExtras(incoming, t.capabilities),
+          nextLicensed,
+        )
+        t.menuVersion = (t.menuVersion || 1) + 1
+        void recordActivity({
+          tenantId: t._id,
+          userId: req.user?._id,
+          action: 'admin.license_update',
+          meta: {
+            pack: body.pack || null,
+            before: prevLicensed,
+            after: nextLicensed,
+            source: 'platform_patch',
+          },
+          ...reqMeta(req),
+        })
+      } else if (Array.isArray(body.capabilities)) {
+        const raw = body.capabilities.filter((c) => typeof c === 'string')
+        const catalog = sanitizeModuleIds(raw)
+        const extras = raw.filter((c) => !MODULE_ID_SET.has(c))
+        t.capabilities = clampCapabilitiesToLicense(
+          [...catalog, ...extras],
+          t.licensedCapabilities,
+        )
+      }
+    }
+
     await t.save()
     res.json({ tenant: publicTenant(t) })
   } catch (e) {

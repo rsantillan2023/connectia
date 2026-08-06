@@ -20,9 +20,43 @@ import { recordActivity, reqMeta, serializeActivity } from '../lib/activityLog.j
 import { draftUserFromPrompt, userAiConfigured } from '../services/userAi.js'
 import { ADMIN_SCREEN_IDS } from '../constants/adminCapabilities.js'
 import { toPublicMediaUrl } from '../lib/mediaUrl.js'
+import { parseManagerId, wouldCreateManagerCycle } from '../lib/orgPeopleHierarchy.js'
 
 const router = Router()
 const ObjectId = mongoose.Types.ObjectId
+
+async function resolveManagerId(tenantId, raw, selfId = null) {
+  const managerId = parseManagerId(raw)
+  if (!managerId) return null
+  if (!ObjectId.isValid(managerId)) {
+    const err = new Error('managerId inválido')
+    err.status = 400
+    throw err
+  }
+  if (selfId && String(managerId) === String(selfId)) {
+    const err = new Error('Un usuario no puede reportar a sí mismo')
+    err.status = 400
+    throw err
+  }
+  const manager = await User.findOne({ _id: managerId, tenantId, activo: true }).select('_id').lean()
+  if (!manager) {
+    const err = new Error('Jefe / manager no encontrado en el tenant')
+    err.status = 400
+    throw err
+  }
+  if (selfId) {
+    const peers = await User.find({ tenantId }).select('_id managerId').lean()
+    const managerById = Object.fromEntries(
+      peers.map((p) => [String(p._id), p.managerId ? String(p.managerId) : null]),
+    )
+    if (wouldCreateManagerCycle(managerById, String(selfId), managerId)) {
+      const err = new Error('Esa línea de reporte formaría un ciclo')
+      err.status = 400
+      throw err
+    }
+  }
+  return manager._id
+}
 
 async function resolveUserOrg(tenantId, { areaId, groupIds }) {
   let nextArea = undefined
@@ -90,9 +124,13 @@ function serialize(u, extras = {}) {
     capabilities: u.capabilities || [],
     roleIds: (u.roleIds || []).map((id) => String(id)),
     areaId: u.areaId ? String(u.areaId) : null,
+    managerId: u.managerId ? String(u.managerId) : null,
     groupIds: (u.groupIds || []).map((id) => String(id)),
     activo: u.activo !== false,
     origen: u.origen || 'MANUAL',
+    twoFactorEnabled: Boolean(u.twoFactorEnabled),
+    twoFactorMethod: u.twoFactorMethod || 'email',
+    telefono: u.telefono || '',
     esEmpleado: extras.esEmpleado === true,
     legajoId: extras.legajoId || null,
     createdAt: u.createdAt,
@@ -117,6 +155,23 @@ function parseDateOnly(raw) {
     throw err
   }
   return d
+}
+
+/** Objeto { key: YYYY-MM-DD } → Map. Vacío = Map vacío. */
+function parseCustomDatesMap(raw) {
+  const next = new Map()
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return next
+  for (const [k, v] of Object.entries(raw)) {
+    const key = String(k || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_]+/g, '_')
+      .slice(0, 64)
+    if (!key) continue
+    const d = parseDateOnly(v)
+    if (d) next.set(key, d)
+  }
+  return next
 }
 
 function normalizeUsuario(raw) {
@@ -353,6 +408,8 @@ router.post('/', requireAuth, requireCapability('admin.usuarios'), async (req, r
       areaId: body.areaId,
       groupIds: body.groupIds,
     })
+    const nextManager =
+      body.managerId !== undefined ? await resolveManagerId(req.tenant._id, body.managerId, null) : null
     const nextRoleIds = await resolveRoleIds(req.tenant._id, body.roleIds)
     if (body.roleIds != null && !isFullAdmin(req.user)) {
       return res.status(403).json({ error: 'Solo un admin del tenant puede asignar roles nombrados' })
@@ -371,10 +428,12 @@ router.post('/', requireAuth, requireCapability('admin.usuarios'), async (req, r
       cargo: String(body.cargo || '').trim().slice(0, 120),
       fechaNacimiento: parseDateOnly(body.fechaNacimiento ?? null),
       fechaIngreso: parseDateOnly(body.fechaIngreso ?? null),
+      customDates: parseCustomDatesMap(body.customDates),
       roles,
       capabilities,
       roleIds: nextRoleIds === undefined ? [] : nextRoleIds,
       areaId: nextArea === undefined ? null : nextArea,
+      managerId: nextManager,
       groupIds: nextGroups === undefined ? [] : nextGroups,
       activo: body.activo !== false,
       origen: 'MANUAL',
@@ -440,19 +499,7 @@ router.patch('/:id', requireAuth, requireCapability('admin.usuarios'), async (re
     if (body.fechaNacimiento !== undefined) u.fechaNacimiento = parseDateOnly(body.fechaNacimiento)
     if (body.fechaIngreso !== undefined) u.fechaIngreso = parseDateOnly(body.fechaIngreso)
     if (body.customDates !== undefined) {
-      const next = new Map()
-      const raw = body.customDates && typeof body.customDates === 'object' ? body.customDates : {}
-      for (const [k, v] of Object.entries(raw)) {
-        const key = String(k || '')
-          .trim()
-          .toLowerCase()
-          .replace(/[^a-z0-9_]+/g, '_')
-          .slice(0, 64)
-        if (!key) continue
-        const d = parseDateOnly(v)
-        if (d) next.set(key, d)
-      }
-      u.customDates = next
+      u.customDates = parseCustomDatesMap(body.customDates)
     }
     if (body.extraFields !== undefined) {
       const defs = await ProfileFieldDef.find({ tenantId: req.tenant._id, activo: true })
@@ -475,6 +522,11 @@ router.patch('/:id', requireAuth, requireCapability('admin.usuarios'), async (re
         u.failedLoginAttempts = 0
       }
     }
+    if (typeof body.twoFactorEnabled === 'boolean') u.twoFactorEnabled = body.twoFactorEnabled
+    if (body.twoFactorMethod === 'email' || body.twoFactorMethod === 'sms') {
+      u.twoFactorMethod = body.twoFactorMethod
+    }
+    if (typeof body.telefono === 'string') u.telefono = body.telefono.trim().slice(0, 40)
     if (Array.isArray(body.capabilities)) u.capabilities = nextCaps
     if (body.roleIds !== undefined) {
       if (!isFullAdmin(req.user)) {
@@ -490,6 +542,10 @@ router.patch('/:id', requireAuth, requireCapability('admin.usuarios'), async (re
       })
       if (nextArea !== undefined) u.areaId = nextArea
       if (nextGroups !== undefined) u.groupIds = nextGroups
+    }
+
+    if (body.managerId !== undefined) {
+      u.managerId = await resolveManagerId(req.tenant._id, body.managerId, u._id)
     }
 
     if (body.password) {
@@ -553,6 +609,40 @@ router.delete(
         ...meta,
       })
       res.json({ ok: true, items: subs.map((s, i) => serializeDevice(s, i)) })
+    } catch (e) {
+      next(e)
+    }
+  },
+)
+
+/** Blanqueo total de dispositivos + sesiones (sin desactivar usuario) — §29.10 */
+router.post(
+  '/:id/devices/wipe',
+  requireAuth,
+  requireCapability('admin.usuarios'),
+  async (req, res, next) => {
+    try {
+      const motivo = String(req.body?.motivo || req.body?.reason || '').trim().slice(0, 300)
+      if (!motivo) return res.status(400).json({ error: 'motivo obligatorio' })
+      const u = await User.findOne({ _id: req.params.id, tenantId: req.tenant._id })
+      if (!u) return res.status(404).json({ error: 'Usuario no encontrado' })
+      const deviceCount = Array.isArray(u.pushSubscriptions) ? u.pushSubscriptions.length : 0
+      u.pushSubscriptions = []
+      u.refreshTokens = []
+      await u.save()
+      await recordActivity({
+        tenantId: req.tenant._id,
+        userId: u._id,
+        action: 'admin.device_wipe',
+        meta: {
+          by: String(req.user._id),
+          motivo,
+          devicesCleared: deviceCount,
+          sessionsCleared: true,
+        },
+        ...reqMeta(req),
+      })
+      res.json({ ok: true, devicesCleared: deviceCount })
     } catch (e) {
       next(e)
     }

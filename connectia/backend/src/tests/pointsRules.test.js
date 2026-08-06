@@ -22,12 +22,17 @@ describe('pointsRules helpers', () => {
     assert.equal(d.toISOString(), '2026-07-28T00:00:00.000Z')
   })
 
-  it('defaults cubren todos los eventos', () => {
-    assert.equal(DEFAULT_POINTS_RULES.length, POINTS_EVENTS.length)
-    for (const e of POINTS_EVENTS) {
-      assert.ok(POINTS_EVENT_LABELS[e])
-      assert.ok(DEFAULT_POINTS_RULES.some((r) => r.event === e && r.points > 0))
+  it('defaults cubren eventos de engagement (no external_credit)', () => {
+    const engagement = POINTS_EVENTS.filter((e) => e !== 'external_credit')
+    assert.equal(DEFAULT_POINTS_RULES.length, engagement.length)
+    for (const e of engagement) {
+      assert.ok(POINTS_EVENT_LABELS[e], `falta label para ${e}`)
+      assert.ok(DEFAULT_POINTS_RULES.some((r) => r.event === e && r.points > 0), `falta default para ${e}`)
     }
+    assert.ok(POINTS_EVENT_LABELS.external_credit)
+    assert.ok(POINTS_EVENT_LABELS.survey_completed)
+    assert.ok(POINTS_EVENT_LABELS.attendance_punch)
+    assert.ok(POINTS_EVENT_LABELS.course_completed)
   })
 
   it('serializePointsRule', () => {

@@ -58,6 +58,9 @@ export function matchRequestType(types, text) {
     if (/dato.?personal|direccion|telefono|domicilio/.test(t) && /dato|personal/.test(`${key} ${nombre}`)) {
       score += 4
     }
+    if (/carnet|credencial|turno\s+carnet/.test(t) && /carnet|credencial/.test(`${key} ${nombre}`)) {
+      score += 5
+    }
     if (score > bestScore) {
       bestScore = score
       best = tipo
@@ -251,7 +254,7 @@ export function buildRequestDraft({ types, text, prevPayload = {} }) {
   return {
     ready: true,
     stage: 'ready',
-    text: `Listo el borrador de solicitud:\n\n**Tipo:** ${tipo.nombre}\n**Título:** ${titulo}\n${resumenCampos ? `\n${resumenCampos}\n` : ''}\n¿Confirmás que la cree?`,
+    text: `Listo el borrador de solicitud:\n\n**Tipo:** ${tipo.nombre}\n**Título:** ${titulo}\n${resumenCampos ? `\n${resumenCampos}\n` : ''}\n¿Lo confirmo? Decime **sí** o **no** (también podés escribir «cancelar»).`,
     payload: {
       stage: 'ready',
       tipoId: String(tipo._id),

@@ -196,9 +196,9 @@ function onNotInterested() {
 
 <style scoped>
 .pcard {
-  background: var(--cx-surface, #fff);
+  background: var(--cx-surface);
   border-bottom: 1px solid var(--cx-border, rgba(15, 23, 42, 0.1));
-  color: var(--cx-text, #0f172a);
+  color: var(--cx-text, var(--ink));
 }
 .pcard.pinned {
   box-shadow: inset 3px 0 0 #d97706;
@@ -233,7 +233,7 @@ function onNotInterested() {
   font-size: 12px;
   font-weight: 700;
   color: #fff;
-  background: linear-gradient(135deg, var(--brand-primary, #0f766e), var(--brand-secondary, #115e59));
+  background: linear-gradient(135deg, var(--brand-primary), var(--brand-secondary, var(--brand-secondary)));
 }
 .author {
   margin: 0;
@@ -243,12 +243,12 @@ function onNotInterested() {
 .sub {
   margin: 2px 0 0;
   font-size: 11px;
-  color: var(--cx-muted, #64748b);
+  color: var(--cx-muted, var(--ink-soft));
 }
 .tipo {
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--brand-primary, #0f766e);
+  color: var(--brand-primary);
   font-weight: 700;
 }
 .tipo.light {
@@ -265,7 +265,7 @@ function onNotInterested() {
   width: 100%;
   border: 0;
   padding: 0;
-  background: var(--cx-surface-2, #f8fafc);
+  background: var(--cx-surface-2, var(--panel-2));
   position: relative;
   overflow: hidden;
   cursor: pointer;
@@ -331,13 +331,13 @@ function onNotInterested() {
   font-family: Fraunces, Georgia, serif;
   font-size: 1.15rem;
   line-height: 1.25;
-  color: var(--cx-text, #0f172a);
+  color: var(--cx-text, var(--ink));
 }
 .text {
   margin: 6px 0 0;
   font-size: 14px;
   line-height: 1.45;
-  color: var(--cx-muted, #64748b);
+  color: var(--cx-muted, var(--ink-soft));
   white-space: pre-wrap;
 }
 .text.clamp {
@@ -350,7 +350,7 @@ function onNotInterested() {
   margin-top: 4px;
   border: 0;
   background: transparent;
-  color: var(--brand-primary, #0f766e);
+  color: var(--brand-primary);
   font-size: 13px;
   font-weight: 700;
   padding: 0;

@@ -285,7 +285,79 @@
                     <small>Útil cuando no tienen mail corporativo (ej. personal de planta).</small>
                   </span>
                 </label>
+                <label class="check">
+                  <input v-model="loginMicrosoft" type="checkbox" />
+                  <span>
+                    <strong>SSO Microsoft (Entra ID)</strong>
+                    <small>Requiere LOGIN_ENTRA_* en el servidor.</small>
+                  </span>
+                </label>
+                <label class="check">
+                  <input v-model="loginGoogle" type="checkbox" />
+                  <span>
+                    <strong>SSO Google</strong>
+                    <small>Requiere LOGIN_GOOGLE_* en el servidor.</small>
+                  </span>
+                </label>
+                <label class="check">
+                  <input v-model="loginOkta" type="checkbox" />
+                  <span>
+                    <strong>SSO Okta / OIDC</strong>
+                    <small>Requiere LOGIN_OKTA_* en el servidor.</small>
+                  </span>
+                </label>
+                <label class="check">
+                  <input v-model="loginToken" type="checkbox" />
+                  <span>
+                    <strong>Login por token</strong>
+                    <small>Deep-link de un solo uso (?token=…).</small>
+                  </span>
+                </label>
+                <label class="check">
+                  <input v-model="loginLegacy" type="checkbox" />
+                  <span>
+                    <strong>Login legacy</strong>
+                    <small>JWT firmado por sistemas antiguos.</small>
+                  </span>
+                </label>
               </div>
+            </div>
+
+            <div class="field">
+              <label class="check solo">
+                <input v-model="twoFactorRequired" type="checkbox" />
+                <span>
+                  <strong>Exigir 2FA a todos</strong>
+                  <small>Código por email/SMS después de la contraseña o SSO.</small>
+                </span>
+              </label>
+            </div>
+            <div class="field">
+              <label class="check solo">
+                <input v-model="ssoAutoProvision" type="checkbox" />
+                <span>
+                  <strong>Auto-alta por SSO</strong>
+                  <small>Si el IdP autentica un email nuevo, crea el miembro automáticamente.</small>
+                </span>
+              </label>
+            </div>
+            <div class="field">
+              <div class="label-row">
+                <label>Dominios de email permitidos para SSO (uno por línea, vacío = todos)</label>
+                <button
+                  type="button"
+                  class="info-btn"
+                  aria-label="Cómo traer miembros de Google o Azure hoy"
+                  @click="openSectionInfo('miembros')"
+                >
+                  i
+                </button>
+              </div>
+              <textarea v-model="allowedEmailDomainsText" rows="3" class="input" placeholder="sooft.com.ar&#10;empresa.com" />
+              <p class="hint">
+                Tip: si tu comunidad es “todos los @sooft.com.ar”, poné ese dominio, activá SSO + auto-alta, y cargá el padrón en
+                <strong>Usuarios → Google / Entra</strong>. Tocá la <strong>i</strong> para el paso a paso.
+              </p>
             </div>
 
             <div class="field">
@@ -338,6 +410,24 @@
             </div>
 
             <div class="field">
+              <label for="homeVariant">Home de la app (U)</label>
+              <p class="hint">Clásica = muro actual. Moderna = home alternativa (20–30 años) sin tocar el muro.</p>
+              <select id="homeVariant" v-model="form.homeVariant" class="input">
+                <option value="classic">Clásica (muro)</option>
+                <option value="genz">Moderna / alternativa</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="uiLocale">Idioma / modismo de interfaz</label>
+              <p class="hint">es-CL aplica modismos chilenos en textos clave del shell (sin cambiar todo el producto).</p>
+              <select id="uiLocale" v-model="form.uiLocale" class="input">
+                <option value="es-AR">Español (Argentina)</option>
+                <option value="es-CL">Español (Chile · modismos)</option>
+              </select>
+            </div>
+
+            <div class="field">
               <span class="label-text">Paletas predefinidas</span>
               <p class="hint">Elegí un set listo. El principal + secundario forman el degradado de la marca en la app.</p>
 
@@ -375,7 +465,7 @@
                     v-model="form.branding.primary"
                     class="input mono"
                     maxlength="7"
-                    placeholder="#0F766E"
+                    placeholder="var(--brand-primary)"
                     @change="normalizeHex('primary')"
                   />
                 </div>
@@ -389,10 +479,49 @@
                     v-model="form.branding.secondary"
                     class="input mono"
                     maxlength="7"
-                    placeholder="#134E4A"
+                    placeholder="var(--brand-secondary)"
                     @change="normalizeHex('secondary')"
                   />
                 </div>
+              </div>
+            </div>
+
+            <div class="field">
+              <label for="pointsBtnDarkenPct">Oscuridad del botón «Hola» (muro)</label>
+              <p class="hint">
+                Respecto al color del header. 0% = mismo color; más alto = más oscuro. Valor actual de referencia: 22%.
+              </p>
+              <div class="color-line" style="align-items: center; gap: 12px">
+                <input
+                  id="pointsBtnDarkenPct"
+                  v-model.number="form.branding.pointsBtnDarkenPct"
+                  type="range"
+                  min="0"
+                  max="60"
+                  step="1"
+                  class="range"
+                  style="flex: 1"
+                />
+                <input
+                  v-model.number="form.branding.pointsBtnDarkenPct"
+                  type="number"
+                  min="0"
+                  max="60"
+                  class="input mono"
+                  style="width: 4.5rem"
+                />
+                <span class="hint" style="margin: 0">%</span>
+              </div>
+              <div
+                class="preset-live"
+                style="margin-top: 0.65rem"
+                :style="{
+                  background: `color-mix(in srgb, ${form.branding.primary || '#0f766e'} ${100 - Number(form.branding.pointsBtnDarkenPct || 0)}%, #000)`,
+                  color: '#fff',
+                }"
+              >
+                <span>Vista previa · Hola Martín</span>
+                <small>{{ Number(form.branding.pointsBtnDarkenPct) || 0 }}% más oscuro</small>
               </div>
             </div>
           </section>
@@ -518,7 +647,7 @@
                 <p class="hint">Vacío = usa el color principal / tema.</p>
                 <input
                   id="splashBgColor"
-                  :value="form.branding.splash.bgColor || '#0F766E'"
+                  :value="form.branding.splash.bgColor || 'var(--brand-primary)'"
                   type="color"
                   class="color"
                   @input="form.branding.splash.bgColor = $event.target.value"
@@ -530,7 +659,7 @@
                 <p class="hint">Vacío = color de marca / tema.</p>
                 <input
                   id="splashTextColor"
-                  :value="form.branding.splash.textColor || '#0F766E'"
+                  :value="form.branding.splash.textColor || 'var(--brand-primary)'"
                   type="color"
                   class="color"
                   @input="form.branding.splash.textColor = $event.target.value"
@@ -541,12 +670,15 @@
 
             <div class="field">
               <label for="splashBgImageUrl">Imagen de fondo del splash (URL)</label>
-              <p class="hint">Opcional. Se muestra con un velo oscuro para leer el texto.</p>
+              <p class="hint">
+                Opcional. Se muestra con un velo oscuro para leer el texto. Si está vacío, usa el
+                fondo de la pantalla de ingreso (Logo y fondo).
+              </p>
               <input
                 id="splashBgImageUrl"
                 v-model="form.branding.splash.bgImageUrl"
                 class="input"
-                placeholder="https://…"
+                placeholder="https://… (vacío = mismo que login)"
               />
             </div>
 
@@ -581,18 +713,37 @@
             </div>
             <p class="hint top">
               Activá los módulos de esta comunidad. Lo apagado no debería ofrecerse en el menú.
+              <span v-if="hasLicenseLock"> Solo podés activar lo contratado por la plataforma.</span>
             </p>
             <div class="caps-grid">
               <label
                 v-for="cap in capabilityOptions"
                 :key="cap.id"
                 class="cap-card"
-                :class="{ on: capsSelected.includes(cap.id) }"
+                :class="{
+                  on: capsSelected.includes(cap.id),
+                  locked: isCapLocked(cap.id),
+                }"
+                :title="isCapLocked(cap.id) ? 'No contratado — pedí upgrade a la plataforma' : ''"
               >
-                <input v-model="capsSelected" type="checkbox" :value="cap.id" class="cap-check" />
+                <input
+                  v-model="capsSelected"
+                  type="checkbox"
+                  :value="cap.id"
+                  class="cap-check"
+                  :disabled="isCapLocked(cap.id)"
+                />
                 <span class="cap-title">{{ cap.label }}</span>
                 <span class="cap-hint">{{ cap.hint }}</span>
-                <span class="cap-state">{{ capsSelected.includes(cap.id) ? 'Activo' : 'Apagado' }}</span>
+                <span class="cap-state">
+                  {{
+                    isCapLocked(cap.id)
+                      ? 'No contratado'
+                      : capsSelected.includes(cap.id)
+                        ? 'Activo'
+                        : 'Apagado'
+                  }}
+                </span>
               </label>
             </div>
 
@@ -652,6 +803,7 @@ import { useAuthStore } from '../stores/auth'
 import { useThemeStore } from '../stores/theme'
 import ScreenHelp from '../components/ScreenHelp.vue'
 import { resolveMediaUrl } from '../utils/media'
+import { MODULE_CATALOG } from '../utils/moduleCatalog.js'
 
 const sections = [
   { id: 'marca', label: 'Logo y fondo', hint: 'Login y encabezado' },
@@ -671,6 +823,7 @@ const SECTION_INFO = {
     points: [
       'El logo aparece en la pantalla de login y en el encabezado de la app.',
       'El fondo de ingreso es la imagen detrás del formulario de usuario/contraseña.',
+      'Ese mismo fondo se usa en el splash si no configurás una imagen propia en Splash.',
       'Podés subir un archivo (PNG, JPG, SVG, etc.) o pegar una URL.',
       'Si dejás el fondo vacío, la app usa un fondo suave por defecto.',
     ],
@@ -699,13 +852,28 @@ const SECTION_INFO = {
   },
   ingreso: {
     title: 'Ingreso a la app',
-    lead: 'Controla cómo y desde dónde pueden autenticarse los miembros.',
+    lead: 'Controla cómo y desde dónde pueden autenticarse los miembros. El login clásico sigue disponible; SSO y 2FA son complementarios.',
     points: [
-      'Usuario y contraseña: ingreso clásico con cuenta interna.',
+      'Usuario y contraseña: ingreso clásico con cuenta interna (como siempre).',
       'ID / legajo: útil cuando no hay mail corporativo (ej. planta).',
+      'SSO Microsoft / Google / Okta: entrar con la cuenta corporativa (requiere variables LOGIN_* en el servidor).',
+      '2FA: código extra por email o SMS si lo exigís a todos o por usuario.',
       'Permitir desktop: si lo apagás, en PC verán un aviso para usar el celular.',
+      'Dominios SSO + auto-alta: definen quién puede entrar y si se crea solo al primer login (no reemplazan el padrón).',
     ],
-    tip: 'Activá solo los métodos que realmente usan; así evitás confusión en el login.',
+    tip: 'Para armar el padrón desde Google o Azure, mirá la ayuda “i” junto a Dominios de email, o andá a Usuarios → Google / Entra.',
+  },
+  miembros: {
+    title: 'Cómo traer miembros hoy (sin desarrollo nuevo)',
+    lead: 'Hay dos pasos distintos: quién puede entrar (puerta) y quiénes están el padrón (lista de usuarios). Ambos ya existen.',
+    points: [
+      'Puerta (esta pantalla · Ingreso): activá SSO Google y/o Microsoft, escribí el dominio (ej. sooft.com.ar) y, si querés, “Auto-alta por SSO”. Así solo esos mails pueden autenticarse y, con auto-alta, se crean al primer ingreso.',
+      'Padrón (Admin → Usuarios → botón “Google / Entra”): sincronizá el directorio de Google Workspace o Microsoft Entra para precargar nombres y mails sin esperar el primer login. También podés Importar CSV/Excel.',
+      'Alta manual: Usuarios → “+ Usuario” para casos puntuales.',
+      'Qué aún no está: filtrar por un Google Group concreto (ej. solo el grupo “Connectia”). Hoy el IdP trae el dominio/Directory; el filtro por grupo es la Ola 38.',
+      'Credenciales: SSO usa LOGIN_GOOGLE_* / LOGIN_ENTRA_* (o ENTRA_*). El sync de directorio usa GOOGLE_WORKSPACE_* y ENTRA_* en el backend. Sin env, el sync acepta pegar una lista JSON.',
+    ],
+    tip: 'Receta Sooft: dominio sooft.com.ar + SSO Google + auto-alta + sync Directory una vez. Guardá cambios en Comunidad antes de probar el login.',
   },
   apariencia: {
     title: 'Apariencia',
@@ -725,6 +893,7 @@ const SECTION_INFO = {
       'Podés mostrarla antes del login, después del login, o en ambos momentos.',
       'Configurás duración, título, subtítulo, logo propio, colores e imagen de fondo.',
       'Si el logo del splash está vacío, usa el logo general de la comunidad.',
+      'Si la imagen de fondo del splash está vacía, usa el fondo de la pantalla de ingreso.',
       'Duración 0 desactiva el splash aunque los checks estén activos.',
     ],
     tip: 'Mantenele 1–3 segundos: alcanza para reforzar marca sin demorar el acceso.',
@@ -747,7 +916,7 @@ const colorPresetGroups = [
     id: 'marca',
     label: 'Marca clásica',
     items: [
-      { id: 'connectia', label: 'Connectia', primary: '#0F766E', secondary: '#134E4A' },
+      { id: 'connectia', label: 'Connectia', primary: 'var(--brand-primary)', secondary: 'var(--brand-secondary)' },
       { id: 'ocean', label: 'Océano', primary: '#0284C7', secondary: '#075985' },
       { id: 'ink', label: 'Tinta', primary: '#334155', secondary: '#0F172A' },
       { id: 'forest', label: 'Bosque', primary: '#15803D', secondary: '#14532D' },
@@ -766,7 +935,7 @@ const colorPresetGroups = [
       { id: 'ember', label: 'Brasas', primary: '#EF4444', secondary: '#F59E0B' },
       { id: 'nordic', label: 'Nórdico', primary: '#64748B', secondary: '#0EA5E9' },
       { id: 'grape', label: 'Uva', primary: '#7C3AED', secondary: '#DB2777' },
-      { id: 'moss', label: 'Musgo', primary: '#65A30D', secondary: '#0F766E' },
+      { id: 'moss', label: 'Musgo', primary: '#65A30D', secondary: 'var(--brand-primary)' },
     ],
   },
   {
@@ -789,28 +958,7 @@ const colorPresetGroups = [
   },
 ]
 
-const capabilityOptions = [
-  { id: 'muro', label: 'Muro', hint: 'Novedades y comunicados para los miembros.' },
-  { id: 'solicitudes', label: 'Solicitudes', hint: 'Pedidos y trámites con seguimiento.' },
-  { id: 'encuestas', label: 'Encuestas', hint: 'Cuestionarios e inspecciones.' },
-  { id: 'docs', label: 'Documentos', hint: 'Archivos y legajos personales.' },
-  { id: 'hub', label: 'Enlaces', hint: 'Atajos a sistemas de la empresa.' },
-  { id: 'chat', label: 'Chat', hint: 'Mensajería interna.' },
-  { id: 'menu.dynamic', label: 'Menú configurable', hint: 'Permite armar el menú desde esta admin.' },
-  { id: 'beneficios', label: 'Beneficios', hint: 'Catálogo de beneficios y recompensas.' },
-  {
-    id: 'beneficios.billetera',
-    label: 'Billetera / puntos',
-    hint: 'Saldo, canjes con puntos y transferencias internas.',
-  },
-  {
-    id: 'beneficios.partners',
-    label: 'Partners / enlaces externos',
-    hint: 'Links tipo portal de beneficios (sin hardcode de cliente).',
-  },
-  { id: 'licencias', label: 'Licencias / vacaciones', hint: 'Solicitudes y saldos según la legislación de la comunidad.' },
-  { id: 'ausentismos', label: 'Ausentismos', hint: 'Registro y aprobación de ausencias.' },
-]
+const capabilityOptions = MODULE_CATALOG
 
 const auth = useAuthStore()
 const theme = useThemeStore()
@@ -819,7 +967,16 @@ const activeSection = ref('marca')
 const sectionInfo = ref(null)
 const loginPassword = ref(true)
 const loginId = ref(false)
+const loginMicrosoft = ref(false)
+const loginGoogle = ref(false)
+const loginOkta = ref(false)
+const loginToken = ref(false)
+const loginLegacy = ref(false)
+const twoFactorRequired = ref(false)
+const ssoAutoProvision = ref(false)
+const allowedEmailDomainsText = ref('')
 const capsSelected = ref([])
+const licensedCapabilities = ref([])
 const peopleCareEnabled = ref(false)
 const peopleCareLabel = ref('Mi expediente')
 const legislacionPais = ref('AR')
@@ -828,6 +985,15 @@ const replaceLicenseTypes = ref(true)
 const saving = ref(false)
 const msg = ref('')
 const error = ref('')
+
+const hasLicenseLock = computed(
+  () => Array.isArray(licensedCapabilities.value) && licensedCapabilities.value.length > 0,
+)
+
+function isCapLocked(capId) {
+  if (!hasLicenseLock.value) return false
+  return !licensedCapabilities.value.includes(capId)
+}
 
 function memberAppBaseUrl() {
   const fromEnv = String(import.meta.env.VITE_APP_URL || '').trim().replace(/\/$/, '')
@@ -879,8 +1045,8 @@ const legislacionMarco = computed(() => {
 })
 
 const brandPreviewStyle = computed(() => {
-  const p = form.value?.branding?.primary || '#0F766E'
-  const s = form.value?.branding?.secondary || '#134E4A'
+  const p = form.value?.branding?.primary || 'var(--brand-primary)'
+  const s = form.value?.branding?.secondary || 'var(--brand-secondary)'
   return {
     background: `linear-gradient(135deg, ${p}, ${s})`,
   }
@@ -1024,11 +1190,18 @@ onMounted(async () => {
   form.value = {
     ...data.tenant,
     themeMode: data.tenant.themeMode || 'system',
+    uxShell: data.tenant.uxShell || 'connectia',
+    homeVariant: data.tenant.homeVariant === 'genz' ? 'genz' : 'classic',
+    uiLocale: data.tenant.uiLocale === 'es-CL' ? 'es-CL' : 'es-AR',
     branding: {
-      primary: data.tenant.branding?.primary || '#0F766E',
-      secondary: data.tenant.branding?.secondary || '#134E4A',
+      primary: data.tenant.branding?.primary || 'var(--brand-primary)',
+      secondary: data.tenant.branding?.secondary || 'var(--brand-secondary)',
       logoUrl: data.tenant.branding?.logoUrl || '',
       loginBgUrl: data.tenant.branding?.loginBgUrl || '',
+      pointsBtnDarkenPct:
+        data.tenant.branding?.pointsBtnDarkenPct == null
+          ? 22
+          : Number(data.tenant.branding.pointsBtnDarkenPct),
       splash: normalizeSplash(data.tenant.branding),
     },
   }
@@ -1038,7 +1211,19 @@ onMounted(async () => {
   const methods = data.tenant.loginMethods || []
   loginPassword.value = methods.includes('password') || methods.length === 0
   loginId.value = methods.includes('id')
+  loginMicrosoft.value = methods.includes('microsoft')
+  loginGoogle.value = methods.includes('google')
+  loginOkta.value = methods.includes('okta')
+  loginToken.value = methods.includes('token')
+  loginLegacy.value = methods.includes('legacy')
+  const ac = data.tenant.authConfig || {}
+  twoFactorRequired.value = Boolean(ac.twoFactorRequired)
+  ssoAutoProvision.value = Boolean(ac.ssoAutoProvision)
+  allowedEmailDomainsText.value = (ac.allowedEmailDomains || []).join('\n')
   capsSelected.value = (data.tenant.capabilities || []).filter((c) => knownCapIds.value.has(c))
+  licensedCapabilities.value = Array.isArray(data.tenant.licensedCapabilities)
+    ? data.tenant.licensedCapabilities
+    : []
   peopleCareEnabled.value = Boolean(data.tenant.peopleCare?.enabled)
   peopleCareLabel.value = data.tenant.peopleCare?.label || 'Mi expediente'
   legislacionPais.value = data.tenant.licenciasConfig?.pais === 'CL' ? 'CL' : 'AR'
@@ -1046,8 +1231,18 @@ onMounted(async () => {
   replaceLicenseTypes.value = true
 })
 
-watch([loginPassword, loginId], () => {
-  if (!loginPassword.value && !loginId.value) loginPassword.value = true
+watch([loginPassword, loginId, loginMicrosoft, loginGoogle, loginOkta, loginToken, loginLegacy], () => {
+  if (
+    !loginPassword.value &&
+    !loginId.value &&
+    !loginMicrosoft.value &&
+    !loginGoogle.value &&
+    !loginOkta.value &&
+    !loginToken.value &&
+    !loginLegacy.value
+  ) {
+    loginPassword.value = true
+  }
 })
 
 async function save() {
@@ -1058,6 +1253,11 @@ async function save() {
     const loginMethods = []
     if (loginPassword.value) loginMethods.push('password')
     if (loginId.value) loginMethods.push('id')
+    if (loginMicrosoft.value) loginMethods.push('microsoft')
+    if (loginGoogle.value) loginMethods.push('google')
+    if (loginOkta.value) loginMethods.push('okta')
+    if (loginToken.value) loginMethods.push('token')
+    if (loginLegacy.value) loginMethods.push('legacy')
 
     const existingExtra = (form.value.capabilities || []).filter((c) => !knownCapIds.value.has(c))
     const capabilities = [...new Set([...capsSelected.value, ...existingExtra])]
@@ -1067,9 +1267,20 @@ async function save() {
       allowDesktop: form.value.allowDesktop,
       timezone: form.value.timezone,
       uxShell: form.value.uxShell,
+      homeVariant: form.value.homeVariant,
+      uiLocale: form.value.uiLocale,
       themeMode: form.value.themeMode,
       branding: form.value.branding,
       loginMethods,
+      authConfig: {
+        twoFactorRequired: twoFactorRequired.value,
+        ssoAutoProvision: ssoAutoProvision.value,
+        allowedEmailDomains: allowedEmailDomainsText.value
+          .split(/[\n,;]+/)
+          .map((d) => d.trim())
+          .filter(Boolean),
+        twoFactorMethods: ['email', 'sms'],
+      },
       capabilities,
       peopleCare: {
         enabled: peopleCareEnabled.value,
@@ -1114,7 +1325,7 @@ async function save() {
 
 <style scoped>
 .com {
-  max-width: 1100px;
+  max-width: none;
   color: var(--cx-text);
 }
 .com-top {
@@ -1190,11 +1401,11 @@ async function save() {
   background: color-mix(in srgb, var(--cx-page) 70%, var(--cx-surface));
 }
 .index-item.on {
-  background: color-mix(in srgb, var(--brand-primary, #0f766e) 14%, transparent);
-  color: var(--brand-primary, #0f766e);
+  background: color-mix(in srgb, var(--brand-primary) 14%, transparent);
+  color: var(--brand-primary);
 }
 .index-item.external {
-  border: 1px dashed color-mix(in srgb, var(--brand-primary, #0f766e) 35%, var(--cx-border, #e2e8f0));
+  border: 1px dashed color-mix(in srgb, var(--brand-primary) 35%, var(--cx-border));
   margin-top: 4px;
 }
 .index-item.external .index-label::after {
@@ -1211,7 +1422,7 @@ async function save() {
   font-weight: 500;
 }
 .index-item.on .index-hint {
-  color: color-mix(in srgb, var(--brand-primary, #0f766e) 70%, var(--cx-muted));
+  color: color-mix(in srgb, var(--brand-primary) 70%, var(--cx-muted));
 }
 @media (max-width: 860px) {
   .index-item {
@@ -1262,15 +1473,15 @@ async function save() {
   flex-shrink: 0;
 }
 .info-btn:hover {
-  color: var(--brand-primary, #0f766e);
-  border-color: color-mix(in srgb, var(--brand-primary, #0f766e) 45%, var(--cx-border));
-  background: color-mix(in srgb, var(--brand-primary, #0f766e) 10%, transparent);
+  color: var(--brand-primary);
+  border-color: color-mix(in srgb, var(--brand-primary) 45%, var(--cx-border));
+  background: color-mix(in srgb, var(--brand-primary) 10%, transparent);
 }
 .info-modal {
   position: fixed;
   inset: 0;
   z-index: 80;
-  background: rgba(15, 23, 42, 0.45);
+  background: color-mix(in srgb, var(--ink) 45%, transparent);
   display: grid;
   place-items: center;
   padding: 20px;
@@ -1279,7 +1490,7 @@ async function save() {
   width: min(100%, 480px);
   max-height: min(84vh, 640px);
   overflow: auto;
-  background: var(--cx-surface, #fff);
+  background: var(--cx-surface);
   color: var(--cx-text);
   border-radius: 18px;
   border: 1px solid var(--cx-border);
@@ -1328,7 +1539,7 @@ async function save() {
   font-size: 13px;
   line-height: 1.45;
   color: var(--cx-muted);
-  background: color-mix(in srgb, var(--brand-primary, #0f766e) 8%, transparent);
+  background: color-mix(in srgb, var(--brand-primary) 8%, transparent);
   border-radius: 12px;
   padding: 10px 12px;
 }
@@ -1357,6 +1568,15 @@ label,
   font-size: 14px;
   font-weight: 700;
   color: var(--cx-text);
+}
+.label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.label-row label {
+  margin: 0;
 }
 .hint {
   margin: 0;
@@ -1457,19 +1677,19 @@ label,
   cursor: pointer;
   display: flex;
   align-items: flex-end;
-  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08);
+  box-shadow: inset 0 0 0 1px var(--sh);
 }
 .preset-swatch:hover {
   filter: brightness(1.03);
 }
 .preset-swatch.on {
-  border-color: #0f172a;
-  box-shadow: 0 0 0 2px color-mix(in srgb, #0f172a 18%, transparent);
+  border-color: var(--ink);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ink) 18%, transparent);
 }
 .preset-name {
   font-size: 11px;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--ink);
   line-height: 1.2;
   background: rgba(255, 255, 255, 0.72);
   backdrop-filter: blur(4px);
@@ -1545,13 +1765,13 @@ label,
   cursor: not-allowed;
 }
 .btn-ghost.danger {
-  color: #b91c1c;
-  border-color: color-mix(in srgb, #b91c1c 35%, var(--cx-border));
+  color: var(--bad);
+  border-color: color-mix(in srgb, var(--bad) 35%, var(--cx-border));
 }
 .field-err {
   margin: 0;
   font-size: 12.5px;
-  color: #b91c1c;
+  color: var(--bad);
 }
 .checks {
   display: grid;
@@ -1607,11 +1827,22 @@ label,
   transition: border-color 0.15s, background 0.15s;
 }
 .cap-card:hover {
-  border-color: color-mix(in srgb, var(--brand-primary, #0f766e) 40%, var(--cx-border));
+  border-color: color-mix(in srgb, var(--brand-primary) 40%, var(--cx-border));
 }
 .cap-card.on {
-  border-color: color-mix(in srgb, var(--brand-primary, #0f766e) 45%, var(--cx-border));
-  background: color-mix(in srgb, var(--brand-primary, #0f766e) 10%, transparent);
+  border-color: color-mix(in srgb, var(--brand-primary) 45%, var(--cx-border));
+  background: color-mix(in srgb, var(--brand-primary) 10%, transparent);
+}
+.cap-card.locked {
+  opacity: 0.55;
+  cursor: not-allowed;
+  background: color-mix(in srgb, var(--cx-page) 70%, var(--cx-surface));
+}
+.cap-card.locked:hover {
+  border-color: var(--cx-border);
+}
+.cap-card.locked .cap-state {
+  color: var(--warn);
 }
 .cap-check {
   position: absolute;
@@ -1636,11 +1867,11 @@ label,
   color: var(--cx-muted);
 }
 .cap-card.on .cap-state {
-  color: var(--brand-primary, #0f766e);
+  color: var(--brand-primary);
 }
 .save {
   border: 0;
-  background: #0f766e;
+  background: var(--brand-primary);
   color: #fff;
   border-radius: 12px;
   padding: 12px 18px;
@@ -1654,16 +1885,16 @@ label,
 }
 .ok {
   margin: 0 0 12px;
-  color: #0f766e;
-  background: color-mix(in srgb, #0f766e 12%, transparent);
+  color: var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary) 12%, transparent);
   border-radius: 12px;
   padding: 10px 12px;
   font-size: 13px;
 }
 .err {
   margin: 0 0 12px;
-  color: #b91c1c;
-  background: #fef2f2;
+  color: var(--bad);
+  background: var(--bad-bg);
   border-radius: 12px;
   padding: 10px 12px;
   font-size: 13px;

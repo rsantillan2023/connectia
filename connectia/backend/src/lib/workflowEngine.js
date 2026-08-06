@@ -1,6 +1,13 @@
 /** Helpers puros del motor de workflows (§41) — testeables sin Mongo. */
 
-export const TRIGGER_MODULES = ['solicitudes', 'documentos', 'licencias', 'ausentismos', 'generico']
+export const TRIGGER_MODULES = [
+  'solicitudes',
+  'documentos',
+  'licencias',
+  'ausentismos',
+  'servicios',
+  'generico',
+]
 export const APPROVER_TYPES = ['capability', 'role', 'area', 'users']
 export const INSTANCE_STATUSES = ['pendiente', 'en_curso', 'aprobado', 'rechazado', 'cancelado']
 
@@ -308,6 +315,7 @@ export function deepLinkForOrigin(origen) {
   if (mod === 'documentos') return `/docs`
   if (mod === 'licencias') return `/licencias/${id}`
   if (mod === 'ausentismos') return `/ausencias/${id}`
+  if (mod === 'servicios') return `/servicios`
   return '/aprobaciones'
 }
 
@@ -316,5 +324,6 @@ export function moduleLabel(module) {
   if (module === 'documentos') return 'Documentos'
   if (module === 'licencias') return 'Licencias'
   if (module === 'ausentismos') return 'Ausencias'
+  if (module === 'servicios') return 'Servicios'
   return 'General'
 }

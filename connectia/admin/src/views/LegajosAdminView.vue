@@ -1,20 +1,17 @@
 <template>
   <div>
-    <div class="flex items-center justify-between gap-4 flex-wrap">
-      <div>
-        <h1 class="text-2xl font-semibold">Legajos RRHH</h1>
-        <p class="text-sm text-slate-500 mt-1">
-          Expediente de empleados local en Connectia. Un miembro de la comunidad puede no ser empleado.
-        </p>
-        <ScreenHelp
-          purpose="ABM del legajo digital del colaborador: ficha, domicilios, familiares, obra social, bancarios, médica, contratos y carrera."
-          can-do="Crear legajo sin cuenta (ingreso pendiente) o vincularlo a un usuario existente. Baja lógica preserva historia."
-        />
-      </div>
-      <button class="rounded-lg bg-teal-700 text-white px-4 py-2 text-sm font-medium" @click="openNew">
-        + Legajo
-      </button>
-    </div>
+    <AdminPageHeader
+      title="Fichas de empleado"
+      subtitle="Acá está el legajo laboral. Miembro = puede entrar a la app. Empleado = tiene ficha de legajo (puede existir sin cuenta todavía)."
+    >
+      <template #actions>
+        <button class="btn-primary" @click="openNew">+ Legajo</button>
+      </template>
+    </AdminPageHeader>
+    <ScreenHelp
+      purpose="Alta y edición del legajo: datos personales, domicilios, familia, obra social, banco, médica, contratos y carrera."
+      can-do="Crear ficha mínima (nombre + legajo) y completar el resto después. Vincular o no a un usuario de la comunidad. Baja lógica sin borrar historia."
+    />
 
     <div class="mt-4 flex flex-wrap gap-2 items-center">
       <input
@@ -88,7 +85,7 @@
                 {{
                   draft.id
                     ? 'Revisá y actualizá la ficha del empleado.'
-                    : 'Empezá con IA (prompt, miembro o PDF) y después revisá cada pestaña.'
+                    : 'Empezá por Datos básicos (mínimo). La ayuda IA es opcional.'
                 }}
               </p>
             </div>
@@ -441,6 +438,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
 import api from '../services/api'
+import AdminPageHeader from '../components/AdminPageHeader.vue'
 import ScreenHelp from '../components/ScreenHelp.vue'
 
 const items = ref([])
@@ -468,8 +466,8 @@ const aiPlaceholder =
   'Ej: Alta de María López, DNI 30111222, CUIL 27-30111222-3, legajo 4521, cargo Analista RRHH, ingreso 2026-08-01, obra social OSDE 210, domicilio Av. Corrientes 1234 CABA, CBU 0110599520000001234567 Banco Nación.'
 
 const allTabs = [
-  { id: 'ia', label: 'IA' },
-  { id: 'ficha', label: 'Ficha' },
+  { id: 'ia', label: 'Ayuda IA (opcional)' },
+  { id: 'ficha', label: 'Datos básicos' },
   { id: 'domicilios', label: 'Domicilios' },
   { id: 'familiares', label: 'Familiares' },
   { id: 'obra', label: 'Obra social' },
@@ -804,7 +802,7 @@ onMounted(async () => {
   position: relative;
   width: min(720px, 100%);
   height: 100%;
-  background: #fff;
+  background: var(--panel);
   box-shadow: -8px 0 32px rgba(15, 23, 42, 0.12);
   display: flex;
   flex-direction: column;
@@ -812,14 +810,14 @@ onMounted(async () => {
 }
 .modal-head {
   padding: 1.25rem 1.5rem 0.75rem;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--line);
 }
 .modal-head h2 {
   font-size: 1.15rem;
   font-weight: 600;
 }
 .muted.small {
-  color: #64748b;
+  color: var(--ink-soft);
   font-size: 0.85rem;
   margin-top: 0.25rem;
 }
@@ -835,17 +833,17 @@ onMounted(async () => {
   gap: 0.35rem;
 }
 .tab {
-  border: 1px solid #e2e8f0;
-  background: #fff;
+  border: 1px solid var(--line);
+  background: var(--panel);
   border-radius: 999px;
   padding: 0.35rem 0.75rem;
   font-size: 0.8rem;
   cursor: pointer;
 }
 .tab.on {
-  background: #0f766e;
+  background: var(--brand-primary);
   color: #fff;
-  border-color: #0f766e;
+  border-color: var(--brand-primary);
 }
 .grid-2 {
   display: grid;
@@ -865,31 +863,31 @@ label {
   flex-direction: column;
   gap: 0.25rem;
   font-size: 0.8rem;
-  color: #475569;
+  color: var(--ink-soft);
 }
 .input {
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--line-2);
   border-radius: 0.5rem;
   padding: 0.45rem 0.65rem;
   font-size: 0.9rem;
-  color: #0f172a;
+  color: var(--ink);
 }
 .subcard {
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--line);
   border-radius: 0.75rem;
   padding: 0.75rem;
   margin-bottom: 0.5rem;
 }
 .btn-ghost {
-  border: 1px solid #cbd5e1;
-  background: #fff;
+  border: 1px solid var(--line-2);
+  background: var(--panel);
   border-radius: 0.5rem;
   padding: 0.4rem 0.75rem;
   font-size: 0.85rem;
   cursor: pointer;
 }
 .btn-primary {
-  background: #0f766e;
+  background: var(--brand-primary);
   color: #fff;
   border: 0;
   border-radius: 0.5rem;
@@ -905,7 +903,7 @@ label {
   justify-content: flex-end;
   gap: 0.5rem;
   padding-top: 0.5rem;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--line);
 }
 .mb {
   margin-bottom: 0.5rem;
@@ -934,10 +932,10 @@ label {
 .ai-notes {
   margin: 0;
   padding: 0.65rem 0.75rem;
-  background: #f0fdfa;
-  border: 1px solid #99f6e4;
+  background: color-mix(in srgb, var(--brand-primary) 8%, var(--panel));
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 28%, var(--panel));
   border-radius: 0.5rem;
   font-size: 0.85rem;
-  color: #115e59;
+  color: var(--brand-secondary);
 }
 </style>

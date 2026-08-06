@@ -31,13 +31,39 @@ const tenantSchema = new mongoose.Schema(
         showTitle: { type: Boolean, default: true },
         showSubtitle: { type: Boolean, default: true },
       },
+      /**
+       * Oscuridad del botón «Hola {nombre}» / puntos del muro vs color del header.
+       * 0 = mismo color que el header; 100 = negro. Default ~22.
+       */
+      pointsBtnDarkenPct: { type: Number, default: 22, min: 0, max: 80 },
     },
     /** light | dark | system — política de tema (§2 branding) */
     themeMode: { type: String, enum: ['light', 'dark', 'system'], default: 'system' },
     /** connectia | modern | legacy — ADR-GAPS (reemplaza YOMOB/SOOFIA) */
     uxShell: { type: String, enum: ['connectia', 'modern', 'legacy'], default: 'connectia' },
+    /**
+     * Home de la app U (Ola 36-h): classic = muro actual; genz = HomeAlt opt-in.
+     * No modifica MuroView; solo cambia la ruta de entrada.
+     */
+    homeVariant: { type: String, enum: ['classic', 'genz'], default: 'classic' },
+    /** Idioma / modismo de interfaz (Ola 36-o). es-AR default; es-CL = chileno. */
+    uiLocale: { type: String, enum: ['es-AR', 'es-CL'], default: 'es-AR' },
+    pointsApiKey: { type: String, default: '' },
     loginMethods: { type: [String], default: ['password'] },
+    /**
+     * Auth extendida §1: SSO dominios, 2FA obligatorio, secreto legacy.
+     * { allowedEmailDomains[], twoFactorRequired, twoFactorMethods[],
+     *   ssoAutoProvision, legacySharedSecret }
+     */
+    authConfig: { type: mongoose.Schema.Types.Mixed, default: undefined },
+    /** Módulos activos hoy (subset de lo contratado cuando hay candado). */
     capabilities: { type: [String], default: [] },
+    /**
+     * Ola 35: módulos contratados por PLATFORM (entitlements).
+     * Vacío = sin candado (tenants legacy / precandado).
+     * El admin de comunidad solo puede activar ids ⊆ licensedCapabilities.
+     */
+    licensedCapabilities: { type: [String], default: [] },
     timezone: { type: String, default: 'America/Argentina/Buenos_Aires' },
     /** Bump al mutar menú → clientes invalidan caché */
     menuVersion: { type: Number, default: 1 },
@@ -86,6 +112,17 @@ const tenantSchema = new mongoose.Schema(
      * Se normaliza con normalizeLicenciasConfig().
      */
     licenciasConfig: { type: mongoose.Schema.Types.Mixed, default: undefined },
+    /**
+     * Beneficios §18: nombres visibles de tipología por comunidad.
+     * { offerTypes: { informativo: { label, hint }, canjeable: …, … } }
+     */
+    benefitsConfig: { type: mongoose.Schema.Types.Mixed, default: undefined },
+    /**
+     * Encuestas: categorías editables + tipos de pregunta habilitados.
+     * Se normaliza con normalizeSurveysConfig().
+     * { categories: [{ id, label }], enabledQuestionTypes: string[] }
+     */
+    surveysConfig: { type: mongoose.Schema.Types.Mixed, default: undefined },
     /**
      * Resumen de onboarding / seed al alta (plataforma).
      * Guarda perfil IA, accesos demo y mensaje listo para enviar al cliente.

@@ -13,6 +13,12 @@ import {
   ENGAGEMENT_AI_MAX_POSTS,
 } from '../services/engagementAi.js'
 import { normalizeAudience, serializeAudience } from '../lib/audience.js'
+import {
+  normalizeSection,
+  notExpiredFilter,
+  parseOptionalDate,
+  pinnedUntilFromDuration,
+} from '../lib/postLifecycle.js'
 import { toPublicMediaUrl, resolvePostMediaFields, serializePostMedia } from '../lib/mediaUrl.js'
 import {
   normalizePostsConfig,
@@ -52,6 +58,10 @@ function serialize(p, postsConfig) {
     audioUrl: toPublicMediaUrl(p.audioUrl),
     layout: p.layout || presentation.layout,
     pinned: p.pinned,
+    pinnedUntil: p.pinnedUntil || null,
+    expiresAt: p.expiresAt || null,
+    section: p.section || '',
+    isKnowledge: Boolean(p.isKnowledge),
     priority: p.priority,
     notifyAudience: Boolean(p.notifyAudience),
     status: p.status,
@@ -478,6 +488,7 @@ router.get('/', requireAuth, requireCapability('admin.publicaciones'), async (re
     const origin = String(req.query.origin || '').trim()
     const risk = String(req.query.risk || '').trim()
     const q = String(req.query.q || '').trim()
+    const knowledge = String(req.query.isKnowledge || req.query.knowledge || '').trim().toLowerCase()
     const page = Math.max(1, Number(req.query.page) || 1)
     const size = Math.min(500, Math.max(1, Number(req.query.size) || 20))
     const fromDay = String(req.query.from || '').trim()
@@ -498,6 +509,11 @@ router.get('/', requireAuth, requireCapability('admin.publicaciones'), async (re
     }
     if (tipo && ['noticia', 'aviso', 'beneficio', 'evento', 'general'].includes(tipo)) filter.tipo = tipo
     if (origin === 'member' || origin === 'admin') filter.origin = origin
+    if (knowledge === 'true' || knowledge === '1' || knowledge === 'yes') {
+      filter.isKnowledge = true
+    } else if (knowledge === 'false' || knowledge === '0' || knowledge === 'no') {
+      filter.isKnowledge = { $ne: true }
+    }
     if (['low', 'medium', 'high'].includes(risk)) filter['moderationAi.risk'] = risk
     if (pinned === 'true') filter.pinned = true
     if (pinned === 'false') filter.pinned = false
@@ -601,6 +617,18 @@ router.post('/', requireAuth, requireCapability('admin.publicaciones'), async (r
     const audience = await resolveAudienceIds(req.tenant._id, body.audience)
     const display = normalizePostDisplay(body.display)
     const media = resolvePostMediaFields(body)
+    const pinned = Boolean(body.pinned)
+    let pinnedUntil = null
+    if (pinned) {
+      pinnedUntil =
+        parseOptionalDate(body.pinnedUntil) ||
+        pinnedUntilFromDuration({
+          hours: body.pinnedHours,
+          days: body.pinnedDays,
+          preset: body.pinnedPreset,
+        })
+    }
+    const expiresAt = parseOptionalDate(body.expiresAt)
     const p = await Post.create({
       tenantId: req.tenant._id,
       titulo: body.titulo.trim(),
@@ -610,7 +638,11 @@ router.post('/', requireAuth, requireCapability('admin.publicaciones'), async (r
       imageUrls: media.imageUrls,
       audioUrl: body.audioUrl || '',
       layout,
-      pinned: Boolean(body.pinned),
+      pinned,
+      pinnedUntil,
+      expiresAt,
+      section: normalizeSection(body.section),
+      isKnowledge: Boolean(body.isKnowledge),
       priority: Number(body.priority) || 0,
       notifyAudience: Boolean(body.notifyAudience),
       status,
@@ -749,7 +781,27 @@ router.patch('/:id', requireAuth, requireCapability('admin.publicaciones'), asyn
     }
     if (typeof body.audioUrl === 'string') p.audioUrl = body.audioUrl
     if (['vertical', 'horizontal', 'banner'].includes(body.layout)) p.layout = body.layout
-    if (typeof body.pinned === 'boolean') p.pinned = body.pinned
+    if (typeof body.pinned === 'boolean') {
+      p.pinned = body.pinned
+      if (!body.pinned) p.pinnedUntil = null
+    }
+    if (body.pinnedUntil !== undefined || body.pinnedPreset || body.pinnedHours != null || body.pinnedDays != null) {
+      if (p.pinned) {
+        p.pinnedUntil =
+          parseOptionalDate(body.pinnedUntil) ||
+          pinnedUntilFromDuration({
+            hours: body.pinnedHours,
+            days: body.pinnedDays,
+            preset: body.pinnedPreset,
+          }) ||
+          (body.pinnedUntil === null ? null : p.pinnedUntil)
+      } else {
+        p.pinnedUntil = null
+      }
+    }
+    if (body.expiresAt !== undefined) p.expiresAt = parseOptionalDate(body.expiresAt)
+    if (body.section !== undefined) p.section = normalizeSection(body.section)
+    if (typeof body.isKnowledge === 'boolean') p.isKnowledge = body.isKnowledge
     if (body.priority != null) p.priority = Number(body.priority) || 0
     if (typeof body.notifyAudience === 'boolean') p.notifyAudience = body.notifyAudience
     if (body.audience != null) p.audience = await resolveAudienceIds(req.tenant._id, body.audience)

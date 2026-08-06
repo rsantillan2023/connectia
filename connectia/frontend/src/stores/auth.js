@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import api from '../services/api'
 import { useThemeStore } from './theme'
+import { applyBrandingCssVars } from '../utils/applyBrandingCssVars'
 
 const REMEMBER_KEY = 'cx_remember'
 
@@ -49,7 +50,24 @@ export const useAuthStore = defineStore('auth', () => {
   hydrateFromSession()
 
   if (tenant.value) {
-    queueMicrotask(() => useThemeStore().initFromTenant(tenant.value))
+    queueMicrotask(() => {
+      useThemeStore().initFromTenant(tenant.value)
+      if (tenant.value?.branding) applyBrandingCssVars(tenant.value.branding)
+    })
+  }
+
+  function applySession(data, rememberMe = true) {
+    remember.value = rememberMe
+    accessToken.value = data.accessToken
+    refreshToken.value = data.refreshToken
+    user.value = data.user
+    tenant.value = data.tenant
+    if (tenant.value?.branding) {
+      applyBrandingCssVars(tenant.value.branding)
+    }
+    useThemeStore().initFromTenant(tenant.value)
+    persist()
+    return data
   }
 
   async function preLogin(empCodigo) {
@@ -57,20 +75,38 @@ export const useAuthStore = defineStore('auth', () => {
     return data
   }
 
+  async function resolveTenants(identifier) {
+    const { data } = await api.post('/auth/resolve-tenants', { identifier })
+    return data
+  }
+
   async function login({ empCodigo, usuario, password, mode = 'password', rememberMe = true }) {
     remember.value = rememberMe
     const { data } = await api.post('/auth/login', { empCodigo, usuario, password, mode })
-    accessToken.value = data.accessToken
-    refreshToken.value = data.refreshToken
-    user.value = data.user
-    tenant.value = data.tenant
-    if (tenant.value?.branding?.primary) {
-      document.documentElement.style.setProperty('--brand-primary', tenant.value.branding.primary)
-      document.documentElement.style.setProperty('--brand-secondary', tenant.value.branding.secondary)
-    }
-    useThemeStore().initFromTenant(tenant.value)
-    persist()
+    if (data.requires2fa) return data
+    return applySession(data, rememberMe)
+  }
+
+  async function verify2fa({ challengeToken, code, rememberMe = true }) {
+    const { data } = await api.post('/auth/2fa/verify', { challengeToken, code })
+    return applySession(data, rememberMe)
+  }
+
+  async function resend2fa(challengeToken) {
+    const { data } = await api.post('/auth/2fa/resend', { challengeToken })
     return data
+  }
+
+  async function tokenLogin(token, rememberMe = true) {
+    const { data } = await api.post('/auth/token-login', { token })
+    if (data.requires2fa) return data
+    return applySession(data, rememberMe)
+  }
+
+  async function legacyLogin({ empCodigo, token, rememberMe = true }) {
+    const { data } = await api.post('/auth/legacy-login', { empCodigo, token })
+    if (data.requires2fa) return data
+    return applySession(data, rememberMe)
   }
 
   async function refresh() {
@@ -82,6 +118,7 @@ export const useAuthStore = defineStore('auth', () => {
     accessToken.value = data.accessToken
     refreshToken.value = data.refreshToken
     if (data.user) user.value = { ...user.value, ...data.user }
+    if (data.tenant) tenant.value = data.tenant
     persist()
     return data
   }
@@ -133,12 +170,11 @@ export const useAuthStore = defineStore('auth', () => {
   function patchTenant(partial = {}) {
     if (!tenant.value) return
     tenant.value = { ...tenant.value, ...partial }
-    if (partial.branding?.primary) {
-      document.documentElement.style.setProperty('--brand-primary', partial.branding.primary)
-      document.documentElement.style.setProperty(
-        '--brand-secondary',
-        partial.branding.secondary || partial.branding.primary,
-      )
+    if (partial.branding) {
+      applyBrandingCssVars({
+        ...(tenant.value.branding || {}),
+        ...partial.branding,
+      })
     }
     persist()
   }
@@ -161,7 +197,13 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     needsTerms,
     preLogin,
+    resolveTenants,
     login,
+    verify2fa,
+    resend2fa,
+    tokenLogin,
+    legacyLogin,
+    applySession,
     refresh,
     logout,
     acceptTerms,

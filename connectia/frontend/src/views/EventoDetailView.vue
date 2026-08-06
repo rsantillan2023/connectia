@@ -12,7 +12,7 @@
 
       <div class="ed-body">
         <div class="ed-tags">
-          <span class="pill" :style="{ background: item.tipoColor || '#0f766e' }">{{ item.tipoLabel }}</span>
+          <span class="pill" :style="{ background: item.tipoColor || 'var(--brand-primary, #0f766e)' }">{{ item.tipoLabel }}</span>
           <span v-if="item.rsvp?.estado" class="pill soft">{{ rsvpLabel }}</span>
         </div>
 
@@ -183,7 +183,7 @@ onMounted(load)
 .ed-back {
   border: 0;
   background: transparent;
-  color: #0f766e;
+  color: var(--brand-primary, #0f766e);
   font: inherit;
   padding: 0;
   margin-bottom: 0.75rem;
@@ -216,7 +216,7 @@ onMounted(load)
 }
 .pill.soft {
   background: #ccfbf1;
-  color: #0f766e;
+  color: var(--brand-primary, #0f766e);
 }
 h1 {
   margin: 0 0 0.35rem;
@@ -232,7 +232,7 @@ h1 {
 .ed-link {
   display: inline-block;
   margin: 0.4rem 0;
-  color: #0f766e;
+  color: var(--brand-primary, #0f766e);
 }
 .ed-block {
   margin: 1rem 0;
@@ -256,7 +256,7 @@ h1 {
   margin-bottom: 0.75rem;
 }
 .ed-media-item {
-  color: #0f766e;
+  color: var(--brand-primary, #0f766e);
   font-size: 0.9rem;
 }
 .ed-cupo {
@@ -271,7 +271,7 @@ h1 {
 }
 .ed-cta {
   border: 0;
-  background: #0f766e;
+  background: var(--brand-primary, #0f766e);
   color: #fff;
   border-radius: 12px;
   padding: 0.75rem;
@@ -284,8 +284,8 @@ h1 {
 }
 .ed-cta.ghost {
   background: #fff;
-  color: #0f766e;
-  border: 1px solid #0f766e;
+  color: var(--brand-primary, #0f766e);
+  border: 1px solid var(--brand-primary, #0f766e);
 }
 .ed-cta.danger {
   color: #b91c1c;
@@ -300,7 +300,7 @@ h1 {
   color: #b91c1c;
 }
 .ed-ok {
-  color: #0f766e;
+  color: var(--brand-primary, #0f766e);
 }
 .ed-muted {
   color: #94a3b8;

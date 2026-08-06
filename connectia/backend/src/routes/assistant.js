@@ -8,6 +8,7 @@ import {
 } from '../services/assistantRuntime.js'
 import { assistantAiConfigured } from '../services/assistantAi.js'
 import { toolSearchKb } from '../lib/assistantTools.js'
+import { normalizeAssistantChannel } from '../lib/assistantAdminHints.js'
 
 const router = Router()
 
@@ -21,11 +22,13 @@ router.get('/status', requireAuth, (_req, res) => {
 
 router.get('/conversations', requireAuth, async (req, res, next) => {
   try {
+    const channel = normalizeAssistantChannel(req.query.channel)
     const items = await listAssistantConversations({
       tenantId: req.tenant._id,
       userId: req.user._id,
+      channel,
     })
-    res.json({ items, aiConfigured: assistantAiConfigured() })
+    res.json({ items, aiConfigured: assistantAiConfigured(), channel })
   } catch (e) {
     next(e)
   }
@@ -33,10 +36,12 @@ router.get('/conversations', requireAuth, async (req, res, next) => {
 
 router.get('/conversations/:id', requireAuth, async (req, res, next) => {
   try {
+    const channel = normalizeAssistantChannel(req.query.channel)
     const conv = await getAssistantConversation({
       tenantId: req.tenant._id,
       userId: req.user._id,
       conversationId: req.params.id,
+      channel,
     })
     if (!conv) return res.status(404).json({ error: 'Conversación no encontrada' })
     res.json({ conversation: conv })
@@ -49,11 +54,13 @@ router.post('/messages', requireAuth, async (req, res, next) => {
   try {
     const text = String(req.body?.text || req.body?.message || '').trim()
     const conversationId = req.body?.conversationId || null
+    const channel = normalizeAssistantChannel(req.body?.channel)
     const conversation = await handleAssistantMessage({
       tenant: req.tenant,
       user: req.user,
       text,
       conversationId,
+      channel,
     })
     res.json({ conversation })
   } catch (e) {

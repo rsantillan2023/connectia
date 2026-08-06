@@ -5,7 +5,7 @@
       <header class="mfp-topbar">
         <span class="mfp-icon" aria-hidden="true">☰</span>
         <div class="mfp-brand">
-          <p class="mfp-name">Connectia</p>
+          <p class="mfp-name">Connectyx</p>
           <p class="mfp-tenant">{{ tenantName }}</p>
         </div>
         <span class="mfp-icon" aria-hidden="true">⌕</span>
@@ -83,6 +83,7 @@
 import { computed } from 'vue'
 import PostCard from './PostCard.vue'
 import { useAuthStore } from '../stores/auth'
+import { communityAppPreviewStyle } from '../utils/communityAppPreviewTheme'
 
 defineProps({
   post: { type: Object, required: true },
@@ -101,13 +102,7 @@ const reactions = [
 
 const tenantName = computed(() => auth.tenant?.nombre || 'Comunidad')
 
-const brandStyle = computed(() => {
-  const b = auth.tenant?.branding || {}
-  return {
-    '--brand-primary': b.primary || 'var(--brand-primary)',
-    '--brand-secondary': b.secondary || '#115e59',
-  }
-})
+const brandStyle = computed(() => communityAppPreviewStyle(auth.tenant))
 </script>
 
 <style scoped>

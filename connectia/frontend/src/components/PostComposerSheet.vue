@@ -252,6 +252,7 @@ import PostMediaCarousel from './PostMediaCarousel.vue'
 
 const props = defineProps({
   requireApproval: { type: Boolean, default: true },
+  initialTipo: { type: String, default: '' },
 })
 
 const emit = defineEmits(['close', 'created'])
@@ -294,8 +295,10 @@ const audioUrl = ref('')
 const videoUrlDraft = ref('')
 const audioUrlDraft = ref('')
 const mediaType = ref('image')
-const tipo = ref('general')
-const layout = ref(DEFAULT_LAYOUT_BY_TIPO.general)
+const tipo = ref(
+  tipos.some((t) => t.id === props.initialTipo) ? props.initialTipo : 'general',
+)
+const layout = ref(DEFAULT_LAYOUT_BY_TIPO[tipo.value] || DEFAULT_LAYOUT_BY_TIPO.general)
 const busy = ref(false)
 const error = ref('')
 const previewOpen = ref(false)

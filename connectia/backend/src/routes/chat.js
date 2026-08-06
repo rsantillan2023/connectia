@@ -99,17 +99,20 @@ function otherParticipantIds(chat, meId) {
   return (chat.participantIds || []).map(String).filter((id) => id !== String(meId))
 }
 
-function serializeChat(chat, { meId, usersById = new Map(), user = null } = {}) {
+function serializeChat(chat, { meId, usersById = new Map(), user = null, unreadCount = 0 } = {}) {
   const others = otherParticipantIds(chat, meId).map((id) => usersById.get(id) || { id })
   let title = chat.title || ''
   if (chat.kind === 'direct') {
     title = others.map((u) => u.displayName || u.usuario || 'Usuario').join(', ') || 'Chat'
   }
   const allowReplies = chat.allowReplies !== false
+  const peer = others[0] || null
+  const unread = unreadForUser(chat, meId)
   return {
     id: String(chat._id),
     kind: chat.kind,
     title,
+    avatarUrl: peer?.avatarUrl || '',
     participants: (chat.participantIds || []).map((id) => {
       const u = usersById.get(String(id))
       return u || { id: String(id) }
@@ -117,7 +120,8 @@ function serializeChat(chat, { meId, usersById = new Map(), user = null } = {}) 
     lastMessageAt: chat.lastMessageAt,
     lastMessagePreview: chat.lastMessagePreview || '',
     lastMessageAuthorId: chat.lastMessageAuthorId ? String(chat.lastMessageAuthorId) : null,
-    unread: unreadForUser(chat, meId),
+    unread,
+    unreadCount: unread ? Math.max(1, Number(unreadCount) || 1) : 0,
     pinnedMessageIds: (chat.pinnedMessageIds || []).map(String),
     closedAt: chat.closedAt || null,
     createdByAdmin: Boolean(chat.createdByAdmin),
@@ -126,6 +130,31 @@ function serializeChat(chat, { meId, usersById = new Map(), user = null } = {}) 
     createdAt: chat.createdAt,
     updatedAt: chat.updatedAt,
   }
+}
+
+/** Conteos de mensajes no leídos (de otros) por chat, desde el último readAt del usuario. */
+async function unreadMessageCountsByChat(tenantId, chats, meId) {
+  const me = String(meId)
+  const or = []
+  for (const c of chats) {
+    if (!unreadForUser(c, meId)) continue
+    const entry = (c.readBy || []).find((r) => String(r.userId) === me)
+    const since = entry?.readAt ? new Date(entry.readAt) : new Date(0)
+    or.push({ chatId: c._id, createdAt: { $gt: since } })
+  }
+  if (!or.length) return new Map()
+  const rows = await ChatMessage.aggregate([
+    {
+      $match: {
+        tenantId,
+        deletedAt: null,
+        authorId: { $ne: meId },
+        $or: or,
+      },
+    },
+    { $group: { _id: '$chatId', n: { $sum: 1 } } },
+  ])
+  return new Map(rows.map((r) => [String(r._id), r.n]))
 }
 
 /** ¿Puede este usuario escribir? (allowReplies=false → solo admin del chat / gestoría) */
@@ -340,7 +369,15 @@ router.get('/', requireAuth, async (req, res, next) => {
 
     const allIds = chats.flatMap((c) => (c.participantIds || []).map(String))
     const usersById = await loadUsersMap(req.tenant._id, allIds)
-    let items = chats.map((c) => serializeChat(c, { meId: req.user._id, usersById, user: req.user }))
+    const unreadMap = await unreadMessageCountsByChat(req.tenant._id, chats, req.user._id)
+    let items = chats.map((c) =>
+      serializeChat(c, {
+        meId: req.user._id,
+        usersById,
+        user: req.user,
+        unreadCount: unreadMap.get(String(c._id)) || 0,
+      }),
+    )
     if (q) {
       items = items.filter(
         (c) =>

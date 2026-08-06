@@ -1,29 +1,17 @@
 <template>
   <div>
-    <div class="flex items-center justify-between gap-4 flex-wrap">
-      <div>
-        <h1 class="text-2xl font-semibold">Eventos</h1>
-        <p class="text-sm text-slate-500 mt-1">
-          Agenda corporativa, RSVP y reporte de confirmaciones. Timezone: {{ timezone }}
-        </p>
-        <ScreenHelp
-          purpose="ABM de eventos del tenant visibles en Agenda (app) con confirmación de asistencia."
-          can-do="Crear/editar/publicar eventos, segmentar audiencia, ver confirmados y enviar email."
-        />
-      </div>
-      <div class="flex gap-2 flex-wrap">
-        <button
-          type="button"
-          class="rounded-lg border border-teal-700 text-teal-800 px-4 py-2 text-sm font-medium bg-white"
-          @click="showAi = !showAi"
-        >
+    <AdminPageHeader title="Eventos" :subtitle="`Agenda corporativa, RSVP y reporte de confirmaciones. Timezone: ${timezone}`">
+      <template #actions>
+        <button type="button" class="btn-ghost" @click="showAi = !showAi">
           {{ showAi ? 'Ocultar IA' : 'Crear con IA' }}
         </button>
-        <button class="rounded-lg bg-teal-700 text-white px-4 py-2 text-sm font-medium" @click="openNew">
-          + Evento
-        </button>
-      </div>
-    </div>
+        <button class="btn-primary" @click="openNew">+ Evento</button>
+      </template>
+    </AdminPageHeader>
+    <ScreenHelp
+      purpose="ABM de eventos del tenant visibles en Agenda (app) con confirmación de asistencia."
+      can-do="Crear/editar/publicar eventos, segmentar audiencia, ver confirmados y enviar email."
+    />
 
     <section v-if="showAi" class="ai-panel mt-4">
       <h2 class="ai-title">IA — redactar o extraer evento</h2>
@@ -257,6 +245,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import api from '../services/api'
+import AdminPageHeader from '../components/AdminPageHeader.vue'
 import ScreenHelp from '../components/ScreenHelp.vue'
 
 const items = ref([])
@@ -593,7 +582,7 @@ onMounted(async () => {
   gap: 0.5rem;
 }
 .input {
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--line-2);
   border-radius: 0.5rem;
   padding: 0.45rem 0.65rem;
   font: inherit;
@@ -601,9 +590,9 @@ onMounted(async () => {
 }
 .table-wrap {
   overflow: auto;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--line);
   border-radius: 0.75rem;
-  background: #fff;
+  background: var(--panel);
 }
 .table {
   width: 100%;
@@ -614,11 +603,11 @@ onMounted(async () => {
 .table td {
   text-align: left;
   padding: 0.65rem 0.75rem;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid var(--panel-2);
 }
 .sub {
   font-size: 0.78rem;
-  color: #64748b;
+  color: var(--ink-soft);
 }
 .nowrap {
   white-space: nowrap;
@@ -627,18 +616,18 @@ onMounted(async () => {
   font-size: 0.72rem;
   padding: 0.15rem 0.45rem;
   border-radius: 999px;
-  background: #e2e8f0;
+  background: var(--line);
 }
 .badge.published {
-  background: #ccfbf1;
-  color: #0f766e;
+  background: color-mix(in srgb, var(--brand-primary) 14%, var(--panel));
+  color: var(--brand-primary);
 }
 .badge.draft {
-  background: #f1f5f9;
+  background: var(--panel-2);
 }
 .badge.cancelled {
-  background: #fee2e2;
-  color: #b91c1c;
+  background: var(--bad-bg);
+  color: var(--bad);
 }
 .actions {
   display: flex;
@@ -648,18 +637,18 @@ onMounted(async () => {
 .link {
   background: none;
   border: 0;
-  color: #0f766e;
+  color: var(--brand-primary);
   cursor: pointer;
   font: inherit;
   padding: 0;
 }
 .link.danger {
-  color: #b91c1c;
+  color: var(--bad);
 }
 .modal {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.45);
+  background: color-mix(in srgb, var(--ink) 45%, transparent);
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -668,7 +657,7 @@ onMounted(async () => {
   z-index: 50;
 }
 .panel {
-  background: #fff;
+  background: var(--panel);
   border-radius: 0.85rem;
   padding: 1.25rem;
   width: min(560px, 100%);
@@ -698,7 +687,7 @@ label {
   gap: 0.4rem;
 }
 .block {
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--line);
   padding-top: 0.75rem;
 }
 .audience-modes {
@@ -707,16 +696,16 @@ label {
   margin: 0.4rem 0;
 }
 .mode {
-  border: 1px solid #cbd5e1;
-  background: #fff;
+  border: 1px solid var(--line-2);
+  background: var(--panel);
   border-radius: 999px;
   padding: 0.3rem 0.7rem;
   font-size: 0.8rem;
   cursor: pointer;
 }
 .mode.on {
-  border-color: #0f766e;
-  background: #f0fdfa;
+  border-color: var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary) 8%, var(--panel));
 }
 .audience-picks {
   display: grid;
@@ -735,7 +724,7 @@ label {
   margin-top: 0.5rem;
 }
 .btn-primary {
-  background: #0f766e;
+  background: var(--brand-primary);
   color: #fff;
   border: 0;
   border-radius: 0.5rem;
@@ -744,27 +733,27 @@ label {
   cursor: pointer;
 }
 .btn-ghost {
-  background: #fff;
-  border: 1px solid #cbd5e1;
+  background: var(--panel);
+  border: 1px solid var(--line-2);
   border-radius: 0.5rem;
   padding: 0.5rem 0.9rem;
   cursor: pointer;
 }
 .err {
-  color: #b91c1c;
+  color: var(--bad);
   font-size: 0.85rem;
 }
 .ok {
-  color: #0f766e;
+  color: var(--brand-primary);
   font-size: 0.85rem;
 }
 .hint {
-  color: #64748b;
+  color: var(--ink-soft);
   font-size: 0.85rem;
 }
 .ai-panel {
-  border: 1px solid #99f6e4;
-  background: #f0fdfa;
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 28%, var(--panel));
+  background: color-mix(in srgb, var(--brand-primary) 8%, var(--panel));
   border-radius: 0.85rem;
   padding: 1rem;
 }
@@ -775,11 +764,11 @@ label {
 .ai-hint,
 .ai-warn {
   font-size: 0.85rem;
-  color: #475569;
+  color: var(--ink-soft);
   margin: 0 0 0.5rem;
 }
 .ai-warn {
-  color: #b45309;
+  color: var(--warn);
 }
 .ai-label {
   display: grid;

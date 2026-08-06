@@ -73,20 +73,19 @@ export const useAuthStore = defineStore('auth', () => {
     const token = accessToken.value
     const refresh = refreshToken.value
     clearSessionLocal()
-    if (token) {
-      try {
-        await api.post(
-          '/auth/logout',
-          { scope, refreshToken: refresh },
-          {
-            headers: { Authorization: `Bearer ${token}` },
-            timeout: 2500,
-            __skipRefresh: true,
-          },
-        )
-      } catch {
-        /* ignorar */
-      }
+    if (!token) return
+    try {
+      await api.post(
+        '/auth/logout',
+        { scope, refreshToken: refresh },
+        {
+          headers: { Authorization: `Bearer ${token}` },
+          timeout: 1500,
+          __skipRefresh: true,
+        },
+      )
+    } catch {
+      /* ignorar: la sesión local ya se limpió */
     }
   }
 

@@ -120,7 +120,7 @@ export function buildChartSpecs(results = {}) {
         ? `${answered} de ${invited} · ${part.rate != null ? `${part.rate}%` : ''}`
         : `${answered} respuestas`,
       bars: [
-        { label: 'Respondieron', value: answered, color: '#0F766E' },
+        { label: 'Respondieron', value: answered, color: '#8554C9' },
         { label: 'Pendientes', value: pending, color: '#94A3B8' },
       ],
     })
@@ -137,7 +137,7 @@ export function buildChartSpecs(results = {}) {
         id: q.questionId,
         title: q.texto,
         subtitle: `Promedio ${Number(q.average).toFixed(2)} · n=${q.count}${q.grupo ? ` · ${q.grupo}` : ''}`,
-        bars: [{ label: 'Promedio', value: Number(q.average), color: '#0F766E' }],
+        bars: [{ label: 'Promedio', value: Number(q.average), color: '#8554C9' }],
         valueMax: max,
       })
       continue
@@ -149,7 +149,7 @@ export function buildChartSpecs(results = {}) {
         title: q.texto,
         subtitle: `n=${q.count}${q.grupo ? ` · ${q.grupo}` : ''}`,
         bars: [
-          { label: 'Sí', value: Number(q.yes || 0), color: '#0F766E' },
+          { label: 'Sí', value: Number(q.yes || 0), color: '#8554C9' },
           { label: 'No', value: Number(q.no || 0), color: '#F97316' },
         ],
       })
@@ -158,7 +158,7 @@ export function buildChartSpecs(results = {}) {
 
     if (q.options && typeof q.options === 'object') {
       const entries = Object.entries(q.options)
-        .map(([label, value]) => ({ label: String(label), value: Number(value) || 0, color: '#0F766E' }))
+        .map(([label, value]) => ({ label: String(label), value: Number(value) || 0, color: '#8554C9' }))
         .sort((a, b) => b.value - a.value)
         .slice(0, 8)
       if (!entries.length) continue
@@ -168,7 +168,7 @@ export function buildChartSpecs(results = {}) {
         subtitle: `n=${q.count}${q.grupo ? ` · ${q.grupo}` : ''}`,
         bars: entries.map((e, i) => ({
           ...e,
-          color: ['#0F766E', '#14B8A6', '#0369A1', '#7C3AED', '#DB2777', '#EA580C', '#65A30D', '#475569'][
+          color: ['#8554C9', '#A87DDE', '#0369A1', '#7C3AED', '#DB2777', '#EA580C', '#65A30D', '#475569'][
             i % 8
           ],
         })),
@@ -224,7 +224,7 @@ export function renderBarChartPng(spec, { width = 900, height } = {}) {
     ctx.fillText(lab, padLeft, y + 18)
 
     const bw = Math.max(2, (b.value / maxVal) * chartW)
-    ctx.fillStyle = b.color || '#0F766E'
+    ctx.fillStyle = b.color || '#8554C9'
     roundRect(ctx, chartX, y + 4, bw, 20, 6)
     ctx.fill()
 

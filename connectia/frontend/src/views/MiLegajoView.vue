@@ -3,7 +3,10 @@
     <header class="legajo-head">
       <div>
         <h1>{{ peopleCare?.label || 'Mi legajo' }}</h1>
-        <p class="legajo-sub">Tu expediente de empleado en la empresa</p>
+        <p class="legajo-sub">
+          Tu ficha de empleado en la empresa.
+          <span class="legajo-vs">Tu cuenta de la app se edita en <router-link to="/perfil">Mi perfil</router-link>.</span>
+        </p>
       </div>
       <button
         v-if="peopleCare?.hasLegajo && peopleCare?.canSelfEdit"
@@ -11,7 +14,7 @@
         class="btn"
         @click="toggleEdit"
       >
-        {{ editing ? 'Cancelar' : 'Editar mis datos' }}
+        {{ editing ? 'Cancelar' : 'Actualizar mis datos' }}
       </button>
     </header>
 
@@ -21,9 +24,13 @@
 
     <template v-else-if="peopleCare?.hasLegajo && peopleCare.data?.colaborador">
       <form v-if="editing" class="card" @submit.prevent="save">
-        <h3>Datos que podés actualizar</h3>
-        <p class="muted">DNI, CUIL, cargo, banco y contratos los gestiona RRHH.</p>
-        <div class="grid-form">
+        <h3>Datos que vos podés actualizar</h3>
+        <p class="muted">
+          Teléfono, domicilio, emergencia y skills. DNI, CUIL, cargo, banco y contratos los carga solo RRHH.
+        </p>
+        <details open class="edit-block">
+          <summary>Contacto y datos personales</summary>
+          <div class="grid-form">
           <label>
             Teléfono
             <input v-model="form.telefono" class="input" />
@@ -50,8 +57,10 @@
             </select>
           </label>
         </div>
+        </details>
 
-        <h3 class="subh">Domicilio principal</h3>
+        <details class="edit-block">
+          <summary>Domicilio principal</summary>
         <div class="grid-form">
           <label>
             Tipo
@@ -72,16 +81,20 @@
           </label>
           <label>CP <input v-model="form.domicilio.cp" class="input" /></label>
         </div>
+        </details>
 
-        <h3 class="subh">Contacto de emergencia</h3>
+        <details class="edit-block">
+          <summary>Contacto de emergencia</summary>
         <div class="grid-form">
           <label>Nombre <input v-model="form.fichaMedica.contactoEmergenciaNombre" class="input" /></label>
           <label>Teléfono <input v-model="form.fichaMedica.contactoEmergenciaTel" class="input" /></label>
           <label>Grupo sanguíneo <input v-model="form.fichaMedica.grupoSanguineo" class="input" /></label>
           <label>Alergias <input v-model="form.fichaMedica.alergias" class="input" /></label>
         </div>
+        </details>
 
-        <h3 class="subh">Skills</h3>
+        <details class="edit-block">
+          <summary>Skills</summary>
         <div v-for="(s, i) in form.skills" :key="i" class="skill-row">
           <input v-model="s.nombre" class="input" placeholder="Skill" />
           <select v-model="s.nivel" class="input">
@@ -91,6 +104,7 @@
           <button type="button" class="btn ghost" @click="form.skills.splice(i, 1)">Quitar</button>
         </div>
         <button type="button" class="btn ghost" @click="form.skills.push({ nombre: '', nivel: '' })">+ Skill</button>
+        </details>
 
         <div class="actions">
           <button type="button" class="btn ghost" @click="toggleEdit">Cancelar</button>
@@ -202,13 +216,12 @@
     </template>
 
     <section v-else class="card empty">
-      <h2>Sin legajo</h2>
+      <h2>Todavía no tenés ficha de empleado</h2>
       <p>
-        {{
-          peopleCare?.mensaje ||
-          'Sos miembro de la comunidad, pero no figurás como empleado con legajo.'
-        }}
+        Podés usar la app como miembro de la comunidad. La ficha de legajo (datos laborales, banco, obra social)
+        la crea RRHH cuando corresponda.
       </p>
+      <p class="muted">Mientras tanto, tu foto, nombre y contraseña están en Mi perfil.</p>
       <router-link class="link" to="/perfil">Ir a Mi perfil</router-link>
     </section>
   </div>
@@ -364,6 +377,21 @@ onMounted(load)
   color: var(--cx-muted, #64748b);
   font-size: 0.9rem;
 }
+.legajo-vs {
+  display: block;
+  margin-top: 4px;
+}
+.edit-block {
+  margin: 12px 0;
+  border: 1px solid var(--cx-border, #e2e8f0);
+  border-radius: 10px;
+  padding: 8px 12px 12px;
+}
+.edit-block summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 4px 0;
+}
 .card {
   background: var(--cx-surface, #fff);
   border: 1px solid var(--cx-border, #e2e8f0);
@@ -426,7 +454,7 @@ onMounted(load)
   border: none;
   border-radius: 8px;
   padding: 0.45rem 0.85rem;
-  background: #0f172a;
+  background: var(--brand-primary, #0f766e);
   color: #fff;
   font-weight: 650;
   cursor: pointer;

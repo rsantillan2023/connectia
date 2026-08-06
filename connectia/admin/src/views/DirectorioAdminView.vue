@@ -1,29 +1,20 @@
 <template>
   <div>
-    <div class="flex items-center justify-between gap-4 flex-wrap">
-      <div>
-        <h1 class="text-2xl font-semibold">Datos útiles</h1>
-        <p class="text-sm text-slate-500 mt-1">
-          Contactos, internos, sedes y datos útiles que la gente usa todos los días.
-        </p>
-        <ScreenHelp
-          purpose="ABM del directorio corporativo visible en la app (llamar, WhatsApp, email, mapa, favoritos)."
-          can-do="Crear personas, sedes, servicios y emergencias; pedir a la IA que busque en la web y cargue fichas; segmentar y desactivar."
-        />
-      </div>
-      <div class="flex gap-2 flex-wrap">
-        <button
-          type="button"
-          class="rounded-lg border border-teal-700 text-teal-800 px-4 py-2 text-sm font-medium bg-white"
-          @click="showAi = !showAi"
-        >
+    <AdminPageHeader
+      title="Datos útiles"
+      subtitle="Contactos, internos, sedes y datos útiles que la gente usa todos los días."
+    >
+      <template #actions>
+        <button type="button" class="btn-ghost" @click="showAi = !showAi">
           {{ showAi ? 'Ocultar IA' : 'Buscar con IA' }}
         </button>
-        <button class="rounded-lg bg-teal-700 text-white px-4 py-2 text-sm font-medium" @click="openNew">
-          + Contacto
-        </button>
-      </div>
-    </div>
+        <button class="btn-primary" @click="openNew">+ Contacto</button>
+      </template>
+    </AdminPageHeader>
+    <ScreenHelp
+      purpose="ABM del directorio corporativo visible en la app (llamar, WhatsApp, email, mapa, favoritos)."
+      can-do="Crear personas, sedes, servicios y emergencias; pedir a la IA que busque en la web y cargue fichas; segmentar y desactivar."
+    />
 
     <section v-if="showAi" class="ai-panel mt-4">
       <h2 class="ai-title">IA — buscar en la red y cargar al directorio</h2>
@@ -124,7 +115,7 @@
         <tbody>
           <tr v-for="row in items" :key="row.id" class="border-t">
             <td class="p-3">
-              <div class="thumb" :style="{ background: row.color || '#0f766e' }">
+              <div class="thumb" :style="{ background: row.color || 'var(--brand-primary)' }">
                 <img v-if="row.imageUrl" :src="row.imageUrl" alt="" @error="($e) => ($e.target.style.display = 'none')" />
                 <span v-else>{{ (row.nombre || '?').slice(0, 1) }}</span>
               </div>
@@ -226,6 +217,7 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import api from '../services/api'
+import AdminPageHeader from '../components/AdminPageHeader.vue'
 import ScreenHelp from '../components/ScreenHelp.vue'
 
 const items = ref([])
@@ -427,8 +419,8 @@ onMounted(async () => {
 
 <style scoped>
 .ai-panel {
-  background: #f0fdfa;
-  border: 1px solid #99f6e4;
+  background: color-mix(in srgb, var(--brand-primary) 8%, var(--panel));
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 28%, var(--panel));
   border-radius: 0.75rem;
   padding: 1rem 1.1rem;
   display: flex;
@@ -439,24 +431,24 @@ onMounted(async () => {
   margin: 0;
   font-size: 1rem;
   font-weight: 600;
-  color: #115e59;
+  color: var(--brand-secondary);
 }
 .ai-hint {
   margin: 0;
   font-size: 0.85rem;
-  color: #475569;
+  color: var(--ink-soft);
 }
 .ai-warn {
   margin: 0;
   font-size: 0.8rem;
-  color: #b45309;
+  color: var(--warn);
 }
 .ai-label {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
   font-size: 0.8rem;
-  color: #475569;
+  color: var(--ink-soft);
 }
 .ai-row {
   display: flex;
@@ -474,7 +466,7 @@ onMounted(async () => {
 .ai-notes {
   margin: 0;
   font-size: 0.85rem;
-  color: #0f766e;
+  color: var(--brand-primary);
 }
 .ai-sources {
   margin: 0;
@@ -482,7 +474,7 @@ onMounted(async () => {
   font-size: 0.8rem;
 }
 .ai-sources a {
-  color: #0f766e;
+  color: var(--brand-primary);
 }
 .ai-drafts {
   display: flex;
@@ -491,8 +483,8 @@ onMounted(async () => {
   align-items: center;
 }
 .draft-chip {
-  border: 1px solid #5eead4;
-  background: #fff;
+  border: 1px solid color-mix(in srgb, var(--brand-primary) 45%, var(--panel));
+  background: var(--panel);
   border-radius: 999px;
   padding: 0.25rem 0.7rem;
   font-size: 0.75rem;
@@ -520,8 +512,8 @@ onMounted(async () => {
   height: 72px;
   border-radius: 12px;
   overflow: hidden;
-  border: 1px solid #e2e8f0;
-  background: #f8fafc;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
 }
 .img-preview img {
   width: 100%;
@@ -546,13 +538,13 @@ onMounted(async () => {
   position: relative;
   width: min(560px, 100%);
   height: 100%;
-  background: #fff;
+  background: var(--panel);
   overflow: auto;
   box-shadow: -8px 0 32px rgba(15, 23, 42, 0.12);
 }
 .modal-head {
   padding: 1.2rem 1.4rem 0.75rem;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--line);
 }
 .modal-head h2 {
   margin: 0;
@@ -561,7 +553,7 @@ onMounted(async () => {
 }
 .muted {
   margin: 0.25rem 0 0;
-  color: #64748b;
+  color: var(--ink-soft);
   font-size: 0.85rem;
 }
 .form {
@@ -583,10 +575,10 @@ label {
   flex-direction: column;
   gap: 0.25rem;
   font-size: 0.8rem;
-  color: #475569;
+  color: var(--ink-soft);
 }
 .input {
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--line-2);
   border-radius: 0.5rem;
   padding: 0.45rem 0.65rem;
   font-size: 0.9rem;
@@ -599,24 +591,24 @@ label {
 .hint {
   margin: 0;
   font-size: 0.8rem;
-  color: #64748b;
+  color: var(--ink-soft);
 }
 .modal-foot {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
   padding-top: 0.5rem;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--line);
 }
 .btn-ghost {
-  border: 1px solid #cbd5e1;
-  background: #fff;
+  border: 1px solid var(--line-2);
+  background: var(--panel);
   border-radius: 0.5rem;
   padding: 0.45rem 0.8rem;
   cursor: pointer;
 }
 .btn-primary {
-  background: #0f766e;
+  background: var(--brand-primary);
   color: #fff;
   border: 0;
   border-radius: 0.5rem;

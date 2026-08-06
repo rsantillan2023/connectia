@@ -20,7 +20,7 @@ const emit = defineEmits(['close', 'not-interested'])
   position: fixed;
   inset: 0;
   z-index: 88;
-  background: rgba(15, 23, 42, 0.45);
+  background: color-mix(in srgb, var(--ink) 45%, transparent);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -48,7 +48,7 @@ const emit = defineEmits(['close', 'not-interested'])
   cursor: pointer;
 }
 .opt.danger {
-  color: #dc2626;
+  color: var(--bad);
 }
 .opt.cancel {
   margin-top: 6px;

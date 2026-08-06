@@ -3,6 +3,9 @@ import mongoose from 'mongoose'
 import { requireAuth, requireCapability } from '../middleware/auth.js'
 import { Post } from '../models/Post.js'
 import { Newsletter } from '../models/Newsletter.js'
+import { NewsletterRule } from '../models/NewsletterRule.js'
+import { computeNextRunAt } from '../lib/newsletterAuto.js'
+import { normalizeAudience } from '../lib/audience.js'
 import { emailService } from '../services/emailService.js'
 import { aiConfigured as postsAiConfigured } from '../services/openaiPosts.js'
 import {
@@ -21,6 +24,7 @@ import {
   normalizeEmail,
 } from '../services/newsletterService.js'
 import { toPublicMediaUrl } from '../lib/mediaUrl.js'
+import { recordActivity, reqMeta } from '../lib/activityLog.js'
 
 const router = Router()
 const ObjectId = mongoose.Types.ObjectId
@@ -108,6 +112,129 @@ router.post('/', requireAuth, requireCapability('admin.publicaciones'), async (r
       mailConfigured: emailService.isConfigured,
       aiConfigured: postsAiConfigured(),
     })
+  } catch (e) {
+    next(e)
+  }
+})
+
+function serializeRule(r) {
+  const a = normalizeAudience(r.audience)
+  return {
+    id: String(r._id),
+    nombre: r.nombre,
+    intervalHours: r.intervalHours,
+    postCount: r.postCount,
+    selectMode: r.selectMode,
+    audience: {
+      mode: a.mode,
+      areaIds: a.areaIds,
+      groupIds: a.groupIds,
+      userIds: a.userIds,
+    },
+    enabled: Boolean(r.enabled),
+    lastRunAt: r.lastRunAt || null,
+    nextRunAt: r.nextRunAt || null,
+    createdAt: r.createdAt,
+    updatedAt: r.updatedAt,
+  }
+}
+
+/** Listado de reglas de automatización de newsletter (Ola 36-e) */
+router.get('/rules', requireAuth, requireCapability('admin.publicaciones'), async (req, res, next) => {
+  try {
+    const items = await NewsletterRule.find({ tenantId: req.tenant._id }).sort({ createdAt: -1 })
+    res.json({ rules: items.map(serializeRule) })
+  } catch (e) {
+    next(e)
+  }
+})
+
+router.post('/rules', requireAuth, requireCapability('admin.publicaciones'), async (req, res, next) => {
+  try {
+    const body = req.body || {}
+    const nombre = String(body.nombre || '').trim()
+    if (!nombre) return res.status(400).json({ error: 'nombre obligatorio' })
+    const intervalHours = Math.max(1, Number(body.intervalHours) || 24)
+    const postCount = Math.max(1, Number(body.postCount) || 5)
+    const selectMode = ['latest', 'pinned_first'].includes(body.selectMode) ? body.selectMode : 'latest'
+    const enabled = body.enabled !== false
+    const now = new Date()
+    const rule = await NewsletterRule.create({
+      tenantId: req.tenant._id,
+      nombre,
+      intervalHours,
+      postCount,
+      selectMode,
+      audience: normalizeAudience(body.audience),
+      enabled,
+      lastRunAt: null,
+      nextRunAt: computeNextRunAt({ intervalHours }, now),
+    })
+    await recordActivity({
+      tenantId: req.tenant._id,
+      userId: req.user._id,
+      action: 'admin.newsletter_rule_create',
+      meta: { id: String(rule._id), nombre },
+      ...reqMeta(req),
+    })
+    res.status(201).json({ rule: serializeRule(rule) })
+  } catch (e) {
+    next(e)
+  }
+})
+
+router.patch('/rules/:id', requireAuth, requireCapability('admin.publicaciones'), async (req, res, next) => {
+  try {
+    if (!ObjectId.isValid(req.params.id)) return res.status(404).json({ error: 'Regla no encontrada' })
+    const rule = await NewsletterRule.findOne({ _id: req.params.id, tenantId: req.tenant._id })
+    if (!rule) return res.status(404).json({ error: 'Regla no encontrada' })
+    const body = req.body || {}
+    let recomputeNext = false
+    if (body.nombre != null) rule.nombre = String(body.nombre).trim()
+    if (body.intervalHours != null) {
+      const h = Math.max(1, Number(body.intervalHours) || rule.intervalHours)
+      if (h !== rule.intervalHours) recomputeNext = true
+      rule.intervalHours = h
+    }
+    if (body.postCount != null) rule.postCount = Math.max(1, Number(body.postCount) || rule.postCount)
+    if (body.selectMode != null && ['latest', 'pinned_first'].includes(body.selectMode)) {
+      rule.selectMode = body.selectMode
+    }
+    if (body.audience != null) rule.audience = normalizeAudience(body.audience)
+    if (typeof body.enabled === 'boolean') {
+      if (body.enabled && !rule.enabled) recomputeNext = true
+      rule.enabled = body.enabled
+    }
+    if (recomputeNext || !rule.nextRunAt) {
+      rule.nextRunAt = computeNextRunAt(rule, new Date())
+    }
+    await rule.save()
+    await recordActivity({
+      tenantId: req.tenant._id,
+      userId: req.user._id,
+      action: 'admin.newsletter_rule_update',
+      meta: { id: String(rule._id) },
+      ...reqMeta(req),
+    })
+    res.json({ rule: serializeRule(rule) })
+  } catch (e) {
+    next(e)
+  }
+})
+
+router.delete('/rules/:id', requireAuth, requireCapability('admin.publicaciones'), async (req, res, next) => {
+  try {
+    if (!ObjectId.isValid(req.params.id)) return res.status(404).json({ error: 'Regla no encontrada' })
+    const rule = await NewsletterRule.findOneAndDelete({ _id: req.params.id, tenantId: req.tenant._id })
+    if (!rule) return res.status(404).json({ error: 'Regla no encontrada' })
+    await recordActivity({
+      tenantId: req.tenant._id,
+      userId: req.user._id,
+      action: 'admin.newsletter_rule_delete',
+      meta: { id: String(rule._id) },
+      ...reqMeta(req),
+    })
+    res.json({ ok: true })
   } catch (e) {
     next(e)
   }
@@ -337,7 +464,7 @@ router.get('/:id/pdf', requireAuth, requireCapability('admin.publicaciones'), as
     const doc = await findNewsletter(req, req.params.id)
     if (!doc) return res.status(404).json({ error: 'Newsletter no encontrado' })
     const brandName = req.tenant?.nombre || 'Connectia'
-    const primary = req.tenant?.branding?.primary || '#0f766e'
+    const primary = req.tenant?.branding?.primary || '#8554c9'
     const posts = (doc.posts || []).map((p) => ({
       titulo: p.titulo,
       tipo: p.tipo,

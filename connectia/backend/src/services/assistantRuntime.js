@@ -6,6 +6,17 @@ import { LicenseType } from '../models/LicenseType.js'
 import { LicenseRequest } from '../models/LicenseRequest.js'
 import { detectAssistantIntent, matchModuleHint, MODULE_HINTS } from '../lib/assistantIntent.js'
 import {
+  ADMIN_MODULE_HINTS,
+  matchAdminModuleHint,
+  normalizeAssistantChannel,
+  remapAssistantPayloadForAdmin,
+} from '../lib/assistantAdminHints.js'
+import {
+  searchAdminProductKnowledge,
+  formatAdminProductKbAnswer,
+  buildAdminProductContextForAi,
+} from '../lib/connectiaAdminKnowledge.js'
+import {
   toolListOpenRequests,
   toolListDocuments,
   toolSearchKb,
@@ -27,6 +38,16 @@ import {
   nextLicenseCodigo,
 } from '../services/licenciaSaldo.js'
 import { startWorkflowForOrigin } from '../services/workflowRuntime.js'
+import {
+  draftSpaceBooking,
+  confirmSpaceReservation,
+  confirmOfficeDay,
+} from '../services/assistantBooking.js'
+import {
+  mergeLicensePayload,
+  buildLicenseDraft,
+  extractLicenseDates,
+} from '../lib/assistantLicenseDraft.js'
 
 const TOKEN_TTL_MS = 10 * 60 * 1000
 
@@ -57,6 +78,7 @@ function serializeConversation(conv) {
   return {
     id: String(conv._id),
     title: conv.title,
+    channel: normalizeAssistantChannel(conv.channel),
     lastIntent: conv.lastIntent || '',
     pendingAction: conv.pendingAction
       ? {
@@ -83,24 +105,46 @@ function serializeConversation(conv) {
   }
 }
 
-async function getOrCreateConversation({ tenantId, userId, conversationId }) {
+function channelQuery(channel) {
+  const ch = normalizeAssistantChannel(channel)
+  if (ch === 'a') return { channel: 'a' }
+  return { $or: [{ channel: 'u' }, { channel: { $exists: false } }, { channel: null }] }
+}
+
+async function getOrCreateConversation({ tenantId, userId, conversationId, channel = 'u' }) {
+  const ch = normalizeAssistantChannel(channel)
   if (conversationId) {
-    const existing = await AssistantConversation.findOne({ _id: conversationId, tenantId, userId })
+    const existing = await AssistantConversation.findOne({
+      _id: conversationId,
+      tenantId,
+      userId,
+      ...channelQuery(ch),
+    })
     if (existing) return existing
   }
+  const isAdmin = ch === 'a'
   return AssistantConversation.create({
     tenantId,
     userId,
-    title: 'Asistente',
+    channel: ch,
+    title: isAdmin ? 'Asistente Admin' : 'Asistente',
     messages: [
       {
         role: 'assistant',
-        text: '¡Hola! Soy el Asistente de tu comunidad. Puedo consultar la base de conocimientos, decirte el estado de tus solicitudes en curso, listar documentos visibles e iniciar trámites (siempre con tu confirmación). ¿En qué te ayudo?',
+        text: isAdmin
+          ? '¡Hola! Soy el Asistente de Admin. Puedo consultar la base de conocimientos, decirte dónde está una función y orientarte sobre la gestión de la comunidad. ¿En qué te ayudo?'
+          : '¡Hola! Soy el Asistente de tu comunidad. Puedo consultar la base de conocimientos, decirte el estado de tus solicitudes en curso, listar documentos visibles e iniciar trámites (siempre con tu confirmación). ¿En qué te ayudo?',
         intent: 'saludo',
-        links: [
-          { label: 'Solicitudes en curso', href: '/solicitudes' },
-          { label: 'Documentos', href: '/docs' },
-        ],
+        links: isAdmin
+          ? [
+              { label: 'Base de conocimientos', href: '/asistente-kb' },
+              { label: 'Usuarios', href: '/usuarios' },
+              { label: 'Solicitudes', href: '/solicitudes' },
+            ]
+          : [
+              { label: 'Solicitudes en curso', href: '/solicitudes' },
+              { label: 'Documentos', href: '/docs' },
+            ],
       },
     ],
   })
@@ -144,17 +188,74 @@ async function draftSolicitudReply({ tenant, user, userText, prevPayload = {} })
   }
 }
 
-async function buildReply({ tenant, user, intent, entities, userText }) {
+async function draftLicenseReply({
+  tenant,
+  user,
+  kind = 'license',
+  entities = {},
+  userText = '',
+  prevPayload = {},
+}) {
+  const merged = mergeLicensePayload(prevPayload, entities, userText)
+  let tipo = { nombre: 'Vacaciones', key: 'vacaciones' }
+  let disponibleNeto = null
+  if (kind === 'license') {
+    const tipos = await listActiveLicenseTypes(tenant._id)
+    tipo =
+      tipos.find((t) => t.esVacaciones) || tipos.find((t) => t.key === 'vacaciones') || tipos[0] || tipo
+    const row = await getSaldoVacaciones({ tenantId: tenant._id, userId: user._id })
+    disponibleNeto = row?.saldo?.disponibleNeto
+  }
+  const draft = buildLicenseDraft({
+    kind,
+    tipo,
+    payload: merged,
+    extras: { disponibleNeto },
+  })
+  return {
+    text: draft.text,
+    links: [
+      {
+        label: kind === 'absence' ? 'Ausencias' : 'Vacaciones y permisos',
+        href: kind === 'absence' ? '/ausencias' : '/licencias',
+      },
+    ],
+    sources: [],
+    draftAction: draft.draftAction,
+    context: {
+      modules: toolListModules(),
+      notes: draft.ready ? 'licencia_lista_para_confirmar' : 'licencia_en_armado',
+    },
+  }
+}
+
+async function buildReply({ tenant, user, intent, entities, userText, channel = 'u' }) {
   const tenantId = tenant._id
-  const modules = toolListModules()
+  const isAdmin = normalizeAssistantChannel(channel) === 'a'
+  const moduleHints = isAdmin ? ADMIN_MODULE_HINTS : MODULE_HINTS
+  const modules = moduleHints.map((m) => ({ label: m.label, href: m.route }))
   let base = { text: '', links: [], sources: [], draftAction: null, context: { modules } }
 
   if (intent === 'saludo') {
-    base.text = `Hola ${displayName(user).split(' ')[0] || ''}. Puedo:\n• Estado de tus solicitudes en curso\n• Documentos visibles\n• Responder con la base de conocimientos\n• **Cargar una solicitud** contándome el caso (elegimos tipo, completo campos y confirmás)\n\nDecime qué necesitás.`
-    base.links = [
-      { label: 'Mis solicitudes', href: '/solicitudes' },
-      { label: 'Documentos', href: '/docs' },
-    ]
+    if (isAdmin) {
+      base.text = `Hola ${displayName(user).split(' ')[0] || ''}. En Admin puedo:\n• Responder con la base de conocimientos de producto\n• Decirte dónde está una función (usuarios, solicitudes, KB…)\n• Orientarte sobre la gestión de la comunidad\n\nTambién podés abrir «Funciones de Administración» en el header.`
+      base.links = [
+        { label: 'Base de conocimientos', href: '/asistente-kb' },
+        { label: 'Usuarios', href: '/usuarios' },
+        { label: 'Solicitudes', href: '/solicitudes' },
+      ]
+      base.context = {
+        modules,
+        productKb: buildAdminProductContextForAi('asistente admin navegacion'),
+        notes: 'admin_saludo',
+      }
+    } else {
+      base.text = `Hola ${displayName(user).split(' ')[0] || ''}. Puedo ayudarte hablando, sin formularios:\n• Solicitudes y consultas\n• Vacaciones y ausencias\n• Reservas de sala, cochera u oficina\n• Documentos y base de conocimientos\n\nDecime qué trámite querés hacer o qué necesitás.`
+      base.links = [
+        { label: 'Mis solicitudes', href: '/solicitudes' },
+        { label: 'Documentos', href: '/docs' },
+      ]
+    }
     return base
   }
 
@@ -196,26 +297,144 @@ async function buildReply({ tenant, user, intent, entities, userText }) {
 
   if (intent === 'donde_modulo') {
     const mod =
-      (entities.route && MODULE_HINTS.find((m) => m.route === entities.route)) ||
-      matchModuleHint(userText)
+      (entities.route && moduleHints.find((m) => m.route === entities.route)) ||
+      (isAdmin ? matchAdminModuleHint(userText) : matchModuleHint(userText))
     if (mod) {
-      base.text = `El módulo **${mod.label}** está en la app en ${mod.route}.`
+      base.text = isAdmin
+        ? `La función **${mod.label}** está en Admin en ${mod.route}. También la encontrás en «Funciones de Administración».`
+        : `El módulo **${mod.label}** está en la app en ${mod.route}.`
       base.links = [{ label: `Ir a ${mod.label}`, href: mod.route }]
+      if (isAdmin) {
+        const productHits = searchAdminProductKnowledge(userText, { limit: 2 })
+        if (productHits[0]?.cuerpo) {
+          base.text += `\n\n${String(productHits[0].cuerpo).slice(0, 400)}`
+          base.sources = productHits.map((h) => ({
+            kind: 'product_kb',
+            id: h.id,
+            titulo: h.titulo,
+            href: h.href,
+            excerpt: h.excerpt,
+          }))
+        }
+        base.context = {
+          modules,
+          productKb: buildAdminProductContextForAi(userText),
+          notes: 'admin_donde_modulo',
+        }
+      }
     } else {
-      const list = modules.map((m) => `• ${m.label}: ${m.href}`).join('\n')
-      base.text = `Estos son los módulos principales:\n${list}\n\nDecime cuál buscás.`
-      base.links = modules.slice(0, 6).map((m) => ({ label: m.label, href: m.href }))
+      const list = modules.map((m) => `• ${m.label}: ${m.route}`).join('\n')
+      base.text = isAdmin
+        ? `Estas son funciones frecuentes de Admin:\n${list}\n\nDecime cuál buscás o abrí «Funciones de Administración».`
+        : `Estos son los módulos principales:\n${list}\n\nDecime cuál buscás.`
+      base.links = modules.slice(0, 6).map((m) => ({ label: m.label, href: m.route }))
+      if (isAdmin) {
+        base.context = {
+          modules,
+          productKb: buildAdminProductContextForAi(userText),
+          notes: 'admin_donde_modulo',
+        }
+      }
     }
-    base.context = { modules }
     return base
   }
 
+  if (intent === 'reservar_sala') {
+    return draftSpaceBooking({
+      tenant,
+      user,
+      kind: 'sala',
+      entities,
+      userText,
+    })
+  }
+
+  if (intent === 'reservar_cochera') {
+    return draftSpaceBooking({
+      tenant,
+      user,
+      kind: 'cochera',
+      entities,
+      userText,
+    })
+  }
+
+  if (intent === 'reservar_puesto') {
+    return draftSpaceBooking({
+      tenant,
+      user,
+      kind: 'puesto',
+      entities,
+      userText,
+    })
+  }
+
   if (intent === 'recibo_sueldo') {
+    // Decisión de producto (Ola 12): sin módulo de recibos aún (§32/ola 30).
+    // Sustituto explícito: consulta a RRHH con confirmación — no inventar montos ni PDFs.
+    const periodo = entities.periodo || ''
+    if (!periodo) {
+      base.text = [
+        'El **módulo de recibos de sueldo** todavía no está disponible en Connectia (llega en una ola posterior).',
+        '',
+        'Puedo abrir una **consulta a RRHH** para que te envíen el recibo.',
+        '¿De qué período lo necesitás? (ej. marzo, 03/2026).',
+      ].join('\n')
+      base.links = [
+        { label: 'Mis solicitudes', href: '/solicitudes' },
+        { label: 'Documentos', href: '/docs' },
+      ]
+      base.draftAction = {
+        type: 'create_request',
+        ready: false,
+        summary: 'Consulta recibo (falta período)',
+        payload: {
+          stage: 'need_periodo_recibo',
+          preferTipoKey: 'rrhh',
+          titulo: 'Consulta recibo de sueldo',
+          area: 'RRHH',
+        },
+      }
+      return base
+    }
     return draftSolicitudReply({
       tenant,
       user,
-      userText: `Consulta RRHH recibo de sueldo${entities.periodo ? ` período ${entities.periodo}` : ''}. Motivo Recibo. ${userText}`,
+      userText: `Consulta RRHH: necesito el recibo de sueldo del período ${periodo}. Motivo: Recibo. ${userText}`,
+      prevPayload: {
+        preferTipoKey: 'rrhh',
+        titulo: `Consulta recibo de sueldo ${periodo}`,
+        area: 'RRHH',
+      },
     })
+  }
+
+  if (intent === 'como_marcar') {
+    const kb = await toolSearchKb({
+      tenantId,
+      user,
+      q: entities.q || 'cómo marcar avisos asistencia',
+    })
+    const kbFmt = formatKbAnswer(kb)
+    if (kb.length) {
+      base = {
+        ...kbFmt,
+        text: `${kbFmt.text}\n\nNota: la marcación de asistencia/turnos completa llega en una ola posterior; hoy podés gestionar **avisos** y ver guías de la base.`,
+        links: [
+          ...kbFmt.links,
+          { label: 'Avisos', href: '/avisos' },
+        ],
+        context: { modules, kb },
+      }
+    } else {
+      base.text =
+        'Todavía no hay un módulo de marcación de asistencia en la app. Los avisos se gestionan en **Avisos** (/avisos). Si necesitás fichaje, abrí una consulta a RRHH o Facilities.'
+      base.links = [
+        { label: 'Avisos', href: '/avisos' },
+        { label: 'Mis solicitudes', href: '/solicitudes' },
+      ]
+    }
+    return base
   }
 
   if (intent === 'saldo_vacaciones') {
@@ -236,8 +455,10 @@ async function buildReply({ tenant, user, intent, entities, userText }) {
       s.pendientes
         ? `(Neto si se aprueban los pendientes: ${s.disponibleNeto})`
         : null,
+      '',
+      '¿Querés solicitar vacaciones? Decime las fechas (ej. «del 10/08 al 20/08»).',
     ]
-      .filter(Boolean)
+      .filter((l) => l !== null)
       .join('\n')
     base.links = [
       { label: 'Ver saldos y solicitar', href: '/licencias' },
@@ -247,104 +468,106 @@ async function buildReply({ tenant, user, intent, entities, userText }) {
     return base
   }
 
-  if (intent === 'solicitar_vacaciones') {
-    const tipos = await listActiveLicenseTypes(tenant._id)
-    const vac =
-      tipos.find((t) => t.esVacaciones) || tipos.find((t) => t.key === 'vacaciones') || tipos[0]
-    const desde = entities.desde || ''
-    const hasta = entities.hasta || entities.desde || ''
-    if (!desde) {
-      base.text =
-        'Para pedir vacaciones necesito las fechas. Por ejemplo: «quiero vacaciones del 10/08 al 20/08».'
-      base.links = [{ label: 'Solicitar en la app', href: '/licencias' }]
-      return base
-    }
-    const period = validatePeriod({ desde, hasta: hasta || desde })
-    if (!period.ok) {
-      base.text = `No pude armar el pedido: ${period.error}. Probá con fechas DD/MM/AAAA.`
-      base.links = [{ label: 'Solicitar en la app', href: '/licencias' }]
-      return base
-    }
-    const row = await getSaldoVacaciones({ tenantId: tenant._id, userId: user._id })
-    const disponibleNeto = row?.saldo?.disponibleNeto
-    const saldoLine =
-      disponibleNeto == null
-        ? ''
-        : `\nSaldo neto disponible: **${disponibleNeto}** día(s).`
-    base.text = [
-      `Armé un pedido de **${vac?.nombre || 'Vacaciones'}**:`,
-      `• Desde: ${period.desde.toISOString().slice(0, 10)}`,
-      `• Hasta: ${period.hasta.toISOString().slice(0, 10)}`,
-      `• Días: **${period.dias}**`,
-      saldoLine,
-      '',
-      '¿Confirmás? Respondé «sí» o tocá Confirmar.',
-    ]
-      .filter((l) => l !== '')
-      .join('\n')
-    base.links = [{ label: 'Vacaciones y permisos', href: '/licencias' }]
-    base.draftAction = {
-      type: 'create_license',
-      ready: true,
-      summary: `${vac?.nombre || 'Vacaciones'} ${period.dias} día(s)`,
-      payload: {
-        stage: 'ready',
-        tipoKey: vac?.key || 'vacaciones',
-        desde: period.desde.toISOString().slice(0, 10),
-        hasta: period.hasta.toISOString().slice(0, 10),
-        dias: period.dias,
-        motivo: userText.slice(0, 500),
-      },
-    }
+  if (intent === 'saldo_y_solicitar_vacaciones') {
+    const saldoReply = await buildReply({
+      tenant,
+      user,
+      intent: 'saldo_vacaciones',
+      entities: {},
+      userText: '¿cuántas vacaciones tengo?',
+    })
+    const vacReply = await buildReply({
+      tenant,
+      user,
+      intent: 'solicitar_vacaciones',
+      entities,
+      userText,
+    })
+    base.text = [saldoReply.text, '', vacReply.text].filter(Boolean).join('\n')
+    base.links = [...(vacReply.links || []), ...(saldoReply.links || [])].slice(0, 6)
+    base.draftAction = vacReply.draftAction
+    base.sources = vacReply.sources || []
+    base.context = { ...(saldoReply.context || {}), ...(vacReply.context || {}) }
     return base
+  }
+
+  if (intent === 'solicitar_vacaciones') {
+    return draftLicenseReply({
+      tenant,
+      user,
+      kind: 'license',
+      entities,
+      userText,
+    })
   }
 
   if (intent === 'solicitar_ausentismo') {
-    const desde = entities.desde || ''
-    const hasta = entities.hasta || entities.desde || ''
-    if (!desde) {
-      base.text =
-        'Para registrar una ausencia necesito la fecha. Ejemplo: «ausencia el 15/08» o «ausencia del 15/08 al 16/08».'
-      base.links = [{ label: 'Ausencias', href: '/ausencias' }]
+    return draftLicenseReply({
+      tenant,
+      user,
+      kind: 'absence',
+      entities,
+      userText,
+    })
+  }
+
+  if (intent === 'abrir_consulta' || isSolicitudCreateIntent(userText)) {
+    // Solo “quiero hacer un trámite” (vago) pregunta el tipo; “cargar solicitud” entra al slot-filling
+    const vagueTramite =
+      /^(quiero\s+)?(hacer|armar|iniciar|abrir)?\s*(un[oa]?\s+)?(tramite|trámite)\s*$/i.test(
+        userText.trim(),
+      ) || /^(nuevo\s+)?(tramite|trámite)\s*$/i.test(userText.trim())
+    if (vagueTramite) {
+      base.text = [
+        'Dale, ¿qué trámite querés hacer?',
+        '• Vacaciones o licencia',
+        '• Una solicitud / consulta (RRHH, IT, etc.)',
+        '• Reserva de sala, cochera u oficina',
+        '• Consultar saldo de vacaciones o solicitudes en curso',
+        '',
+        'Escribilo con tus palabras (ej. «vacaciones del 10/08 al 20/08» o «reservar sala mañana a las 10»).',
+      ].join('\n')
       return base
     }
-    const period = validatePeriod({ desde, hasta: hasta || desde })
-    if (!period.ok) {
-      base.text = `No pude armar la ausencia: ${period.error}.`
-      base.links = [{ label: 'Ausencias', href: '/ausencias' }]
-      return base
+    return draftSolicitudReply({ tenant, user, userText })
+  }
+
+  // ayuda_kb / desconocido → KB + docs + posts (+ product KB en Admin)
+  const q = entities.q || userText
+
+  if (isAdmin) {
+    const productHits = searchAdminProductKnowledge(q, { limit: 5 })
+    const tenantKb = await toolSearchKb({ tenantId, user, q })
+    const productFmt = formatAdminProductKbAnswer(productHits)
+    const tenantFmt = formatKbAnswer(tenantKb)
+    const hasProduct = productHits.length > 0
+    const hasTenant = tenantKb.length > 0
+    let text = ''
+    if (hasProduct) text = productFmt.text
+    if (hasTenant) {
+      text = text
+        ? `${text}\n\nTambién en la KB del tenant:\n${tenantKb
+            .slice(0, 3)
+            .map((a) => `• **${a.titulo}** — ${String(a.excerpt || a.cuerpo || '').slice(0, 120)}`)
+            .join('\n')}`
+        : tenantFmt.text
     }
-    base.text = [
-      'Armé un registro de **ausencia**:',
-      `• Desde: ${period.desde.toISOString().slice(0, 10)}`,
-      `• Hasta: ${period.hasta.toISOString().slice(0, 10)}`,
-      `• Días: **${period.dias}**`,
-      '',
-      '¿Confirmás? Respondé «sí» o tocá Confirmar.',
-    ].join('\n')
-    base.links = [{ label: 'Ausencias', href: '/ausencias' }]
-    base.draftAction = {
-      type: 'create_absence',
-      ready: true,
-      summary: `Ausencia ${period.dias} día(s)`,
-      payload: {
-        stage: 'ready',
-        tipoKey: 'injustificada',
-        desde: period.desde.toISOString().slice(0, 10),
-        hasta: period.hasta.toISOString().slice(0, 10),
-        dias: period.dias,
-        motivo: userText.slice(0, 500),
-      },
+    if (!text) text = productFmt.text
+    base.text = text
+    base.links = [
+      ...productFmt.links,
+      ...tenantFmt.links.filter((l) => !productFmt.links.some((p) => p.href === l.href)),
+    ].slice(0, 8)
+    base.sources = [...productFmt.sources, ...tenantFmt.sources]
+    base.context = {
+      modules,
+      kb: tenantKb,
+      productKb: buildAdminProductContextForAi(q),
+      notes: 'admin_ayuda_product_kb',
     }
     return base
   }
 
-  if (intent === 'abrir_consulta' || isSolicitudCreateIntent(userText)) {
-    return draftSolicitudReply({ tenant, user, userText })
-  }
-
-  // ayuda_kb / desconocido → KB + docs + posts
-  const q = entities.q || userText
   const [kb, posts, documents, requests] = await Promise.all([
     toolSearchKb({ tenantId, user, q }),
     toolSearchPosts({ tenantId, user, q }),
@@ -387,7 +610,7 @@ async function buildReply({ tenant, user, intent, entities, userText }) {
   return base
 }
 
-export async function handleAssistantMessage({ tenant, user, text, conversationId }) {
+export async function handleAssistantMessage({ tenant, user, text, conversationId, channel = 'u' }) {
   const userText = String(text || '').trim()
   if (!userText) {
     const err = new Error('Mensaje vacío')
@@ -400,13 +623,18 @@ export async function handleAssistantMessage({ tenant, user, text, conversationI
     throw err
   }
 
+  const ch = normalizeAssistantChannel(channel)
+  const isAdmin = ch === 'a'
+  const moduleHints = isAdmin ? ADMIN_MODULE_HINTS : MODULE_HINTS
+
   const conv = await getOrCreateConversation({
     tenantId: tenant._id,
     userId: user._id,
     conversationId,
+    channel: ch,
   })
 
-  const detected = detectAssistantIntent(userText)
+  const detected = detectAssistantIntent(userText, { moduleHints })
 
   if (
     detected.intent === 'confirmar' &&
@@ -421,22 +649,50 @@ export async function handleAssistantMessage({ tenant, user, text, conversationI
       confirmationToken: conv.pendingAction.confirmationToken,
     })
   }
-  if (detected.intent === 'cancelar' && conv.pendingAction) {
+  if (detected.intent === 'cancelar') {
+    const hadPending = Boolean(conv.pendingAction)
     conv.pendingAction = null
     conv.messages.push({ role: 'user', text: userText, intent: 'cancelar' })
     conv.messages.push({
       role: 'assistant',
-      text: 'Listo, cancelé la acción pendiente. ¿En qué más te ayudo?',
+      text: hadPending
+        ? 'Listo, cancelé la acción pendiente. ¿En qué más te ayudo?'
+        : 'No había ningún trámite en curso para cancelar. Decime qué necesitás.',
       intent: 'cancelar',
     })
     conv.lastIntent = 'cancelar'
     await conv.save()
     return serializeConversation(conv)
   }
+  if (detected.intent === 'confirmar') {
+    const pendingEarly = conv.pendingAction
+    const earlyDraft =
+      pendingEarly &&
+      (String(pendingEarly.confirmationToken || '').startsWith('draft-') ||
+        pendingEarly.payload?.stage !== 'ready')
+    conv.messages.push({ role: 'user', text: userText, intent: 'confirmar' })
+    conv.messages.push({
+      role: 'assistant',
+      text: earlyDraft
+        ? 'Todavía me faltan datos para cerrar el trámite. Respondeme lo que te pregunté (fechas, motivo, etc.) y al final te pido el sí.'
+        : 'No tengo un trámite listo para confirmar. Decime qué querés hacer (vacaciones, solicitud, reserva…) y lo armamos hablando.',
+      intent: 'confirmar',
+    })
+    conv.lastIntent = 'confirmar'
+    await conv.save()
+    return serializeConversation(conv)
+  }
 
-  // Continuar armado de solicitud si hay borrador incompleto
+  // Continuar armado de solicitud / booking / licencia / recibo si hay borrador incompleto
   let built
   const pending = conv.pendingAction
+  const bookingTypes = [
+    'create_reservation',
+    'create_reservation_cochera',
+    'create_reservation_puesto',
+    'create_office_day',
+  ]
+  const licenseTypes = ['create_license', 'create_absence']
   if (
     pending?.type === 'create_request' &&
     pending.payload &&
@@ -444,13 +700,90 @@ export async function handleAssistantMessage({ tenant, user, text, conversationI
     pending.payload.stage !== 'ready' &&
     detected.intent !== 'mis_solicitudes' &&
     detected.intent !== 'mis_documentos' &&
-    detected.intent !== 'ayuda_kb'
+    detected.intent !== 'ayuda_kb' &&
+    detected.intent !== 'reservar_sala' &&
+    detected.intent !== 'reservar_cochera' &&
+    detected.intent !== 'reservar_puesto'
   ) {
-    built = await draftSolicitudReply({
+    if (pending.payload.stage === 'need_periodo_recibo') {
+      const periodo =
+        detected.entities.periodo ||
+        userText.match(/(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre|\d{1,2}\/\d{4}|\d{4}-\d{2})/i)?.[1] ||
+        userText.trim()
+      built = await draftSolicitudReply({
+        tenant,
+        user,
+        userText: `Consulta RRHH: necesito el recibo de sueldo del período ${periodo}. Motivo: Recibo.`,
+        prevPayload: {
+          ...pending.payload,
+          titulo: `Consulta recibo de sueldo ${periodo}`,
+        },
+      })
+    } else {
+      built = await draftSolicitudReply({
+        tenant,
+        user,
+        userText,
+        prevPayload: pending.payload,
+      })
+    }
+  } else if (
+    licenseTypes.includes(pending?.type) &&
+    pending.payload &&
+    pending.payload.stage &&
+    pending.payload.stage !== 'ready' &&
+    detected.intent !== 'mis_solicitudes' &&
+    detected.intent !== 'cancelar'
+  ) {
+    // En need_motivo, el turno completo es el motivo (salvo fechas nuevas)
+    let entities = { ...detected.entities }
+    if (pending.payload.stage === 'need_motivo') {
+      const onlyDates = extractLicenseDates(userText)
+      if (!onlyDates.desde || String(userText).replace(/(\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?)/g, '').trim().length > 2) {
+        entities.motivo = userText.trim().slice(0, 500)
+      }
+    }
+    built = await draftLicenseReply({
       tenant,
       user,
+      kind: pending.type === 'create_absence' ? 'absence' : 'license',
+      entities,
       userText,
       prevPayload: pending.payload,
+    })
+  } else if (
+    bookingTypes.includes(pending?.type) &&
+    pending.payload &&
+    pending.payload.stage &&
+    pending.payload.stage !== 'ready' &&
+    detected.intent !== 'mis_solicitudes' &&
+    detected.intent !== 'cancelar'
+  ) {
+    const kind =
+      pending.type === 'create_office_day' || pending.type === 'create_reservation_puesto'
+        ? 'puesto'
+        : pending.type === 'create_reservation_cochera'
+          ? 'cochera'
+          : 'sala'
+    // Si eligen sede por número en office_day
+    let entities = { ...detected.entities }
+    if (pending.type === 'create_office_day' && pending.payload.alternatives?.length) {
+      const num = userText.trim().match(/^(\d)$/)
+      if (num) {
+        const alt = pending.payload.alternatives[Number(num[1]) - 1]
+        if (alt) {
+          entities.siteId = alt.siteId || alt.id
+          entities.sede = alt.nombre
+        }
+      }
+    }
+    built = await draftSpaceBooking({
+      tenant,
+      user,
+      kind,
+      entities,
+      prevPayload: pending.payload,
+      userText,
     })
   } else {
     built = await buildReply({
@@ -459,19 +792,60 @@ export async function handleAssistantMessage({ tenant, user, text, conversationI
       intent: detected.intent,
       entities: detected.entities,
       userText,
+      channel: ch,
     })
   }
 
-  const polished = await polishAssistantAnswer({
-    userText,
-    intent: detected.intent,
-    baseAnswer: built.text,
-    context: built.context || {},
-  })
+  // En Admin: priorizar orientación/KB; no armar trámites personales U por defecto
+  if (isAdmin && built.draftAction) {
+    built = {
+      text:
+        'En Admin te oriento con la base de conocimientos y la navegación. Los trámites personales (vacaciones, reservas) se hacen desde la app del miembro. ¿Querés que busque en la KB o te diga dónde está una función?',
+      links: [
+        { label: 'Base de conocimientos', href: '/asistente-kb' },
+        { label: 'Solicitudes (gestión)', href: '/solicitudes' },
+      ],
+      sources: [],
+      draftAction: null,
+      context: { modules: moduleHints.map((m) => ({ label: m.label, href: m.route })), notes: 'admin_no_mutacion_u' },
+    }
+  }
 
-  const links = [...(built.links || [])]
+  // 29.CONV: no reformular con LLM los turnos de slot-filling / confirmación hablada
+  const transactional =
+    Boolean(built.draftAction) ||
+    /_(en_armado|lista_para_confirmar)$/.test(String(built.context?.notes || '')) ||
+    ['solicitar_vacaciones', 'solicitar_ausentismo', 'abrir_consulta', 'reservar_sala', 'reservar_cochera', 'reservar_puesto', 'saldo_y_solicitar_vacaciones', 'recibo_sueldo'].includes(
+      detected.intent,
+    )
+  // Admin: sí usa LLM con productKb JSON como contexto (paridad Hiryx), salvo mutaciones bloqueadas
+  const adminSkipAi = isAdmin && built.context?.notes === 'admin_no_mutacion_u'
+  const polished =
+    transactional || adminSkipAi
+      ? { text: built.text, suggestedLinks: [], usedAi: false }
+      : await polishAssistantAnswer({
+          userText,
+          intent: detected.intent,
+          baseAnswer: built.text,
+          context: {
+            ...(built.context || {}),
+            productKb:
+              built.context?.productKb ||
+              (isAdmin ? buildAdminProductContextForAi(userText) : undefined),
+          },
+          channel: ch,
+        })
+
+  let links = [...(built.links || [])]
   for (const l of polished.suggestedLinks || []) {
     if (!links.some((x) => x.href === l.href)) links.push(l)
+  }
+  let sources = built.sources || []
+
+  if (isAdmin) {
+    const remapped = remapAssistantPayloadForAdmin({ links, sources })
+    links = remapped.links
+    sources = remapped.sources
   }
 
   let confirmationToken = ''
@@ -507,7 +881,7 @@ export async function handleAssistantMessage({ tenant, user, text, conversationI
     role: 'assistant',
     text: polished.text || built.text,
     intent: detected.intent,
-    sources: built.sources || [],
+    sources,
     links: links.slice(0, 8),
     draftAction,
     confirmationToken,
@@ -736,8 +1110,10 @@ export async function confirmAssistantAction({ tenant, user, conversationId, con
       requesterId: user._id,
       requesterName: authorName,
       ecrSync: {
-        status: 'deferred',
-        note: 'Integración ECR diferida',
+        status: 'pending',
+        note: 'Sync ECR pendiente',
+        externalId: '',
+        at: null,
       },
       historial: [
         {
@@ -749,6 +1125,12 @@ export async function confirmAssistantAction({ tenant, user, conversationId, con
         },
       ],
     })
+    try {
+      const { persistEcrSync } = await import('./ecrAusentismoAdapter.js')
+      await persistEcrSync(aus, { tenant, user, event: 'create' })
+    } catch (syncErr) {
+      console.warn('[ecr] assistant ausencia', syncErr?.message || syncErr)
+    }
     try {
       await startWorkflowForOrigin({
         tenantId: tenant._id,
@@ -768,6 +1150,26 @@ export async function confirmAssistantAction({ tenant, user, conversationId, con
       { label: `Ver ${codigo}`, href: `/ausencias/${aus._id}` },
       { label: 'Ausencias', href: '/ausencias' },
     ]
+  } else if (
+    pending.type === 'create_reservation' ||
+    pending.type === 'create_reservation_cochera' ||
+    pending.type === 'create_reservation_puesto'
+  ) {
+    const result = await confirmSpaceReservation({
+      tenant,
+      user,
+      payload: pending.payload || {},
+    })
+    resultText = result.text
+    links = result.links
+  } else if (pending.type === 'create_office_day') {
+    const result = await confirmOfficeDay({
+      tenant,
+      user,
+      payload: pending.payload || {},
+    })
+    resultText = result.text
+    links = result.links
   } else {
     resultText = 'No pude ejecutar esa acción.'
   }
@@ -790,17 +1192,19 @@ export async function confirmAssistantAction({ tenant, user, conversationId, con
   return serializeConversation(conv)
 }
 
-export async function listAssistantConversations({ tenantId, userId, limit = 20 }) {
-  const items = await AssistantConversation.find({ tenantId, userId })
+export async function listAssistantConversations({ tenantId, userId, limit = 20, channel = 'u' }) {
+  const ch = normalizeAssistantChannel(channel)
+  const items = await AssistantConversation.find({ tenantId, userId, ...channelQuery(ch) })
     .sort({ updatedAt: -1 })
     .limit(limit)
-    .select('title lastIntent updatedAt createdAt messages')
+    .select('title channel lastIntent updatedAt createdAt messages')
     .lean()
   return items.map((c) => {
     const last = [...(c.messages || [])].reverse().find((m) => m.role === 'assistant' || m.role === 'user')
     return {
       id: String(c._id),
       title: c.title,
+      channel: normalizeAssistantChannel(c.channel),
       lastIntent: c.lastIntent || '',
       preview: last?.text ? String(last.text).slice(0, 120) : '',
       updatedAt: c.updatedAt,
@@ -809,8 +1213,14 @@ export async function listAssistantConversations({ tenantId, userId, limit = 20 
   })
 }
 
-export async function getAssistantConversation({ tenantId, userId, conversationId }) {
-  const conv = await AssistantConversation.findOne({ _id: conversationId, tenantId, userId })
+export async function getAssistantConversation({ tenantId, userId, conversationId, channel = 'u' }) {
+  const ch = normalizeAssistantChannel(channel)
+  const conv = await AssistantConversation.findOne({
+    _id: conversationId,
+    tenantId,
+    userId,
+    ...channelQuery(ch),
+  })
   if (!conv) return null
   return serializeConversation(conv)
 }

@@ -2,7 +2,7 @@
   <button
     v-if="theme.canToggle"
     type="button"
-    class="inline-flex items-center gap-1.5 rounded-lg border border-[var(--cx-border)] bg-[var(--cx-surface)] px-2.5 py-1.5 text-xs font-medium text-[var(--cx-text)] hover:border-teal-600/40 transition"
+    class="inline-flex items-center gap-1.5 rounded-lg border border-[var(--cx-border)] bg-[var(--cx-surface)] px-2.5 py-1.5 text-xs font-medium text-[var(--cx-text)] hover:border-[color-mix(in_srgb,var(--brand-primary)_40%,transparent)] transition"
     :title="theme.resolved === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
     @click="theme.toggle()"
   >

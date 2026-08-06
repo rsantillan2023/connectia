@@ -10,6 +10,8 @@ const questionSchema = new mongoose.Schema(
     opciones: [{ type: String }],
     /** Agrupación temática del cuestionario (ej. "Liderazgo", "Beneficios") */
     grupo: { type: String, default: 'General', trim: true },
+    /** Imagen opcional asociada a la pregunta (el enunciado puede referirse a ella) */
+    imageUrl: { type: String, default: '', maxlength: 500 },
   },
   { _id: false },
 )
@@ -19,6 +21,16 @@ const surveySchema = new mongoose.Schema(
     tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
     titulo: { type: String, required: true, trim: true },
     descripcion: { type: String, default: '' },
+    /**
+     * Contexto interno para generar preguntas con IA (no se muestra al miembro en la app).
+     */
+    aiContext: { type: String, default: '', maxlength: 4000 },
+    /** Portada visible en app (lista, detalle, muro) y admin */
+    imageUrl: { type: String, default: '', maxlength: 500 },
+    /** Galería de imágenes (carrusel si hay 2+); imageUrl = primera */
+    imageUrls: { type: [String], default: [] },
+    /** Video opcional de portada/galería */
+    videoUrl: { type: String, default: '', maxlength: 500 },
     status: {
       type: String,
       enum: ['draft', 'published', 'closed'],
@@ -28,9 +40,10 @@ const surveySchema = new mongoose.Schema(
     questions: { type: [questionSchema], default: [] },
     version: { type: Number, default: 1 },
     audience: {
-      mode: { type: String, enum: ['all', 'restricted'], default: 'all' },
+      mode: { type: String, enum: ['all', 'restricted', 'users', 'none'], default: 'all' },
       areaIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'OrgArea' }],
       groupIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'UserGroup' }],
+      userIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     },
     /**
      * Congelado al publicar: cuántas personas “recibieron” esta encuesta.
@@ -42,10 +55,34 @@ const surveySchema = new mongoose.Schema(
       mode: { type: String, default: '' },
       areaIds: [{ type: mongoose.Schema.Types.ObjectId }],
       groupIds: [{ type: mongoose.Schema.Types.ObjectId }],
+      userIds: [{ type: mongoose.Schema.Types.ObjectId }],
     },
     startsAt: { type: Date, default: null },
     endsAt: { type: Date, default: null },
     anonymous: { type: Boolean, default: false },
+    /**
+     * Cómo se presentan las preguntas en la app:
+     * - all: todas juntas en un scroll
+     * - one_by_one: una pregunta a la vez (siguiente / anterior)
+     */
+    questionFlow: {
+      type: String,
+      enum: ['all', 'one_by_one'],
+      default: 'all',
+    },
+    /** Si la app muestra barra / contador de progreso al responder */
+    showProgress: { type: Boolean, default: true },
+    /**
+     * Categoría temática de la encuesta (clima, liderazgo, NPS, …).
+     * Catálogo fijo en lib/surveyCategories.js.
+     */
+    categoria: {
+      type: String,
+      default: '',
+      trim: true,
+      index: true,
+      maxlength: 40,
+    },
     /**
      * Etiqueta opcional para filtrar/reportar (§16 onboarding).
      * El CRUD sigue siendo Admin → Encuestas; onboarding solo vincula surveyId.
@@ -59,11 +96,20 @@ const surveySchema = new mongoose.Schema(
     authorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     authorName: { type: String, default: '' },
     publishedAt: { type: Date, default: null },
+    /**
+     * Clave estable del seed demo (idempotente por tenant).
+     * Vacío en encuestas creadas a mano.
+     */
+    externalId: { type: String, default: '', trim: true, index: true },
   },
   { timestamps: true },
 )
 
 surveySchema.index({ tenantId: 1, status: 1, publishedAt: -1 })
+surveySchema.index(
+  { tenantId: 1, externalId: 1 },
+  { unique: true, partialFilterExpression: { externalId: { $type: 'string', $gt: '' } } },
+)
 
 export { SURVEY_QUESTION_TYPES } from '../lib/surveyQuestions.js'
 export const Survey = mongoose.model('Survey', surveySchema)

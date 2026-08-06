@@ -1,31 +1,48 @@
 <template>
-  <section class="feed">
-    <header class="feed-head">
-      <div class="feed-head-text">
-        <h1>Mis guardados</h1>
-        <p>Publicaciones que marcaste para ver después.</p>
-      </div>
-      <button
-        type="button"
-        class="filter-btn"
-        :class="{ on: filtersActive }"
-        :aria-label="filtersActive ? 'Filtros activos' : 'Filtrar guardados'"
-        title="Filtrar"
-        @click="filterOpen = true"
-      >
-        <AppIcon name="filter" :size="18" :filled="filtersActive" />
-        <span>Filtrar</span>
-        <span v-if="filtersActive" class="filter-dot" aria-hidden="true" />
-      </button>
-    </header>
+  <section class="subpage">
+    <SubpageHeader title="Mis guardados" subtitle="Para ver después">
+      <template #actions>
+        <button
+          type="button"
+          class="filter-btn"
+          :class="{ on: filtersActive }"
+          :aria-label="filtersActive ? 'Filtros activos' : 'Filtrar guardados'"
+          title="Filtrar"
+          @click="filterOpen = true"
+        >
+          <AppIcon name="filter" :size="18" :filled="filtersActive" />
+          <span>Filtrar</span>
+          <span v-if="filtersActive" class="filter-dot" aria-hidden="true" />
+        </button>
+      </template>
+    </SubpageHeader>
 
     <p v-if="filtersActive" class="filter-summary">
       {{ filterSummary }}
       <button type="button" class="filter-clear" @click="clearFilters">Quitar filtros</button>
     </p>
 
-    <p v-if="error" class="feed-banner">{{ error }}</p>
+    <p v-if="error && items.length" class="feed-banner">{{ error }}</p>
     <div v-if="loading && !items.length" class="feed-empty">Cargando guardados…</div>
+
+    <FeedEmptyState
+      v-else-if="!items.length && loadIssue"
+      :kind="loadIssue.kind"
+      :title="loadIssue.title"
+      :text="loadIssue.text"
+      @retry="() => load(true)"
+    />
+    <FeedEmptyState
+      v-else-if="!loading && !items.length"
+      kind="empty"
+      icon="bookmark"
+      :title="filtersActive ? 'Sin resultados' : 'Todavía no hay guardados'"
+      :text="
+        filtersActive
+          ? 'No hay guardados que coincidan con el filtro.'
+          : 'Cuando guardes algo del muro, va a aparecer acá.'
+      "
+    />
 
     <PostCard
       v-for="p in items"
@@ -71,13 +88,6 @@
       </template>
     </PostCard>
 
-    <div v-if="!loading && !items.length" class="feed-empty">
-      {{
-        filtersActive
-          ? 'No hay guardados que coincidan con el filtro.'
-          : 'Todavía no guardaste nada. En el muro tocá el marcador para guardar una publicación.'
-      }}
-    </div>
     <div ref="sentinel" class="feed-sentinel">
       <span v-if="loadingMore">Cargando más…</span>
     </div>
@@ -89,6 +99,7 @@
       :q="filters.q"
       :tipo="filters.tipo"
       :origin="filters.origin"
+      :section="filters.section"
       @close="filterOpen = false"
       @apply="applyFilters"
     />
@@ -104,6 +115,9 @@ import PostCard from '../components/PostCard.vue'
 import ReactionBar from '../components/ReactionBar.vue'
 import SharePostSheet from '../components/SharePostSheet.vue'
 import GuardadosFilterSheet from '../components/GuardadosFilterSheet.vue'
+import FeedEmptyState from '../components/FeedEmptyState.vue'
+import SubpageHeader from '../components/SubpageHeader.vue'
+import { describeLoadError, friendlyErrorMessage } from '../utils/networkError'
 
 const TIPO_LABELS = {
   noticia: 'Noticia',
@@ -126,16 +140,17 @@ const total = ref(0)
 const loading = ref(true)
 const loadingMore = ref(false)
 const error = ref('')
+const loadIssue = ref(null)
 const size = 10
 const hasMore = ref(false)
 const sentinel = ref(null)
 const shareTarget = ref(null)
 const filterOpen = ref(false)
-const filters = reactive({ q: '', tipo: '', origin: '' })
+const filters = reactive({ q: '', tipo: '', origin: '', section: '' })
 let observer
 
 const filtersActive = computed(
-  () => Boolean(filters.q?.trim() || filters.tipo || filters.origin),
+  () => Boolean(filters.q?.trim() || filters.tipo || filters.origin || filters.section?.trim()),
 )
 
 const filterSummary = computed(() => {
@@ -143,6 +158,7 @@ const filterSummary = computed(() => {
   if (filters.q?.trim()) parts.push(`“${filters.q.trim()}”`)
   if (filters.tipo) parts.push(TIPO_LABELS[filters.tipo] || filters.tipo)
   if (filters.origin) parts.push(ORIGIN_LABELS[filters.origin] || filters.origin)
+  if (filters.section?.trim()) parts.push(filters.section.trim())
   return parts.length ? `Filtro: ${parts.join(' · ')}` : ''
 })
 
@@ -158,11 +174,12 @@ function applyFilters(next) {
   filters.q = String(next?.q || '').trim()
   filters.tipo = next?.tipo || ''
   filters.origin = next?.origin || ''
+  filters.section = String(next?.section || '').trim()
   load(true)
 }
 
 function clearFilters() {
-  applyFilters({ q: '', tipo: '', origin: '' })
+  applyFilters({ q: '', tipo: '', origin: '', section: '' })
 }
 
 function filterParams() {
@@ -171,6 +188,7 @@ function filterParams() {
   if (q) params.q = q
   if (filters.tipo) params.tipo = filters.tipo
   if (filters.origin) params.origin = filters.origin
+  if (filters.section?.trim()) params.section = filters.section.trim()
   return params
 }
 
@@ -179,6 +197,7 @@ async function load(reset) {
   if (reset) {
     page.value = 1
     loading.value = true
+    loadIssue.value = null
   } else {
     if (!hasMore.value || loadingMore.value) return
     loadingMore.value = true
@@ -192,9 +211,15 @@ async function load(reset) {
     total.value = data.total || 0
     hasMore.value = items.value.length < total.value
     if (next.length) page.value += 1
+    loadIssue.value = null
   } catch (e) {
-    error.value = e.response?.data?.error || 'No se pudieron cargar los guardados.'
-    if (reset) items.value = []
+    const issue = describeLoadError(e, 'No se pudieron cargar los guardados.')
+    if (reset) {
+      loadIssue.value = issue
+      items.value = []
+    } else {
+      error.value = issue.text
+    }
   } finally {
     loading.value = false
     loadingMore.value = false
@@ -207,7 +232,7 @@ async function react(p, key) {
     const idx = items.value.findIndex((x) => x.id === p.id)
     if (idx >= 0 && data.post) items.value[idx] = data.post
   } catch (e) {
-    error.value = e.response?.data?.error || 'No se pudo reaccionar'
+    error.value = friendlyErrorMessage(e, 'No se pudo reaccionar')
   }
 }
 
@@ -222,7 +247,7 @@ async function toggleSave(p) {
     const idx = items.value.findIndex((x) => x.id === p.id)
     if (idx >= 0 && data.post) items.value[idx] = data.post
   } catch (e) {
-    error.value = e.response?.data?.error || 'No se pudo actualizar el guardado'
+    error.value = friendlyErrorMessage(e, 'No se pudo actualizar el guardado')
   }
 }
 
@@ -242,26 +267,8 @@ onBeforeUnmount(() => observer?.disconnect())
 </script>
 
 <style scoped>
-.feed-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 16px 16px 8px;
-}
-.feed-head-text {
-  min-width: 0;
-}
-.feed-head h1 {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 1.4rem;
-  color: var(--cx-text);
-}
-.feed-head p {
-  margin: 4px 0 0;
-  font-size: 13px;
-  color: var(--cx-muted);
+.subpage {
+  padding: 0 0 28px;
 }
 .filter-btn {
   position: relative;
@@ -295,7 +302,7 @@ onBeforeUnmount(() => observer?.disconnect())
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  margin: 0 16px 8px;
+  margin: 10px 16px 8px;
   font-size: 12px;
   color: var(--cx-muted);
 }
@@ -310,7 +317,7 @@ onBeforeUnmount(() => observer?.disconnect())
   cursor: pointer;
 }
 .feed-banner {
-  margin: 10px 14px;
+  margin: 10px 16px;
   padding: 10px 12px;
   border-radius: 12px;
   font-size: 13px;

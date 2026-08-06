@@ -367,9 +367,9 @@ onMounted(checkStatus)
   cursor: pointer;
 }
 .info-i:hover {
-  border-color: #0f766e;
-  color: #0f766e;
-  background: color-mix(in srgb, #0f766e 10%, transparent);
+  border-color: var(--brand-primary);
+  color: var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary) 10%, transparent);
 }
 .head h2 {
   margin: 0;
@@ -403,7 +403,7 @@ onMounted(checkStatus)
   color: var(--cx-muted);
 }
 .steps span.on {
-  color: #0f766e;
+  color: var(--brand-primary);
 }
 .steps span.done {
   color: var(--cx-text);
@@ -457,7 +457,7 @@ textarea.input {
 }
 .btn-primary {
   border: 0;
-  background: #0f766e;
+  background: var(--brand-primary);
   color: #fff;
   border-radius: 12px;
   padding: 11px 16px;
@@ -479,8 +479,8 @@ textarea.input {
 }
 .err {
   margin-top: 12px;
-  color: #b91c1c;
-  background: #fef2f2;
+  color: var(--bad);
+  background: var(--bad-bg);
   border-radius: 12px;
   padding: 10px 12px;
   font-size: 13px;
@@ -500,7 +500,7 @@ textarea.input {
 .pick-hint {
   margin: 0;
   font-weight: 700;
-  color: #0f766e;
+  color: var(--brand-primary);
 }
 .results {
   list-style: none;
@@ -519,8 +519,8 @@ textarea.input {
   background: var(--cx-surface);
 }
 .result.on {
-  border-color: #0f766e;
-  background: color-mix(in srgb, #0f766e 8%, var(--cx-surface));
+  border-color: var(--brand-primary);
+  background: color-mix(in srgb, var(--brand-primary) 8%, var(--cx-surface));
 }
 .result-check {
   padding-top: 4px;
@@ -552,7 +552,7 @@ textarea.input {
 .result-url {
   margin: 0;
   font-size: 12px;
-  color: #0f766e;
+  color: var(--brand-primary);
 }
 .result-title {
   display: block;
@@ -607,7 +607,7 @@ textarea.input {
   position: absolute;
   inset: 0;
   z-index: 2;
-  background: rgba(15, 23, 42, 0.45);
+  background: color-mix(in srgb, var(--ink) 45%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -664,7 +664,7 @@ textarea.input {
   margin-bottom: 6px;
 }
 .info-body a {
-  color: #0f766e;
+  color: var(--brand-primary);
   font-weight: 600;
 }
 .info-body code,
@@ -687,7 +687,7 @@ textarea.input {
   margin-top: 8px;
   padding: 10px 12px;
   border-radius: 10px;
-  background: color-mix(in srgb, #0f766e 10%, var(--cx-surface));
+  background: color-mix(in srgb, var(--brand-primary) 10%, var(--cx-surface));
   color: var(--cx-text);
 }
 .info-foot {
